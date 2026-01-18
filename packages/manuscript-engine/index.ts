@@ -13,6 +13,9 @@ export { PhiGuardService, getPhiGuard, PHIDetectedError, PHIScanFailureError } f
 export { DataMapperService, getDataMapper } from './src/services/data-mapper.service';
 export { DataTaggerService, getDataTagger } from './src/services/data-tagger.service';
 export { VersionControlService, getVersionControl } from './src/services/version-control.service';
+export { CitationManagerService, getCitationManager } from './src/services/citation-manager.service';
+export { ExportService, getExportService } from './src/services/export.service';
+export { ComplianceCheckerService, getComplianceChecker } from './src/services/compliance-checker.service';
 
 // Templates
 export * from './src/templates/table-templates';
