@@ -33,6 +33,15 @@ export * from './zotero.service';
 export * from './citation-formatter.service';
 export * from './relevance-scorer.service';
 
+// Phase 3: Structure Building Services
+export * from './abstract-generator.service';
+export * from './introduction-builder.service';
+export * from './methods-populator.service';
+export * from './results-scaffold.service';
+export * from './discussion-builder.service';
+export * from './references-builder.service';
+export * from './acknowledgments.service';
+
 // Phase 4: Writing Assistance Services
 export * from './abbreviation.service';
 export * from './citation-suggester.service';
