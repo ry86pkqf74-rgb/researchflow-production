@@ -1,6 +1,7 @@
 # ============================================
 # ResearchFlow Web - React Frontend
 # ============================================
+# Build context: repository root (.)
 
 # Base stage
 FROM node:20-alpine AS base
@@ -8,26 +9,29 @@ WORKDIR /app
 
 # Dependencies stage
 FROM base AS deps
-COPY package.json package-lock.json* ./
-RUN npm ci
 
-# Development stage
-FROM base AS development
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# Copy package files from web service
+COPY services/web/package.json ./
 
-EXPOSE 5173
+# Copy packages for type imports (only the types we need)
+COPY packages/core/package.json ./packages/core/
+COPY packages/core/types ./packages/core/types
+COPY packages/core/index.ts ./packages/core/
+COPY packages/core/src ./packages/core/src
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Install dependencies
+RUN npm install
 
 # Build stage
 FROM base AS build
 WORKDIR /app
 
-# Copy packages for workspace resolution
+# Copy installed dependencies
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY --from=deps /app/packages ./packages
+
+# Copy web source files
+COPY services/web/ ./
 
 # Build the application
 RUN npm run build
@@ -35,7 +39,7 @@ RUN npm run build
 # Production stage - Nginx
 FROM nginx:alpine AS production
 
-# Copy custom nginx config
+# Copy built assets
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Create nginx config for SPA routing

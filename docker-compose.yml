@@ -3,8 +3,8 @@ version: '3.8'
 services:
   orchestrator:
     build:
-      context: ./services/orchestrator
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
     ports:
       - "3001:3001"
     environment:
@@ -45,8 +45,8 @@ services:
 
   web:
     build:
-      context: ./services/web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/web/Dockerfile
     ports:
       - "5173:80"
     depends_on:

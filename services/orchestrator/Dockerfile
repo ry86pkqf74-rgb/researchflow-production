@@ -1,6 +1,7 @@
 # ============================================
 # ResearchFlow Orchestrator - Node.js Service
 # ============================================
+# Build context: repository root (.)
 
 # Base stage
 FROM node:20-alpine AS base
@@ -11,14 +12,34 @@ RUN apk add --no-cache python3 make g++ git
 
 # Dependencies stage
 FROM base AS deps
-COPY package.json package-lock.json* ./
-RUN npm ci --include=dev
+
+# Copy package files
+COPY services/orchestrator/package.json ./
+
+# Copy workspace packages
+COPY packages/core/package.json ./packages/core/
+COPY packages/core/types ./packages/core/types
+COPY packages/core/index.ts ./packages/core/
+COPY packages/core/src ./packages/core/src
+COPY packages/core/policy ./packages/core/policy
+
+COPY packages/phi-engine/package.json ./packages/phi-engine/
+COPY packages/phi-engine/index.ts ./packages/phi-engine/
+COPY packages/phi-engine/src ./packages/phi-engine/src
+
+COPY packages/ai-router/package.json ./packages/ai-router/
+COPY packages/ai-router/index.ts ./packages/ai-router/
+COPY packages/ai-router/src ./packages/ai-router/src
+
+# Install dependencies
+RUN npm install
 
 # Development stage
 FROM base AS development
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY --from=deps /app/packages ./packages
+COPY services/orchestrator/ ./
 
 ENV NODE_ENV=development
 EXPOSE 3001
@@ -29,7 +50,8 @@ CMD ["npm", "run", "dev"]
 FROM base AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY --from=deps /app/packages ./packages
+COPY services/orchestrator/ ./
 
 RUN npm run build
 

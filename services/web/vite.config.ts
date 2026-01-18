@@ -1,6 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'fs';
+
+// Detect if running in Docker (packages at ./packages) or local dev (packages at ../../packages)
+const packagesPath = fs.existsSync(path.resolve(__dirname, './packages/core'))
+  ? './packages'
+  : '../../packages';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -8,8 +14,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@packages/core': path.resolve(__dirname, '../../packages/core'),
-      '@packages/design-system': path.resolve(__dirname, '../../packages/design-system')
+      '@packages/core': path.resolve(__dirname, packagesPath, 'core'),
+      '@packages/design-system': path.resolve(__dirname, packagesPath, 'design-system')
     }
   },
   server: {
