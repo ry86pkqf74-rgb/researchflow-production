@@ -1,0 +1,104 @@
+# =============================================================================
+# STANDBY Configuration — AUTHORITATIVE DEFAULTS
+# =============================================================================
+# This file defines the STANDBY-safe configuration that MUST be enforced
+# when no explicit governance authorization is in effect.
+#
+# STANDBY is the FAIL-CLOSED default state. The application will refuse to
+# start if these invariants are violated.
+#
+# Governance Reference: docs/governance/phase_1_non_authority_invariants_declaration.md
+# =============================================================================
+
+# Configuration profile identifier
+profile: standby
+version: "1.0"
+description: "STANDBY-safe defaults — all sensitive operations disabled"
+
+# =============================================================================
+# SAFETY FLAGS (INVARIANTS)
+# =============================================================================
+# These flags are enforced by enforce_standby_invariants() at app startup.
+# Violation of any invariant prevents the application from starting.
+
+safety_flags:
+  # Mock-only mode: use synthetic data and mock responses only
+  # INVARIANT: Must be true in STANDBY
+  mock_only: true
+
+  # Network disabled: no external API calls permitted
+  # INVARIANT: Must be true in STANDBY
+  no_network: true
+
+  # Uploads disabled: file upload widgets are disabled
+  # INVARIANT: Must be false in STANDBY
+  allow_uploads: false
+
+  # Strict PHI enforcement: block uploads with HIGH-confidence PHI
+  # INVARIANT: Must be true ALWAYS (even outside STANDBY)
+  strict_phi_on_upload: true
+
+  # Phase 1 activation: advanced features NOT enabled
+  # INVARIANT: Must be false in STANDBY
+  phase1_active: false
+
+# =============================================================================
+# OPERATIONAL CONSTRAINTS
+# =============================================================================
+
+operations:
+  # Results sections: always [PENDING] in STANDBY
+  results_locked: true
+  results_placeholder: "[PENDING — populated only after analysis phase]"
+
+  # Data processing: synthetic only
+  data_mode: synthetic
+  allowed_data_sources:
+    - fixtures
+    - synthetic
+
+  # Logging: required for all governance events
+  governance_logging: true
+  log_destination: "reports/local"  # gitignored
+
+  # Handoff packs: metadata only, no raw values
+  handoff_mode: metadata_only
+  handoff_results: "[PENDING]"
+
+# =============================================================================
+# PROVIDER CONFIGURATION
+# =============================================================================
+
+providers:
+  # Literature provider: mock only in STANDBY
+  literature:
+    type: mock
+    enabled: false  # Disabled when no_network=true
+
+  # LLM provider: offline handoff only
+  llm:
+    type: offline_handoff
+    enabled: true
+    api_calls: false  # No direct API calls
+
+  # Storage provider: local only
+  storage:
+    type: local
+    path: "reports/local"
+
+# =============================================================================
+# ENFORCEMENT
+# =============================================================================
+
+enforcement:
+  # Fail-closed behavior
+  fail_closed: true
+
+  # Invariant check at startup
+  check_invariants_on_startup: true
+
+  # Rollback always permitted
+  allow_rollback: true
+
+  # Phase 1 activation requires explicit authorization
+  phase1_requires_approval: true

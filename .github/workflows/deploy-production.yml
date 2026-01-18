@@ -1,0 +1,180 @@
+name: Deploy to Production
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  KUBE_NAMESPACE: researchflow-production
+
+jobs:
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "push" ]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Deploying version: $VERSION"
+
+      - name: Verify image exists
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Check if images exist in registry
+          docker manifest inspect ghcr.io/${{ github.repository_owner }}/researchflow/orchestrator:$VERSION || exit 1
+          docker manifest inspect ghcr.io/${{ github.repository_owner }}/researchflow/worker:$VERSION || exit 1
+          docker manifest inspect ghcr.io/${{ github.repository_owner }}/researchflow/web:$VERSION || exit 1
+        env:
+          DOCKER_CLI_EXPERIMENTAL: enabled
+
+  approve:
+    name: Manual Approval
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Approval granted
+        run: echo "Deployment approved for version ${{ needs.validate.outputs.version }}"
+
+  backup:
+    name: Backup Database
+    needs: approve
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+
+      - name: Create database backup
+        run: |
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          kubectl exec -n ${{ env.KUBE_NAMESPACE }} deployment/postgres -- \
+            pg_dump -U ros ros | gzip > backup_$TIMESTAMP.sql.gz
+
+          # Upload to backup storage (e.g., S3)
+          # aws s3 cp backup_$TIMESTAMP.sql.gz s3://researchflow-backups/
+
+  deploy:
+    name: Deploy to Production
+    needs: [validate, approve, backup]
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+
+      - name: Update image tags
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          cd infrastructure/kubernetes/overlays/production
+
+          # Update kustomization with version
+          sed -i "s/newTag: .*/newTag: $VERSION/" kustomization.yaml
+
+      - name: Deploy with Kustomize
+        run: |
+          kubectl apply -k infrastructure/kubernetes/overlays/production
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/orchestrator -n ${{ env.KUBE_NAMESPACE }} --timeout=600s
+          kubectl rollout status deployment/worker -n ${{ env.KUBE_NAMESPACE }} --timeout=600s
+          kubectl rollout status deployment/web -n ${{ env.KUBE_NAMESPACE }} --timeout=600s
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n ${{ env.KUBE_NAMESPACE }}
+          kubectl get services -n ${{ env.KUBE_NAMESPACE }}
+
+  verify:
+    name: Post-Deploy Verification
+    needs: deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Health checks
+        run: |
+          PROD_URL="${{ secrets.PRODUCTION_URL }}"
+
+          # Multiple health check attempts
+          for i in {1..5}; do
+            if curl -sf "$PROD_URL/health"; then
+              echo "Health check passed"
+              break
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+
+          # API health
+          curl -f "$PROD_URL/api/health" || exit 1
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "Production deployment successful: ${{ needs.validate.outputs.version }}"
+          # Add Slack/Teams notification here
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "Production deployment failed: ${{ needs.validate.outputs.version }}"
+          # Add Slack/Teams notification here
+          # Consider auto-rollback here
+
+  rollback:
+    name: Rollback (Manual)
+    needs: deploy
+    if: failure()
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+
+      - name: Rollback deployments
+        run: |
+          kubectl rollout undo deployment/orchestrator -n ${{ env.KUBE_NAMESPACE }}
+          kubectl rollout undo deployment/worker -n ${{ env.KUBE_NAMESPACE }}
+          kubectl rollout undo deployment/web -n ${{ env.KUBE_NAMESPACE }}
+
+      - name: Wait for rollback
+        run: |
+          kubectl rollout status deployment/orchestrator -n ${{ env.KUBE_NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/worker -n ${{ env.KUBE_NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/web -n ${{ env.KUBE_NAMESPACE }} --timeout=300s

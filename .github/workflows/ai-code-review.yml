@@ -1,0 +1,424 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    # Only review code changes, not docs/config
+    paths:
+      - '**.ts'
+      - '**.tsx'
+      - '**.js'
+      - '**.jsx'
+
+# Prevent multiple reviews on rapid pushes
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # Stage 1: Run linters before AI review
+  lint:
+    name: Lint Check
+    runs-on: ubuntu-latest
+    outputs:
+      lint_passed: ${{ steps.lint.outcome == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run ESLint
+        id: lint
+        continue-on-error: true
+        run: |
+          # Get changed files
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep -E '\.(ts|tsx|js|jsx)$' > changed_files.txt || true
+
+          if [ -s changed_files.txt ]; then
+            echo "Linting changed files:"
+            cat changed_files.txt
+            npx eslint $(cat changed_files.txt | tr '\n' ' ') --format=json --output-file=eslint-results.json || true
+          else
+            echo "No TypeScript/JavaScript files changed"
+            echo "[]" > eslint-results.json
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lint-results
+          path: eslint-results.json
+          retention-days: 1
+
+  # Stage 2: Primary AI Reviewer (MINI model)
+  ai-review:
+    name: AI Code Review
+    runs-on: ubuntu-latest
+    needs: lint
+    # Only run if ANTHROPIC_API_KEY is available
+    if: ${{ vars.AI_REVIEW_ENABLED == 'true' }}
+    outputs:
+      has_issues: ${{ steps.review.outputs.has_issues }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Get PR Diff
+        id: diff
+        run: |
+          git diff ${{ github.event.pull_request.base.sha }}...${{ github.sha }} > pr_diff.txt
+          echo "diff_size=$(wc -c < pr_diff.txt)" >> $GITHUB_OUTPUT
+
+      - name: AI Review
+        id: review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Create review script
+          cat > review.mjs << 'EOF'
+          import Anthropic from '@anthropic-ai/sdk';
+          import fs from 'fs';
+
+          const anthropic = new Anthropic();
+
+          const diff = fs.readFileSync('pr_diff.txt', 'utf-8');
+          const prTitle = process.env.PR_TITLE || 'Unknown';
+          const prBody = process.env.PR_BODY || '';
+
+          // Truncate diff if too large
+          const maxDiffSize = 50000;
+          const truncatedDiff = diff.length > maxDiffSize
+            ? diff.slice(0, maxDiffSize) + '\n... (truncated)'
+            : diff;
+
+          const systemPrompt = `You are an expert code reviewer for a healthcare research platform.
+          Focus on:
+          1. Security vulnerabilities (OWASP Top 10, PHI exposure)
+          2. TypeScript/JavaScript best practices
+          3. Potential bugs and logic errors
+          4. Performance issues
+          5. Code maintainability
+
+          DO NOT comment on:
+          - Style preferences (formatting, naming conventions)
+          - Minor improvements that don't affect functionality
+          - Suggestions that are already well-implemented
+
+          Output JSON only:
+          {
+            "summary": "Brief overall assessment",
+            "issues": [
+              {
+                "severity": "critical|high|medium|low",
+                "file": "path/to/file",
+                "line": 123,
+                "title": "Short issue title",
+                "description": "Detailed explanation",
+                "suggestion": "How to fix"
+              }
+            ],
+            "approvalRecommendation": "approve|request_changes|comment"
+          }
+
+          IMPORTANT:
+          - Only report REAL issues, not style preferences
+          - Be specific about line numbers and files
+          - Critical = security vulnerability or data loss
+          - High = significant bug or PHI risk
+          - Medium = moderate bug or performance issue
+          - Low = minor improvement`;
+
+          const userPrompt = `Review this Pull Request:
+
+          Title: ${prTitle}
+          Description: ${prBody}
+
+          Diff:
+          \`\`\`
+          ${truncatedDiff}
+          \`\`\`
+
+          Provide your code review in JSON format.`;
+
+          try {
+            const response = await anthropic.messages.create({
+              model: 'claude-sonnet-4-5-20250929',
+              max_tokens: 4096,
+              temperature: 0.3,
+              system: systemPrompt,
+              messages: [{ role: 'user', content: userPrompt }],
+            });
+
+            const content = response.content[0]?.text || '{}';
+            fs.writeFileSync('review-raw.json', content);
+
+            // Parse JSON from response
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const review = JSON.parse(jsonMatch[0]);
+              fs.writeFileSync('review.json', JSON.stringify(review, null, 2));
+
+              const hasIssues = review.issues?.length > 0;
+              console.log(`has_issues=${hasIssues}`);
+
+              // Write output for next job
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_issues=${hasIssues}\n`);
+            }
+          } catch (error) {
+            console.error('AI Review failed:', error);
+            fs.writeFileSync('review.json', JSON.stringify({
+              summary: 'AI review failed',
+              issues: [],
+              approvalRecommendation: 'comment'
+            }));
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'has_issues=false\n');
+          }
+          EOF
+
+          node review.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-review-results
+          path: review.json
+          retention-days: 7
+
+  # Stage 3: Evaluator Agent (NANO model) - Filter false positives
+  evaluate:
+    name: Filter False Positives
+    runs-on: ubuntu-latest
+    needs: ai-review
+    if: ${{ needs.ai-review.outputs.has_issues == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ai-review-results
+
+      - name: Evaluate Issues
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cat > evaluate.mjs << 'EOF'
+          import Anthropic from '@anthropic-ai/sdk';
+          import fs from 'fs';
+
+          const anthropic = new Anthropic();
+          const review = JSON.parse(fs.readFileSync('review.json', 'utf-8'));
+
+          if (!review.issues || review.issues.length === 0) {
+            fs.writeFileSync('filtered-review.json', JSON.stringify(review));
+            process.exit(0);
+          }
+
+          const systemPrompt = `You are a code review evaluator. Given a list of issues found by another reviewer, determine which are legitimate issues and which are false positives.
+
+          A false positive is:
+          - Style preference, not a real issue
+          - Already handled elsewhere in the codebase
+          - Overly pedantic criticism
+          - Based on misunderstanding the code
+
+          Output JSON only:
+          {
+            "validIssues": [...issues that are legitimate],
+            "falsePositives": [...issues that should be filtered out],
+            "reasoning": "Brief explanation of filtering decisions"
+          }`;
+
+          try {
+            const response = await anthropic.messages.create({
+              model: 'claude-haiku-4-5-20251001',
+              max_tokens: 2048,
+              temperature: 0.1,
+              system: systemPrompt,
+              messages: [{
+                role: 'user',
+                content: `Evaluate these code review issues:\n${JSON.stringify(review.issues, null, 2)}`
+              }],
+            });
+
+            const content = response.content[0]?.text || '{}';
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+
+            if (jsonMatch) {
+              const evaluation = JSON.parse(jsonMatch[0]);
+              const filteredReview = {
+                ...review,
+                issues: evaluation.validIssues || [],
+                filteredCount: (evaluation.falsePositives || []).length,
+                evaluationReasoning: evaluation.reasoning
+              };
+              fs.writeFileSync('filtered-review.json', JSON.stringify(filteredReview, null, 2));
+            }
+          } catch (error) {
+            console.error('Evaluation failed:', error);
+            fs.writeFileSync('filtered-review.json', JSON.stringify(review));
+          }
+          EOF
+
+          node evaluate.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: filtered-review
+          path: filtered-review.json
+          retention-days: 7
+
+  # Stage 4: Post consolidated comment to PR
+  comment:
+    name: Post Review Comment
+    runs-on: ubuntu-latest
+    needs: [lint, ai-review, evaluate]
+    if: always() && needs.ai-review.result == 'success'
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: lint-results
+        continue-on-error: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: filtered-review
+        continue-on-error: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ai-review-results
+        continue-on-error: true
+
+      - name: Generate Comment
+        id: comment
+        run: |
+          # Use filtered review if available, otherwise raw review
+          if [ -f filtered-review.json ]; then
+            REVIEW_FILE="filtered-review.json"
+          elif [ -f review.json ]; then
+            REVIEW_FILE="review.json"
+          else
+            echo "No review results found"
+            exit 0
+          fi
+
+          cat > generate-comment.mjs << 'EOF'
+          import fs from 'fs';
+
+          const reviewFile = process.argv[2];
+          const review = JSON.parse(fs.readFileSync(reviewFile, 'utf-8'));
+
+          let comment = '## 🤖 AI Code Review\n\n';
+
+          // Summary
+          comment += `### Summary\n${review.summary || 'No summary available'}\n\n`;
+
+          // Recommendation
+          const emoji = {
+            'approve': '✅',
+            'request_changes': '⚠️',
+            'comment': '💬'
+          };
+          const rec = review.approvalRecommendation || 'comment';
+          comment += `**Recommendation**: ${emoji[rec] || '💬'} ${rec.replace('_', ' ')}\n\n`;
+
+          // Issues
+          if (review.issues && review.issues.length > 0) {
+            comment += `### Issues Found (${review.issues.length})\n\n`;
+
+            const severityOrder = ['critical', 'high', 'medium', 'low'];
+            const sortedIssues = [...review.issues].sort(
+              (a, b) => severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity)
+            );
+
+            for (const issue of sortedIssues) {
+              const severityEmoji = {
+                'critical': '🚨',
+                'high': '❗',
+                'medium': '⚡',
+                'low': '💡'
+              };
+              comment += `#### ${severityEmoji[issue.severity] || '📝'} [${issue.severity.toUpperCase()}] ${issue.title}\n`;
+              comment += `📁 \`${issue.file}\`${issue.line ? `:${issue.line}` : ''}\n\n`;
+              comment += `${issue.description}\n\n`;
+              if (issue.suggestion) {
+                comment += `💡 **Suggestion**: ${issue.suggestion}\n\n`;
+              }
+              comment += '---\n\n';
+            }
+          } else {
+            comment += '### ✨ No Issues Found\n\nLooks good! No significant issues detected.\n\n';
+          }
+
+          // Filtered count
+          if (review.filteredCount > 0) {
+            comment += `*${review.filteredCount} low-confidence issues were filtered out.*\n\n`;
+          }
+
+          comment += '---\n*This review was generated by AI. Please verify critical findings manually.*';
+
+          fs.writeFileSync('comment.md', comment);
+          EOF
+
+          node generate-comment.mjs "$REVIEW_FILE"
+
+      - name: Post Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const comment = fs.readFileSync('comment.md', 'utf-8');
+
+            // Find and update existing comment or create new one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('AI Code Review')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }

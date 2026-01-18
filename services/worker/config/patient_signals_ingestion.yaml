@@ -1,0 +1,45 @@
+# Patient-Generated Signals Ingestion Configuration
+#
+# Defines default paths and column mappings for ingesting patient-generated signals
+# (PROMs, symptoms, wearables, adherence data) into the ROS pipeline.
+#
+# All paths are relative to repository root.
+# CLI arguments override these defaults.
+
+# Input: Raw signals file (CSV or Parquet)
+# Expected columns after mapping: research_id, signal_time, signal_type, signal_name,
+#                                  signal_value_num, signal_value_text, etc.
+input_path: "data/sample/patient_signals_sample.csv"
+
+# Episodes: Canonical episodes file for temporal linking
+# Required columns: research_id, episode_id, episode_start, episode_end
+episodes_path: "data/processed/episodes/episodes.parquet"
+
+# Output: Canonical signals with episode linkage
+output_path: "data/processed/patient_signals/signals_linked.parquet"
+
+# Column mappings: Rename raw columns to canonical schema
+# Example mappings for common source systems:
+column_mappings:
+  # Map raw column names to canonical names
+  # Uncomment and customize for your data source:
+  # patient_id: research_id
+  # timestamp: signal_time
+  # type: signal_type
+  # name: signal_name
+  # value_numeric: signal_value_num
+  # value_text: signal_value_text
+  # source: source_system
+
+# Additional settings (optional)
+validation:
+  enabled: true  # Validate against patient_generated_signals_schema
+  strict: false  # Fail on validation errors (false = warnings only)
+
+linkage:
+  enabled: true  # Link signals to episodes
+  overwrite_existing: false  # Preserve existing episode_id values
+
+output:
+  generate_fingerprint: false  # Generate cryptographic fingerprint sidecar
+  generate_qa: true  # Generate QA summary artifact

@@ -1,0 +1,470 @@
+openapi: 3.0.3
+info:
+  title: ResearchFlow Production API
+  description: |
+    API contract between the Node.js Orchestrator and Python Worker services.
+
+    ## Architecture
+    - **Orchestrator**: Node.js service handling auth, RBAC, uploads, job queue, AI routing
+    - **Worker**: Python service for data validation, analysis, 19-stage workflow
+
+    ## Job Flow
+    1. Client submits request to Orchestrator
+    2. Orchestrator validates, enqueues job in Redis
+    3. Worker picks up job, processes, stores artifacts
+    4. Worker calls back to Orchestrator with results
+    5. Orchestrator updates status, notifies client
+  version: 1.0.0
+  contact:
+    name: ResearchFlow Team
+
+servers:
+  - url: http://localhost:3001
+    description: Local Orchestrator
+  - url: http://localhost:8000
+    description: Local Worker
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Jobs
+    description: Job management
+  - name: Artifacts
+    description: Artifact access
+  - name: Governance
+    description: PHI and governance endpoints
+
+paths:
+  # Health Endpoints
+  /health:
+    get:
+      tags: [Health]
+      summary: Basic health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                  service:
+                    type: string
+                  version:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness check (all dependencies ready)
+      responses:
+        '200':
+          description: Service is ready
+        '503':
+          description: Service not ready
+
+  # Job Endpoints (Orchestrator)
+  /api/jobs:
+    post:
+      tags: [Jobs]
+      summary: Submit a new job
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobRequest'
+      responses:
+        '202':
+          description: Job accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, queued]
+                  estimatedStartTime:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [Jobs]
+      summary: List jobs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, running, completed, failed]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/JobSummary'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+
+  /api/jobs/{jobId}:
+    get:
+      tags: [Jobs]
+      summary: Get job details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/jobs/{jobId}/cancel:
+    post:
+      tags: [Jobs]
+      summary: Cancel a pending or running job
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job cancelled
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Job cannot be cancelled (already completed)
+
+  # Worker Callback (Internal)
+  /api/jobs/{jobId}/callback:
+    post:
+      tags: [Jobs]
+      summary: Worker callback with job result
+      description: Called by worker when job completes
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobResult'
+      responses:
+        '200':
+          description: Result acknowledged
+
+  # Artifact Endpoints
+  /api/artifacts/{artifactId}:
+    get:
+      tags: [Artifacts]
+      summary: Get artifact metadata
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: artifactId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Artifact metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Artifact'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/artifacts/{artifactId}/download:
+    get:
+      tags: [Artifacts]
+      summary: Download artifact content
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: artifactId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Artifact content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Governance Endpoints
+  /api/governance/phi/reveal:
+    post:
+      tags: [Governance]
+      summary: Request PHI reveal token
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resourceId, reason]
+              properties:
+                resourceId:
+                  type: string
+                reason:
+                  type: string
+                  minLength: 10
+      responses:
+        '200':
+          description: Reveal token generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date-time
+        '403':
+          description: PHI reveal blocked (DEMO mode)
+
+  /api/governance/phi/audit:
+    get:
+      tags: [Governance]
+      summary: Get PHI access audit log
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLogEntry'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    JobRequest:
+      type: object
+      required: [type, config]
+      properties:
+        type:
+          type: string
+          enum: [validation, analysis, stage_run, artifact_generation]
+        datasetPointer:
+          type: string
+        config:
+          type: object
+        stages:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+            maximum: 19
+        priority:
+          type: string
+          enum: [low, normal, high, critical]
+          default: normal
+        callbackUrl:
+          type: string
+          format: uri
+
+    JobSummary:
+      type: object
+      properties:
+        jobId:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        progress:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    JobDetails:
+      allOf:
+        - $ref: '#/components/schemas/JobSummary'
+        - type: object
+          properties:
+            config:
+              type: object
+            result:
+              type: object
+            artifacts:
+              type: array
+              items:
+                $ref: '#/components/schemas/Artifact'
+            error:
+              type: object
+
+    JobResult:
+      type: object
+      required: [jobId, status, completedAt]
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+          enum: [completed, failed, cancelled, timeout]
+        completedAt:
+          type: string
+          format: date-time
+        result:
+          type: object
+        artifacts:
+          type: array
+          items:
+            type: object
+        error:
+          type: object
+
+    Artifact:
+      type: object
+      properties:
+        artifactId:
+          type: string
+        type:
+          type: string
+        name:
+          type: string
+        path:
+          type: string
+        mimeType:
+          type: string
+        sizeBytes:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    AuditLogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        action:
+          type: string
+        resourceType:
+          type: string
+        resourceId:
+          type: string
+        userId:
+          type: string
+        reason:
+          type: string
+        accessedAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object

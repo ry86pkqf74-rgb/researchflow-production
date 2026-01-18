@@ -1,0 +1,338 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/integration_rules.schema.json",
+  "title": "Integration Rules Schema",
+  "description": "Schema for deterministic event-linking rules (imaging↔surgery, molecular↔pathology). Defines time windows, tie-breakers, and deduplication strategies for cross-modal linkage.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "rule_sets",
+    "metadata"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the schema this file conforms to"
+    },
+    "rule_sets": {
+      "type": "object",
+      "description": "Named rule sets for different integration scenarios",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/rule_set"
+      }
+    },
+    "metadata": {
+      "$ref": "#/$defs/metadata"
+    }
+  },
+  "$defs": {
+    "rule_set": {
+      "type": "object",
+      "description": "A complete rule set for linking source events to target events",
+      "required": [
+        "description",
+        "source_entity",
+        "target_entity",
+        "time_windows",
+        "tie_breakers",
+        "deduplication"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable description of this rule set's purpose"
+        },
+        "source_entity": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Entity type being linked FROM (e.g., IMAGING, MOLECULAR)"
+        },
+        "target_entity": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Entity type being linked TO (e.g., SURGICAL, PATHOLOGY)"
+        },
+        "time_windows": {
+          "$ref": "#/$defs/time_windows"
+        },
+        "match_requirements": {
+          "$ref": "#/$defs/match_requirements"
+        },
+        "tie_breakers": {
+          "$ref": "#/$defs/tie_breakers"
+        },
+        "deduplication": {
+          "$ref": "#/$defs/deduplication"
+        },
+        "confidence_thresholds": {
+          "$ref": "#/$defs/confidence_thresholds"
+        }
+      }
+    },
+    "time_windows": {
+      "type": "object",
+      "description": "Time window constraints for valid linkages",
+      "required": [
+        "default"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "$ref": "#/$defs/time_window",
+          "description": "Primary time window for candidate matching"
+        },
+        "fallback": {
+          "$ref": "#/$defs/time_window",
+          "description": "Extended time window when no default matches exist"
+        }
+      }
+    },
+    "time_window": {
+      "type": "object",
+      "description": "A single time window specification",
+      "required": [
+        "min_days",
+        "max_days"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "min_days": {
+          "type": "integer",
+          "description": "Minimum days offset (negative = before target, positive = after target)"
+        },
+        "max_days": {
+          "type": "integer",
+          "description": "Maximum days offset (negative = before target, positive = after target)"
+        },
+        "reference_point": {
+          "type": "string",
+          "enum": [
+            "target_date",
+            "source_date"
+          ],
+          "default": "target_date",
+          "description": "Which date the offset is relative to"
+        }
+      }
+    },
+    "match_requirements": {
+      "type": "object",
+      "description": "Required field matches for valid linkage candidates",
+      "additionalProperties": false,
+      "properties": {
+        "exact_match_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Fields that must match exactly (e.g., patient_id, specimen_id)"
+        },
+        "laterality_rule": {
+          "type": "string",
+          "enum": [
+            "exact_match",
+            "match_or_bilateral_target",
+            "match_or_bilateral_source",
+            "any"
+          ],
+          "description": "How to handle laterality matching"
+        },
+        "anatomic_site_rule": {
+          "type": "string",
+          "enum": [
+            "exact_match",
+            "hierarchical_match",
+            "any"
+          ],
+          "description": "How to handle anatomic site matching (e.g., neck level)"
+        }
+      }
+    },
+    "tie_breakers": {
+      "type": "object",
+      "description": "Ordered strategies for resolving multiple candidate matches",
+      "required": [
+        "strategy_order"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "strategy_order": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tie_breaker_strategy"
+          },
+          "minItems": 1,
+          "description": "Ordered list of tie-breaking strategies (applied sequentially until one candidate remains)"
+        }
+      }
+    },
+    "tie_breaker_strategy": {
+      "type": "object",
+      "description": "A single tie-breaking strategy",
+      "required": [
+        "strategy",
+        "description"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "laterality_match",
+            "anatomic_site_match",
+            "nearest_date",
+            "highest_value",
+            "lowest_value",
+            "most_recent",
+            "earliest",
+            "specimen_accession_match",
+            "exact_specimen_match"
+          ],
+          "description": "The tie-breaking strategy to apply"
+        },
+        "field": {
+          "type": "string",
+          "description": "Field name to use for value-based strategies (e.g., VAF for highest_value)"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable explanation of this strategy"
+        }
+      }
+    },
+    "deduplication": {
+      "type": "object",
+      "description": "Strategy for handling duplicate linkages",
+      "required": [
+        "strategy",
+        "description"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "keep_first",
+            "keep_last",
+            "keep_highest_value",
+            "keep_lowest_value",
+            "keep_all",
+            "merge"
+          ],
+          "description": "How to handle multiple valid linkages after tie-breaking"
+        },
+        "field": {
+          "type": "string",
+          "description": "Field name for value-based deduplication (e.g., VAF)"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable explanation of this strategy"
+        }
+      }
+    },
+    "confidence_thresholds": {
+      "type": "object",
+      "description": "Optional confidence scoring thresholds",
+      "additionalProperties": false,
+      "properties": {
+        "high": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum score for HIGH confidence classification"
+        },
+        "medium": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum score for MEDIUM confidence classification"
+        },
+        "low": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum score for LOW confidence classification"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "File metadata for governance and versioning",
+      "required": [
+        "version",
+        "status",
+        "execution_permitted"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version of this configuration file"
+        },
+        "created": {
+          "type": "string",
+          "format": "date",
+          "description": "Date this file was created (YYYY-MM-DD)"
+        },
+        "last_modified": {
+          "type": "string",
+          "format": "date",
+          "description": "Date this file was last modified (YYYY-MM-DD)"
+        },
+        "governance": {
+          "type": "string",
+          "description": "Reference to governing policy (e.g., SSAP v1.0)"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "specification_only",
+            "active",
+            "deprecated"
+          ],
+          "description": "Lifecycle status of this configuration"
+        },
+        "execution_permitted": {
+          "type": "boolean",
+          "description": "Whether automated execution using these rules is allowed"
+        },
+        "changelog": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "version",
+              "date",
+              "changes"
+            ],
+            "properties": {
+              "version": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "changes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "description": "Version history with change descriptions"
+        }
+      }
+    }
+  }
+}

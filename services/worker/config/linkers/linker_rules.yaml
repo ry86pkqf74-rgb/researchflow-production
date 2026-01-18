@@ -1,0 +1,249 @@
+# Cross-Modal Linker Rules Configuration
+# Version: 1.0.0
+# Status: SPECIFICATION ONLY — No Execution
+# Governance: SSAP v1.0 Compliant
+
+# =============================================================================
+# ENTITY DEFINITIONS
+# =============================================================================
+entities:
+  MOLECULAR:
+    description: "Genomic/mutation assay result"
+    source_patterns:
+      - "molecular_*"
+      - "assay_*"
+    required_fields:
+      - patient_id
+      - event_date
+      - laterality
+      - event_id
+      - assay_type
+
+  IMAGING:
+    description: "Diagnostic imaging study"
+    source_patterns:
+      - "imaging_*"
+      - "ultrasound_*"
+      - "ct_*"
+    required_fields:
+      - patient_id
+      - event_date
+      - laterality
+      - event_id
+      - modality
+
+  SURGICAL:
+    description: "Operative procedure"
+    source_patterns:
+      - "surgery_*"
+      - "procedure_*"
+    required_fields:
+      - patient_id
+      - event_date
+      - laterality
+      - event_id
+      - procedure_type
+
+  PATHOLOGY:
+    description: "Histopathology result"
+    source_patterns:
+      - "pathology_*"
+      - "histology_*"
+    required_fields:
+      - patient_id
+      - event_date
+      - laterality
+      - event_id
+      - diagnosis
+
+  CYTOLOGY:
+    description: "Fine needle aspiration cytology"
+    source_patterns:
+      - "fna_*"
+      - "cytology_*"
+    required_fields:
+      - patient_id
+      - event_date
+      - laterality
+      - event_id
+      - bethesda_category
+
+# =============================================================================
+# LINK TYPE SPECIFICATIONS
+# =============================================================================
+link_types:
+  L-01_molecular_surgical:
+    source_entity: MOLECULAR
+    target_entity: SURGICAL
+    directionality: forward
+    description: "Link molecular assay results to subsequent surgical procedures"
+    time_window:
+      min_days: 0
+      max_days: 180
+      reference: source_to_target
+    laterality_rule: match_or_bilateral_target
+    cardinality: many_to_one
+    confidence_adjustments:
+      window_position_weight: 0.3
+      laterality_match_weight: 0.7
+
+  L-02_imaging_surgical:
+    source_entity: IMAGING
+    target_entity: SURGICAL
+    directionality: forward
+    description: "Link pre-operative imaging to surgical procedures"
+    time_window:
+      min_days: -90
+      max_days: 0
+      reference: relative_to_target
+    laterality_rule: match_or_bilateral_target
+    cardinality: many_to_one
+    confidence_adjustments:
+      window_position_weight: 0.4
+      laterality_match_weight: 0.6
+
+  L-03_molecular_imaging:
+    source_entity: MOLECULAR
+    target_entity: IMAGING
+    directionality: bidirectional
+    description: "Link molecular results to related imaging studies"
+    time_window:
+      min_days: -60
+      max_days: 60
+      reference: symmetric
+    laterality_rule: exact_match
+    cardinality: many_to_many
+    confidence_adjustments:
+      window_position_weight: 0.5
+      laterality_match_weight: 0.5
+
+  L-04_cytology_molecular:
+    source_entity: CYTOLOGY
+    target_entity: MOLECULAR
+    directionality: forward
+    description: "Link FNA cytology to molecular testing on same specimen"
+    time_window:
+      min_days: 0
+      max_days: 30
+      reference: source_to_target
+    laterality_rule: exact_match
+    cardinality: one_to_one
+    confidence_adjustments:
+      window_position_weight: 0.2
+      laterality_match_weight: 0.8
+
+# =============================================================================
+# LATERALITY PRECEDENCE RULES
+# =============================================================================
+laterality_rules:
+  valid_values:
+    - LEFT
+    - RIGHT
+    - BILATERAL
+    - MIDLINE
+    - NA
+
+  compatibility_matrix:
+    # Format: source_laterality -> target_laterality -> confidence_level
+    LEFT:
+      LEFT: HIGH
+      RIGHT: REJECTED
+      BILATERAL: MEDIUM
+      MIDLINE: REJECTED
+      NA: LOW
+    RIGHT:
+      LEFT: REJECTED
+      RIGHT: HIGH
+      BILATERAL: MEDIUM
+      MIDLINE: REJECTED
+      NA: LOW
+    BILATERAL:
+      LEFT: MEDIUM
+      RIGHT: MEDIUM
+      BILATERAL: HIGH
+      MIDLINE: REJECTED
+      NA: LOW
+    MIDLINE:
+      LEFT: REJECTED
+      RIGHT: REJECTED
+      BILATERAL: REJECTED
+      MIDLINE: HIGH
+      NA: LOW
+    NA:
+      LEFT: LOW
+      RIGHT: LOW
+      BILATERAL: LOW
+      MIDLINE: LOW
+      NA: LOW
+
+  matching_rules:
+    match_or_bilateral_target:
+      description: "Source must match target OR target is BILATERAL"
+      accepts_na: true
+    exact_match:
+      description: "Source laterality must exactly match target"
+      accepts_na: false
+
+# =============================================================================
+# CONFIDENCE CATEGORIES
+# =============================================================================
+confidence_categories:
+  HIGH:
+    code: "H"
+    min_score: 0.8
+    criteria:
+      - "Exact laterality match"
+      - "Within 50% of time window"
+
+  MEDIUM:
+    code: "M"
+    min_score: 0.5
+    criteria:
+      - "Compatible laterality"
+      - "Within full time window"
+
+  LOW:
+    code: "L"
+    min_score: 0.2
+    criteria:
+      - "NA laterality present"
+      - "Edge of time window (>80%)"
+
+  REJECTED:
+    code: "X"
+    min_score: 0.0
+    criteria:
+      - "Incompatible laterality"
+      - "Outside time window"
+
+# =============================================================================
+# VALIDATION RULES (V-17 STYLE)
+# =============================================================================
+validation_rules:
+  schema_completeness:
+    - "All entities have required_fields defined"
+    - "All link_types reference valid entities"
+    - "All time_windows have min_days and max_days"
+
+  enum_validity:
+    - "laterality values in valid_values list"
+    - "confidence codes in confidence_categories"
+    - "cardinality in [one_to_one, one_to_many, many_to_one, many_to_many]"
+
+  window_sanity:
+    - "min_days <= max_days for all windows"
+    - "Bidirectional links have symmetric windows"
+
+  cardinality_consistency:
+    - "one_to_one links cannot have many_to_many inverse"
+    - "Inverse link types have compatible cardinality"
+
+# =============================================================================
+# METADATA
+# =============================================================================
+metadata:
+  version: "1.0.0"
+  created: "2025-12-25"
+  governance: "SSAP v1.0"
+  status: "specification_only"
+  execution_permitted: false

@@ -1,0 +1,135 @@
+# Integration Rules Configuration
+# Version: 1.0.0
+# Status: SPECIFICATION ONLY — No Execution
+# Governance: SSAP v1.0 Compliant
+#
+# This file defines deterministic rules for cross-modal event linkage.
+# All tie-breakers are applied in strict order to ensure reproducible results.
+
+schema_version: "1.0.0"
+
+# =============================================================================
+# RULE SETS
+# =============================================================================
+rule_sets:
+
+  # ---------------------------------------------------------------------------
+  # Imaging → Surgery Linkage
+  # ---------------------------------------------------------------------------
+  imaging_to_surgery:
+    description: "Link pre-operative imaging studies to surgical procedures"
+    source_entity: IMAGING
+    target_entity: SURGICAL
+
+    time_windows:
+      default:
+        # Imaging typically occurs 0-90 days BEFORE surgery
+        min_days: -90
+        max_days: 30
+        reference_point: target_date
+      fallback:
+        # Extended window for edge cases (e.g., delayed surgery)
+        min_days: -180
+        max_days: 30
+        reference_point: target_date
+
+    match_requirements:
+      exact_match_fields:
+        - patient_id
+      laterality_rule: match_or_bilateral_target
+      anatomic_site_rule: hierarchical_match
+
+    tie_breakers:
+      strategy_order:
+        # 1. Prefer exact laterality match over bilateral
+        - strategy: laterality_match
+          description: "Prefer imaging with exact laterality match over bilateral/NA"
+
+        # 2. Prefer matching neck level / anatomic site
+        - strategy: anatomic_site_match
+          field: neck_level
+          description: "Prefer imaging targeting same anatomic region as surgery"
+
+        # 3. Prefer nearest date to surgery
+        - strategy: nearest_date
+          description: "Prefer imaging closest in time to surgical date"
+
+    deduplication:
+      strategy: keep_first
+      description: "After tie-breaking, keep only the highest-ranked imaging study"
+
+    confidence_thresholds:
+      high: 0.8
+      medium: 0.5
+      low: 0.2
+
+  # ---------------------------------------------------------------------------
+  # Molecular → Pathology Linkage
+  # ---------------------------------------------------------------------------
+  molecular_to_pathology:
+    description: "Link molecular assay results to pathology specimens"
+    source_entity: MOLECULAR
+    target_entity: PATHOLOGY
+
+    time_windows:
+      default:
+        # Molecular testing typically occurs within 3 days of specimen collection
+        min_days: -3
+        max_days: 3
+        reference_point: target_date
+      fallback:
+        # Extended window for send-out testing
+        min_days: -14
+        max_days: 14
+        reference_point: target_date
+
+    match_requirements:
+      exact_match_fields:
+        - patient_id
+      laterality_rule: exact_match
+      anatomic_site_rule: exact_match
+
+    tie_breakers:
+      strategy_order:
+        # 1. Prefer exact specimen ID match
+        - strategy: exact_specimen_match
+          field: specimen_id
+          description: "Prefer molecular result with exact specimen ID match"
+
+        # 2. Prefer matching accession number
+        - strategy: specimen_accession_match
+          field: accession_number
+          description: "Prefer molecular result with matching accession number"
+
+        # 3. Prefer nearest date
+        - strategy: nearest_date
+          description: "Prefer molecular result closest in time to pathology date"
+
+    deduplication:
+      strategy: keep_highest_value
+      field: vaf
+      description: "When multiple molecular results link to same pathology, keep highest VAF (variant allele frequency)"
+
+    confidence_thresholds:
+      high: 0.9
+      medium: 0.6
+      low: 0.3
+
+# =============================================================================
+# METADATA
+# =============================================================================
+metadata:
+  version: "1.0.0"
+  created: "2026-01-05"
+  last_modified: "2026-01-05"
+  governance: "SSAP v1.0"
+  status: specification_only
+  execution_permitted: false
+  changelog:
+    - version: "1.0.0"
+      date: "2026-01-05"
+      changes:
+        - "Initial specification of imaging_to_surgery rule set"
+        - "Initial specification of molecular_to_pathology rule set"
+        - "Defined deterministic tie-breaker ordering"
+        - "Added fallback time windows for edge cases"

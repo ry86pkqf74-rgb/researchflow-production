@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/run_manifest.schema.json",
+  "title": "Run Manifest",
+  "description": "Schema for ROS run manifest artifacts that provide complete provenance for pipeline executions",
+  "type": "object",
+  "required": [
+    "run_id",
+    "run_date",
+    "workflow_name",
+    "git_commit",
+    "data_version_id",
+    "status",
+    "validation_summary",
+    "artifacts"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Unique identifier for this run"
+    },
+    "run_date": {
+      "type": "string",
+      "description": "ISO 8601 date or datetime of run execution",
+      "format": "date-time"
+    },
+    "workflow_name": {
+      "type": "string",
+      "description": "Name of the pipeline or workflow executed"
+    },
+    "git_commit": {
+      "type": "string",
+      "description": "Git commit hash of the code used for this run"
+    },
+    "data_version_id": {
+      "type": "string",
+      "description": "Identifier(s) for input data snapshots or versions"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "fail"],
+      "description": "Overall run status"
+    },
+    "validation_summary": {
+      "type": "object",
+      "description": "Pass/fail/warn status by validation layer",
+      "required": ["schema", "relational", "domain", "drift"],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": ["pass", "fail", "warn"]
+        },
+        "relational": {
+          "type": "string",
+          "enum": ["pass", "fail", "warn"]
+        },
+        "domain": {
+          "type": "string",
+          "enum": ["pass", "fail", "warn"]
+        },
+        "drift": {
+          "type": "string",
+          "enum": ["pass", "fail", "warn"]
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "description": "Paths to QA and output artifacts produced by this run",
+      "properties": {
+        "qa_json": {
+          "type": "string",
+          "description": "Path to machine-readable QA metrics JSON"
+        },
+        "qa_summary": {
+          "type": "string",
+          "description": "Path to human-readable QA summary (MD or HTML)"
+        }
+      }
+    },
+    "baseline_reference": {
+      "type": "string",
+      "description": "Identifier of the baseline used for drift comparison (optional)"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional notes or context for this run"
+    }
+  }
+}

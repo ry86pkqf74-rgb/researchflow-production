@@ -1,0 +1,131 @@
+# =============================================================================
+# Active Sourcelit SANDBOX Configuration
+# =============================================================================
+# Query engine configuration for SANDBOX mode with network isolation.
+# Extends Phase 8 Sourcelit (FROZEN) with content search capabilities.
+#
+# Created: 2026-01-14 (Task B - Phase 9)
+# Integration: Uses src/ros_sourcelit_active/policy.py for mode enforcement
+# =============================================================================
+
+profile: sandbox_query
+version: "1.0"
+description: "SANDBOX mode query engine with bounded, PHI-guarded snippets"
+
+# =============================================================================
+# CONTENT POLICY (governed by SourcelitPolicy)
+# =============================================================================
+content_policy:
+  # Policy enforcement (delegated to SourcelitPolicy class)
+  policy_class: "src.ros_sourcelit_active.policy.SourcelitPolicy"
+
+  # Snippet extraction constraints (used when policy allows)
+  max_snippet_chars: 240  # Must match SourcelitPolicy.DEFAULT_MAX_SNIPPET_CHARS
+  snippet_context_lines: 2  # Lines before/after match for context
+
+  # PHI guard (MANDATORY for all snippets)
+  phi_guard_enabled: true
+  phi_guard_fail_closed: true  # Block snippet if PHI detected
+
+# =============================================================================
+# QUERY CONFIGURATION
+# =============================================================================
+query:
+  # Path-based search (fast path - metadata only)
+  path_matching:
+    enabled: true
+    case_sensitive: false
+    fuzzy_threshold: 0.8  # For future fuzzy matching
+
+  # Content-based search (bounded path - requires file I/O)
+  content_matching:
+    enabled: true  # Only when policy allows
+    case_sensitive: false
+    max_files_to_scan: 250  # Guardrail for Task D
+    max_bytes_per_file: 200000  # 200KB limit
+    timeout_seconds: 1.5  # Query time budget
+
+  # Result limits
+  max_results: 20
+  relevance_threshold: 0.1  # Minimum relevance score
+
+# =============================================================================
+# FILE ALLOWLIST (Expanded in Task D)
+# =============================================================================
+# Only search within these paths for content matches
+# Path matches can return any indexed file, but content scanning is restricted
+indexing:
+  # EXPANDED SCOPE (Task D - approved)
+  content_search_paths:
+    # Documentation
+    - docs/
+
+    # Code directories
+    - src/governance/
+    - src/validation/
+    - src/ros_sourcelit/
+    - src/ros_sourcelit_active/
+
+    # Schemas
+    - schemas/pandera/
+
+    # Config
+    - config/
+
+    # Selected tests
+    - tests/test_sourcelit_active_policy.py
+    - tests/test_sourcelit_active_query_modes.py
+    - tests/test_sourcelit_active_query_phi.py
+    - tests/test_sourcelit_active_query_security.py
+    - tests/test_sourcelit_index.py
+    - tests/test_sourcelit_runtime.py
+    - tests/fixtures/sourcelit_active/
+    - tests/test_governance_capabilities.py
+
+  # EXCLUSIONS (NEVER scan these for content)
+  exclude_patterns:
+    - "data/**"  # All data directories
+    - "data/raw/**"
+    - "data/interim/**"
+    - "data/restricted/**"
+    - "**/.env*"
+    - "**/credentials*"
+    - "**/secrets*"
+    - "**/*.parquet"
+    - "**/*.xlsx"
+    - "**/*.xls"
+    - "**/*.csv"
+    - ".tmp/**"
+    - ".git/**"
+    - ".venv/**"
+    - "__pycache__/**"
+    - "*.pyc"
+    - "*.db"
+    - "*.sqlite"
+
+# =============================================================================
+# SECURITY CONSTRAINTS
+# =============================================================================
+security:
+  # Path traversal protection
+  enforce_repo_boundary: true
+  allow_symlinks: false
+
+  # Performance guards (Task D)
+  max_indexed_files: 10000  # Fail-closed if index exceeds this limit
+
+  # Provenance tracking
+  log_queries: true
+  log_snippet_exposure: false  # CRITICAL: Never log snippet content
+  log_phi_detections: true  # Log blocked reasons only (no content)
+
+# =============================================================================
+# INDEX INTEGRATION
+# =============================================================================
+index:
+  # Phase 8 index location (read-only)
+  index_path: ".tmp/sourcelit/index.json"
+
+  # Staleness handling
+  allow_stale_index: false  # Fail if index older than current HEAD
+  max_staleness_commits: 0  # Must be current

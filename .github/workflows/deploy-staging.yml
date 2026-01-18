@@ -1,0 +1,140 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+env:
+  KUBE_NAMESPACE: researchflow-staging
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ros
+          POSTGRES_PASSWORD: ros
+          POSTGRES_DB: ros_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r services/worker/requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run Node.js tests
+        run: npm run test:unit
+        env:
+          DATABASE_URL: postgresql://ros:ros@localhost:5432/ros_test
+          REDIS_URL: redis://localhost:6379
+
+      - name: Run Python tests
+        run: |
+          cd services/worker
+          pytest --cov=src --cov-report=xml
+        env:
+          DATABASE_URL: postgresql://ros:ros@localhost:5432/ros_test
+          REDIS_URL: redis://localhost:6379
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info,./services/worker/coverage.xml
+
+  build:
+    name: Build Images
+    needs: test
+    uses: ./.github/workflows/build-images.yml
+    secrets: inherit
+
+  deploy:
+    name: Deploy to Staging
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
+
+      - name: Deploy with Kustomize
+        run: |
+          kubectl apply -k infrastructure/kubernetes/overlays/staging
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/orchestrator -n ${{ env.KUBE_NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/worker -n ${{ env.KUBE_NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/web -n ${{ env.KUBE_NAMESPACE }} --timeout=300s
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n ${{ env.KUBE_NAMESPACE }}
+          kubectl get services -n ${{ env.KUBE_NAMESPACE }}
+
+  smoke-test:
+    name: Smoke Tests
+    needs: deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run smoke tests
+        run: |
+          STAGING_URL="${{ secrets.STAGING_URL }}"
+
+          # Health check
+          curl -f "$STAGING_URL/health" || exit 1
+
+          # API health
+          curl -f "$STAGING_URL/api/health" || exit 1
+
+          echo "Smoke tests passed"

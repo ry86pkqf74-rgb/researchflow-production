@@ -1,0 +1,92 @@
+# k8s_standby.yaml
+#
+# Kubernetes deployment configuration reference for STANDBY mode
+#
+# This file documents how Kubernetes ConfigMaps map to RuntimeConfig.
+# It is NOT used directly by the application - it's a reference for
+# understanding how kubernetes/base/configmap-standby.yaml translates
+# to application runtime configuration.
+
+---
+# ROS Mode Configuration
+# Maps to: src/runtime_config.py -> RuntimeConfig.ros_mode
+ros_mode: STANDBY
+
+# Safety Flags (enforced in STANDBY mode)
+# Maps to: src/runtime_config.py -> RuntimeConfig fields
+safety_flags:
+  mock_only: true           # RuntimeConfig.mock_only
+  no_network: true          # RuntimeConfig.no_network
+  allow_uploads: false      # RuntimeConfig.allow_uploads
+  strict_phi_on_upload: true  # RuntimeConfig.strict_phi_on_upload
+
+# Operations Configuration
+operations:
+  results_locked: true      # STANDBY enforces read-only results
+  data_mode: synthetic      # Only synthetic/mock data
+  governance_logging: true  # Enable governance audit logs
+
+# Kubernetes-specific Configuration
+kubernetes:
+  namespace: ros-standby
+  service_type: ClusterIP  # No external exposure
+  network_policy: deny-all-with-internal-only
+
+# Application Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+  log_level: INFO
+
+frontend:
+  streamlit_server_port: 8501
+  streamlit_server_address: "0.0.0.0"
+  streamlit_server_headless: true
+  api_base_url: "http://ros-api:8000"  # Internal service name
+
+# Logging Configuration
+logging:
+  level: INFO
+  format: json  # Structured logging for k8s log aggregation
+
+# Resource Configuration (maps to Deployment resource limits)
+resources:
+  api:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  frontend:
+    requests:
+      cpu: "125m"
+      memory: "128Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"
+
+# Health Checks (maps to Deployment probes)
+health_checks:
+  api:
+    liveness_path: /health
+    readiness_path: /health
+    initial_delay_seconds: 30
+    period_seconds: 10
+  frontend:
+    liveness_path: /
+    readiness_path: /
+    initial_delay_seconds: 30
+    period_seconds: 10
+
+# Notes on Kustomize Overlays:
+# - SANDBOX mode: overlays/sandbox/ overrides ros_mode to SANDBOX
+# - ACTIVE mode: overlays/active/ sets no_network=false, mock_only=false
+#   (requires governance approval)
+
+# ConfigMap Override Pattern:
+# 1. Base ConfigMap (kubernetes/base/configmap-standby.yaml)
+# 2. Overlay ConfigMap (kubernetes/overlays/*/configmap-*.yaml)
+# 3. Environment variables in Deployment (highest priority)
+# 4. Application defaults in src/runtime_config.py (lowest priority)

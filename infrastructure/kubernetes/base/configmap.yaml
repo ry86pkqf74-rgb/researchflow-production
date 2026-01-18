@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: researchflow-config
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+data:
+  GOVERNANCE_MODE: "DEMO"
+  LOG_LEVEL: "info"
+  ARTIFACT_PATH: "/data/artifacts"
+  LOG_PATH: "/data/logs"
+  REDIS_URL: "redis://redis:6379"

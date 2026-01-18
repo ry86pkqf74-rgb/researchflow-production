@@ -1,0 +1,87 @@
+# Example Snakemake Workflow Configuration
+# INF-1 / Task A - Workflow Orchestration Scaffolding
+#
+# This is an EXAMPLE configuration with detailed comments.
+# Copy to config.yaml and customize as needed.
+
+# ============================================================================
+# Runtime Control
+# ============================================================================
+
+# Operating mode: STANDBY | SANDBOX | ACTIVE | LIVE
+# - STANDBY: Offline, mock-only, metadata-only (safest, default)
+# - SANDBOX: Offline, synthetic data allowed (for testing)
+# - ACTIVE: Online, real data, requires explicit unlock
+# - LIVE: Production (future)
+ros_mode: STANDBY
+
+# Network control
+# - true: Block all network calls (fail-closed, CI-safe)
+# - false: Allow network (requires ACTIVE mode + governance approval)
+no_network: true
+
+# LLM provider control
+# - true: Use mock providers only (no API calls, deterministic)
+# - false: Use real providers (requires API keys + ACTIVE mode)
+mock_only: true
+
+# ============================================================================
+# Input/Output Paths
+# ============================================================================
+# All paths must be under .tmp/ quarantine to prevent accidental PHI commits
+
+# Literature ingestion inputs
+literature_input: ".tmp/literature_runtime/inputs/"
+
+# Literature runtime artifacts (normalized documents, manifests)
+literature_artifacts: ".tmp/literature_runtime/artifacts/"
+
+# Sourcelit synthesis manifests
+sourcelit_manifests: ".tmp/sourcelit_runtime/manifests/"
+
+# Export bundle output directory
+export_output: ".tmp/export_runs/"
+
+# ============================================================================
+# Validation Configuration
+# ============================================================================
+
+# Schema validation strictness
+# - true: Fail on any validation error (recommended for CI)
+# - false: Warn on validation errors but continue (debugging only)
+strict_validation: true
+
+# Enable AI-powered QA checks
+# - false: Skip AI QA (STANDBY mode requirement)
+# - true: Run AI QA (requires ACTIVE mode + LLM provider setup)
+enable_ai_qa: false
+
+# ============================================================================
+# Execution Settings
+# ============================================================================
+
+# Maximum parallel jobs
+# - 1: Sequential execution (deterministic, recommended for CI)
+# - >1: Parallel execution (faster, may introduce non-determinism)
+max_parallel_jobs: 1
+
+# Logging level: DEBUG | INFO | WARNING | ERROR
+log_level: "INFO"
+
+# ============================================================================
+# Notes
+# ============================================================================
+#
+# Safety reminders:
+# - This workflow is an OPTIONAL WRAPPER around existing runtimes
+# - It does NOT replace or modify existing orchestrators
+# - All governance gates (RuntimeConfig, Preflight) are preserved
+# - Artifacts remain quarantined under .tmp/
+# - STANDBY mode is fail-closed by default
+#
+# For ACTIVE mode execution:
+# 1. Review docs/plans/INTEGRATION_SUPPLEMENT_EXECUTION_GUIDE_2026.md
+# 2. Run preflight checks: python scripts/preflight_online.py
+# 3. Set ros_mode: ACTIVE, no_network: false, mock_only: false
+# 4. Ensure LLM provider credentials are configured
+# 5. Verify IRB approval for any real data processing

@@ -1,0 +1,30 @@
+{
+  "name": "@researchflow/api-node",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0"
+  },
+  "dependencies": {
+    "@researchflow/ai-router": "*",
+    "@researchflow/core": "*",
+    "@researchflow/phi-engine": "*",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "memoizee": "^0.4.17",
+    "nanoid": "^5.1.6",
+    "openai": "^6.16.0",
+    "openid-client": "^6.8.1",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/memoizee": "^0.4.12",
+    "@types/uuid": "^10.0.0",
+    "nodemon": "^3.1.11"
+  }
+}

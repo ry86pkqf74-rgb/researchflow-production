@@ -1,0 +1,136 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://researchflow.io/schemas/job-request.json",
+  "title": "JobRequest",
+  "description": "Schema for job requests sent from orchestrator to worker",
+  "type": "object",
+  "required": ["jobId", "type", "config"],
+  "properties": {
+    "jobId": {
+      "type": "string",
+      "description": "Unique identifier for this job",
+      "pattern": "^job_[a-zA-Z0-9]{12,}$"
+    },
+    "type": {
+      "type": "string",
+      "description": "Type of job to execute",
+      "enum": [
+        "validation",
+        "analysis",
+        "stage_run",
+        "artifact_generation",
+        "data_ingestion",
+        "qc_check",
+        "report_generation"
+      ]
+    },
+    "datasetPointer": {
+      "type": "string",
+      "description": "Path or URI to the dataset for processing"
+    },
+    "config": {
+      "type": "object",
+      "description": "Job-specific configuration",
+      "properties": {
+        "validationRules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of validation rule IDs to apply"
+        },
+        "analysisType": {
+          "type": "string",
+          "enum": ["descriptive", "inferential", "predictive", "exploratory"]
+        },
+        "outputFormat": {
+          "type": "string",
+          "enum": ["json", "csv", "parquet", "html", "pdf"],
+          "default": "json"
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "stages": {
+      "type": "array",
+      "description": "Specific workflow stages to execute (1-19)",
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 19
+      }
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["low", "normal", "high", "critical"],
+      "default": "normal"
+    },
+    "callbackUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to call when job completes"
+    },
+    "timeout": {
+      "type": "integer",
+      "minimum": 1000,
+      "maximum": 3600000,
+      "default": 300000,
+      "description": "Job timeout in milliseconds"
+    },
+    "retryPolicy": {
+      "type": "object",
+      "properties": {
+        "maxRetries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 3
+        },
+        "backoffMultiplier": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 2
+        },
+        "initialDelayMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 60000,
+          "default": 1000
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Metadata about the request context",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "researchId": {
+          "type": "string"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlationId": {
+          "type": "string",
+          "description": "ID for tracing related operations"
+        },
+        "governanceMode": {
+          "type": "string",
+          "enum": ["DEMO", "LIVE"],
+          "default": "DEMO"
+        }
+      },
+      "required": ["userId", "researchId", "requestedAt"]
+    }
+  },
+  "additionalProperties": false
+}

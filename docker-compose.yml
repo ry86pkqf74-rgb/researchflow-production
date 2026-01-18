@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  orchestrator:
+    build:
+      context: ./services/orchestrator
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
+      - REDIS_URL=redis://redis:6379
+      - WORKER_CALLBACK_URL=http://worker:8000
+      - GOVERNANCE_MODE=DEMO
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - shared-data:/data
+      - ./services/orchestrator:/app
+      - /app/node_modules
+    networks:
+      - researchflow
+
+  worker:
+    build:
+      context: ./services/worker
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
+      - REDIS_URL=redis://redis:6379
+      - ARTIFACT_PATH=/data/artifacts
+      - LOG_PATH=/data/logs
+      - GOVERNANCE_MODE=DEMO
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - shared-data:/data
+      - ./services/worker:/app
+    networks:
+      - researchflow
+
+  web:
+    build:
+      context: ./services/web
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - orchestrator
+    networks:
+      - researchflow
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ros
+      POSTGRES_PASSWORD: ros
+      POSTGRES_DB: ros
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - researchflow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ros -d ros"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - researchflow
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  shared-data:
+    driver: local
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  researchflow:
+    driver: bridge

@@ -1,0 +1,32 @@
+{
+  "name": "@researchflow/phi-engine",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "description": "PHI detection, scanning, and protection engine",
+  "exports": {
+    ".": "./index.ts",
+    "./patterns": "./src/patterns.ts",
+    "./log-scrubber": "./src/log-scrubber.ts",
+    "./types": "./src/types.ts",
+    "./adapters/legacy-adapter": "./src/adapters/legacy-adapter.ts",
+    "./adapters/field-adapter": "./src/adapters/field-adapter.ts"
+  },
+  "dependencies": {
+    "@researchflow/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3",
+    "vitest": "^2.1.9"
+  },
+  "peerDependencies": {
+    "pino": "^8.0.0 || ^9.0.0"
+  },
+  "peerDependenciesMeta": {
+    "pino": {
+      "optional": true
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ES2020"],
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@researchflow/core": ["../../packages/core/index.ts"],
+      "@researchflow/core/*": ["../../packages/core/*"],
+      "@researchflow/phi-engine": ["../../packages/phi-engine/index.ts"],
+      "@researchflow/phi-engine/*": ["../../packages/phi-engine/*"],
+      "@packages/core": ["../../packages/core/index.ts"],
+      "@packages/core/*": ["../../packages/core/*"]
+    },
+    "composite": true
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    { "path": "../../packages/core" },
+    { "path": "../../packages/phi-engine" }
+  ]
+}

@@ -1,0 +1,144 @@
+# =============================================================================
+# Sourcelit Active Index Configuration (SANDBOX expanded scope)
+# =============================================================================
+# Expanded indexing for SANDBOX mode (additive scope beyond Phase 8).
+# Outputs to .tmp/sourcelit_active/index.json (separate from Phase 8).
+#
+# Created: 2026-01-14 (Task D - Phase 9)
+# =============================================================================
+
+profile: sandbox_expanded
+version: "1.0"
+description: "Expanded indexing for SANDBOX mode (src, schemas, config, tests)"
+
+# =============================================================================
+# SAFETY FLAGS (INVARIANTS)
+# =============================================================================
+
+safety_flags:
+  mock_only: true
+  no_network: true
+  phi_scan_enabled: true
+
+# =============================================================================
+# INDEXING CONFIGURATION (EXPANDED SCOPE)
+# =============================================================================
+
+indexing:
+  # EXPANDED SCOPE (Task D)
+  # Includes documentation (Phase 8 baseline) + code + schemas + config + tests
+  include_paths:
+    # -------------------------------------------------------------------------
+    # Documentation (baseline from Phase 8)
+    # -------------------------------------------------------------------------
+    - docs/governance/
+    - docs/tools/
+    - docs/integrations/
+    - docs/release/
+    - docs/audits/
+    - docs/plans/
+    - docs/prompts/
+    - docs/checkpoints/
+    - docs/manuscripts/
+    - docs/visualization/
+
+    # -------------------------------------------------------------------------
+    # Code directories (NEW for Task D)
+    # -------------------------------------------------------------------------
+    - src/governance/
+    - src/validation/
+    - src/ros_sourcelit/          # Self-reference for Sourcelit code
+    - src/ros_sourcelit_active/   # Self-reference for Active Sourcelit
+
+    # -------------------------------------------------------------------------
+    # Schemas (NEW for Task D)
+    # -------------------------------------------------------------------------
+    - schemas/pandera/
+
+    # -------------------------------------------------------------------------
+    # Config (NEW for Task D)
+    # -------------------------------------------------------------------------
+    - config/
+
+    # -------------------------------------------------------------------------
+    # Selected tests (NEW for Task D - examples and fixtures)
+    # -------------------------------------------------------------------------
+    - tests/test_sourcelit_active_policy.py
+    - tests/test_sourcelit_active_query_modes.py
+    - tests/test_sourcelit_active_query_phi.py
+    - tests/test_sourcelit_active_query_security.py
+    - tests/test_sourcelit_index.py
+    - tests/test_sourcelit_runtime.py
+    - tests/fixtures/sourcelit_active/
+    - tests/test_governance_capabilities.py
+
+  # -------------------------------------------------------------------------
+  # EXCLUSIONS (MUST NEVER INDEX - PHI/Secrets)
+  # -------------------------------------------------------------------------
+  exclude_patterns:
+    # Data directories (CRITICAL - PHI risk)
+    - "data/**"
+    - "data/raw/**"
+    - "data/interim/**"
+    - "data/restricted/**"
+
+    # Secrets and credentials (CRITICAL)
+    - "**/.env*"
+    - "**/credentials*"
+    - "**/secrets*"
+
+    # Binary data formats (PHI risk + not searchable)
+    - "**/*.parquet"
+    - "**/*.xlsx"
+    - "**/*.xls"
+    - "**/*.csv"
+    - "**/*.db"
+    - "**/*.sqlite"
+
+    # Runtime artifacts
+    - ".tmp/**"
+
+    # Version control and environments
+    - ".git/**"
+    - ".venv/**"
+    - "venv/**"
+    - "__pycache__/**"
+    - "*.pyc"
+    - ".pytest_cache/**"
+    - ".mypy_cache/**"
+
+  # -------------------------------------------------------------------------
+  # File extensions to include
+  # -------------------------------------------------------------------------
+  include_extensions:
+    - .py
+    - .yaml
+    - .yml
+    - .md
+    - .json
+
+# =============================================================================
+# PERFORMANCE LIMITS (FAIL-CLOSED)
+# =============================================================================
+# These limits prevent unbounded indexing. If repo grows beyond these limits,
+# indexing will fail-closed rather than proceeding with partial/truncated results.
+
+performance_limits:
+  # Maximum number of files to index (fail if exceeded)
+  max_total_files: 5000
+
+  # Maximum total size in MB (fail if exceeded)
+  max_total_size_mb: 50
+
+  # Maximum time budget for indexing in seconds (fail if exceeded)
+  time_budget_seconds: 30
+
+# =============================================================================
+# OUTPUT CONFIGURATION
+# =============================================================================
+
+output:
+  format: json
+  path: .tmp/sourcelit_active/index.json  # Separate from Phase 8
+  deterministic_ordering: true             # Alphabetical by path
+  hash_algorithm: sha256                   # For index_hash field

@@ -1,0 +1,88 @@
+# =============================================================================
+# Sourcelit Configuration (STANDBY-safe defaults)
+# =============================================================================
+# Offline codebase indexing and query configuration.
+# Outputs to .tmp/sourcelit/ (runtime-only, never committed).
+#
+# Last Updated: 2026-01-08
+# =============================================================================
+
+profile: standby
+version: "1.0"
+description: "Offline codebase indexing for documentation navigation"
+
+# =============================================================================
+# SAFETY FLAGS (INVARIANTS)
+# =============================================================================
+
+safety_flags:
+  mock_only: true
+  no_network: true
+  phi_scan_enabled: true
+
+# =============================================================================
+# CONTENT EXPOSURE POLICY
+# =============================================================================
+# CRITICAL: No file content exposure in STANDBY mode
+
+content_policy:
+  expose_file_content: false  # NEVER return raw file bodies by default
+  max_snippet_chars: 0        # 0 = no snippets in STANDBY
+  snippet_allowed_modes:
+    - SANDBOX  # Only permit snippets in SANDBOX mode
+
+# =============================================================================
+# INDEXING CONFIGURATION
+# =============================================================================
+
+indexing:
+  # MVP Phase 1: Docs + Registries
+  include_paths:
+    - docs/governance/
+    - docs/tools/TOOL_REGISTRY.yaml
+    - docs/integrations/INTEGRATION_REGISTRY.yaml
+    - docs/release/
+    - docs/audits/
+    - docs/plans/
+
+  # Phase 2 expansion (uncomment when ready)
+  # - src/
+  # - schemas/pandera/
+  # - config/
+  # - tests/
+  # - web_frontend/
+  # - automations/
+
+  # Exclusion list (NEVER index - PHI/Secrets)
+  exclude_patterns:
+    - "data/restricted/**"
+    - "data/interim/phi_quarantine/**"
+    - "**/.env*"
+    - "**/*.parquet"
+    - "**/*.xlsx"
+    - "**/*.csv"
+    - "**/credentials*"
+    - "**/secrets*"
+    - ".git/**"
+    - ".venv/**"
+    - "__pycache__/**"
+    - ".tmp/**"
+    - "*.pyc"
+
+  # File extensions to include
+  include_extensions:
+    - .py
+    - .yaml
+    - .yml
+    - .md
+    - .json
+
+# =============================================================================
+# OUTPUT CONFIGURATION
+# =============================================================================
+
+output:
+  format: json
+  path: .tmp/sourcelit/index.json  # Runtime-only, never commit
+  deterministic_ordering: true
+  hash_algorithm: sha256

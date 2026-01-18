@@ -1,0 +1,132 @@
+# Schema Version Metadata Registry
+#
+# This file tracks all Pandera schemas in the repository.
+# Used by check_schema_drift.py to detect unauthorized modifications.
+#
+# FREEZE PROTOCOL:
+# - Schemas are marked frozen only after results insertion activation.
+# - Set frozen: true when schema is locked for analysis
+# - Frozen schemas require --include-frozen flag to update
+# - Version bumps require governance approval post-freeze
+#
+# Generated: 2025-12-26
+# Source: schemas/pandera/
+
+schemas:
+  # Core schemas
+  - name: base_schema
+    path: schemas/pandera/base_schema.py
+    version: "0.1.0"
+    frozen: false
+    description: Base schema class with common validation patterns
+    last_modified: null  # Populated by drift check
+
+  - name: schema_registry
+    path: schemas/pandera/schema_registry.py
+    version: "0.1.0"
+    frozen: false
+    description: Central registry for schema lookup and validation
+    last_modified: null
+
+  # Thyroid schemas
+  - name: thyroid_labs_schema
+    path: schemas/pandera/thyroid_labs_schema.py
+    version: "0.1.0"
+    frozen: false
+    description: Laboratory values for thyroid function tests
+    last_modified: null
+
+  - name: thyroid_ultrasound_schema
+    path: schemas/pandera/thyroid_ultrasound_schema.py
+    version: "0.1.0"
+    frozen: false
+    description: Thyroid ultrasound imaging findings
+    last_modified: null
+
+  - name: thyroid_fna_schema
+    path: schemas/pandera/thyroid_fna_schema.py
+    version: "0.1.0"
+    frozen: false
+    description: Fine needle aspiration cytology results
+    last_modified: null
+
+  - name: thyroid_pathology_schema
+    path: schemas/pandera/thyroid_pathology_schema.py
+    version: "0.1.0"
+    frozen: false
+    description: Surgical pathology findings
+    last_modified: null
+
+  - name: thyroid_nuclear_med_schema
+    path: schemas/pandera/thyroid_nuclear_med_schema.py
+    version: "0.1.0"
+    frozen: false
+    description: Nuclear medicine imaging results
+    last_modified: null
+
+  - name: thyroid_ct_schema
+    path: schemas/pandera/thyroid_ct_schema.py
+    version: "0.1.0"
+    frozen: false
+    description: CT imaging of thyroid
+    last_modified: null
+
+  - name: thyroid_mri_schema
+    path: schemas/pandera/thyroid_mri_schema.py
+    version: "0.1.0"
+    frozen: false
+    description: MRI imaging of thyroid
+    last_modified: null
+
+  - name: thyroid_sizes_schema
+    path: schemas/pandera/thyroid_sizes_schema.py
+    version: "0.1.0"
+    frozen: false
+    description: Thyroid nodule size measurements
+    last_modified: null
+
+  - name: thyroid_weights_schema
+    path: schemas/pandera/thyroid_weights_schema.py
+    version: "0.1.0"
+    frozen: false
+    description: Thyroid specimen weight measurements
+    last_modified: null
+
+  - name: thyroid_parathyroid_notes_schema
+    path: schemas/pandera/thyroid_parathyroid_notes_schema.py
+    version: "0.1.0"
+    frozen: false
+    description: Clinical notes for thyroid and parathyroid
+    last_modified: null
+
+  # Other schemas
+  - name: heart_disease_schema
+    path: schemas/pandera/heart_disease_schema.py
+    version: "0.1.0"
+    frozen: false
+    description: Heart disease risk factors and outcomes
+    last_modified: null
+
+  - name: patient_generated_signals_schema
+    path: schemas/pandera/patient_generated_signals_schema.py
+    version: "0.1.0"
+    frozen: false
+    description: Patient-reported data and wearable signals
+    last_modified: null
+
+# Metadata
+metadata:
+  registry_version: "0.1.0"
+  created_date: "2025-12-26"
+  last_updated: "2025-12-26"
+  total_schemas: 14
+  frozen_schemas: 0
+  governance_doc: "docs/governance/ASSUMPTION_CHECKPOINTS.md"
+  drift_check_script: "scripts/governance/check_schema_drift.py"
+
+# Freeze history (append-only)
+freeze_history: []
+#  - schema: thyroid_labs_schema
+#    frozen_date: "YYYY-MM-DD"
+#    frozen_by: "Name"
+#    checkpoint: "CHECKPOINT_ID"

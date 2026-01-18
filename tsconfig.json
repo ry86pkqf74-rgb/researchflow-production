@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@researchflow/core": ["packages/core/src"],
+      "@researchflow/core/*": ["packages/core/src/*"],
+      "@researchflow/ai-router": ["packages/ai-router/src"],
+      "@researchflow/ai-router/*": ["packages/ai-router/src/*"],
+      "@researchflow/phi-engine": ["packages/phi-engine/src"],
+      "@researchflow/phi-engine/*": ["packages/phi-engine/src/*"]
+    }
+  },
+  "include": [
+    "packages/*/src/**/*",
+    "services/*/src/**/*",
+    "tests/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/node_modules",
+    "**/dist"
+  ],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/phi-engine" },
+    { "path": "packages/ai-router" },
+    { "path": "services/orchestrator" },
+    { "path": "services/web" }
+  ]
+}

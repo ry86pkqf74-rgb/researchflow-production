@@ -1,0 +1,160 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ros.research/schemas/template_spec_v1.json",
+  "title": "ROS Template Spec v1",
+  "description": "JSON Schema for Research Operating System template YAML files",
+  "type": "object",
+  "required": [
+    "template_id",
+    "name",
+    "version",
+    "draft_type",
+    "description",
+    "schema",
+    "safety"
+  ],
+  "properties": {
+    "template_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Unique identifier in snake_case"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable template name"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version (e.g., 1.0.0)"
+    },
+    "draft_type": {
+      "type": "string",
+      "enum": [
+        "original_research",
+        "cohort_study",
+        "validation_study",
+        "methods_validation",
+        "systematic_review",
+        "methods_paper",
+        "generic"
+      ],
+      "description": "Type of research document"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Brief description of the template purpose"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Searchable tags for template discovery"
+    },
+    "schema": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/schemaSection"
+      },
+      "description": "Ordered list of input sections"
+    },
+    "safety": {
+      "$ref": "#/definitions/safetyBlock",
+      "description": "Safety and governance constraints"
+    },
+    "output_sections": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ordered list of output section names"
+    },
+    "ai_suggested": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether AI suggestions are enabled"
+    },
+    "example_inputs": {
+      "type": "object",
+      "description": "Synthetic example values for preview"
+    }
+  },
+  "definitions": {
+    "schemaSection": {
+      "type": "object",
+      "required": ["section_id", "label", "type"],
+      "properties": {
+        "section_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Unique section identifier"
+        },
+        "label": {
+          "type": "string",
+          "description": "Display label"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["text", "textarea", "date", "select", "multiselect", "number", "boolean"],
+          "description": "Input field type"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether field is required"
+        },
+        "default": {
+          "description": "Default value"
+        },
+        "hint": {
+          "type": "string",
+          "description": "Help text for the field"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Options for select/multiselect fields"
+        },
+        "ai_suggested": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether AI suggestions are enabled for this field"
+        }
+      }
+    },
+    "safetyBlock": {
+      "type": "object",
+      "required": ["ruo_required", "allow_network", "allow_uploads"],
+      "properties": {
+        "ruo_required": {
+          "type": "boolean",
+          "const": true,
+          "description": "Must be true for medical research templates"
+        },
+        "allow_network": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must be false in STANDBY mode"
+        },
+        "allow_uploads": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must be false in STANDBY mode"
+        },
+        "prohibited_terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Terms that trigger validation errors"
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

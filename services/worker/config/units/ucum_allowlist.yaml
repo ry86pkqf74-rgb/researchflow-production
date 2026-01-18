@@ -1,0 +1,177 @@
+# UCUM Unit Allowlist for Lab Measurements
+# ==========================================
+# This file defines the allowed UCUM (Unified Code for Units of Measure) units
+# for laboratory values in this research operating system.
+#
+# Purpose:
+# - Enforce unit consistency across datasets
+# - Enable unit normalization and validation
+# - Support cross-site harmonization
+#
+# Format:
+# - UCUM codes are case-sensitive
+# - Each entry includes: code, display_name, category, notes
+#
+# References:
+# - UCUM specification: https://ucum.org/ucum.html
+# - LOINC-UCUM mapping: https://loinc.org/units/
+#
+# Governance:
+# - Additions require review and documentation
+# - Changes tracked in version history
+#
+# Version: 1.0.0
+# Date: 2025-12-26
+# Status: PRE-ANALYSIS SCAFFOLD
+# ---
+
+version: "1.0.0"
+last_updated: "2025-12-26"
+status: "pre-analysis-scaffold"
+
+# =============================================================================
+# CONCENTRATION UNITS
+# =============================================================================
+concentration_units:
+  # Mass concentration
+  - code: "ng/mL"
+    display_name: "nanograms per milliliter"
+    category: "mass_concentration"
+    common_analytes: ["thyroglobulin", "calcitonin"]
+    notes: "Common for tumor markers"
+
+  - code: "ng/dL"
+    display_name: "nanograms per deciliter"
+    category: "mass_concentration"
+    common_analytes: ["free_t4", "total_t3"]
+    notes: "Common for thyroid hormones"
+
+  - code: "pg/mL"
+    display_name: "picograms per milliliter"
+    category: "mass_concentration"
+    common_analytes: ["free_t3", "calcitonin"]
+    notes: "Very low concentration measurements"
+
+  - code: "mcg/dL"
+    display_name: "micrograms per deciliter"
+    category: "mass_concentration"
+    common_analytes: ["total_t4"]
+    notes: "Also written as μg/dL"
+
+  - code: "ug/dL"
+    display_name: "micrograms per deciliter (alternate)"
+    category: "mass_concentration"
+    common_analytes: ["total_t4"]
+    notes: "ASCII-safe alternative to mcg/dL"
+
+  # International units concentration
+  - code: "IU/mL"
+    display_name: "international units per milliliter"
+    category: "arbitrary_concentration"
+    common_analytes: ["anti_thyroglobulin", "anti_tpo"]
+    notes: "Common for antibody measurements"
+
+  - code: "[IU]/mL"
+    display_name: "international units per milliliter (UCUM canonical)"
+    category: "arbitrary_concentration"
+    common_analytes: ["anti_thyroglobulin", "anti_tpo"]
+    notes: "UCUM canonical form with brackets"
+
+  - code: "mIU/L"
+    display_name: "milli-international units per liter"
+    category: "arbitrary_concentration"
+    common_analytes: ["tsh"]
+    notes: "Standard unit for TSH"
+
+  - code: "m[IU]/L"
+    display_name: "milli-international units per liter (UCUM canonical)"
+    category: "arbitrary_concentration"
+    common_analytes: ["tsh"]
+    notes: "UCUM canonical form"
+
+  - code: "uIU/mL"
+    display_name: "micro-international units per milliliter"
+    category: "arbitrary_concentration"
+    common_analytes: ["tsh"]
+    notes: "Alternative TSH unit (equivalent to mIU/L)"
+
+# =============================================================================
+# RATIO / DIMENSIONLESS UNITS
+# =============================================================================
+ratio_units:
+  - code: "%"
+    display_name: "percent"
+    category: "ratio"
+    common_analytes: ["uptake_ratios", "t3_resin_uptake"]
+    notes: "Percentage measurements"
+
+  - code: "1"
+    display_name: "unity (dimensionless)"
+    category: "ratio"
+    common_analytes: ["ratios", "indices"]
+    notes: "UCUM representation of dimensionless quantities"
+
+# =============================================================================
+# SIZE / LENGTH UNITS
+# =============================================================================
+size_units:
+  - code: "cm"
+    display_name: "centimeters"
+    category: "length"
+    common_analytes: ["nodule_size", "thyroid_dimensions"]
+    notes: "Nodule and gland measurements"
+
+  - code: "mm"
+    display_name: "millimeters"
+    category: "length"
+    common_analytes: ["nodule_size", "thyroid_dimensions"]
+    notes: "Smaller measurements"
+
+# =============================================================================
+# MASS UNITS
+# =============================================================================
+mass_units:
+  - code: "g"
+    display_name: "grams"
+    category: "mass"
+    common_analytes: ["thyroid_weight"]
+    notes: "Specimen weights"
+
+# =============================================================================
+# UNIT EQUIVALENCE MAPPINGS (for normalization)
+# =============================================================================
+# Maps common non-canonical forms to UCUM canonical forms
+# Used by the unit normalizer for harmonization
+equivalence_mappings:
+  # TSH variations
+  "uIU/ml": "mIU/L"
+  "μIU/mL": "mIU/L"
+  "mcIU/mL": "mIU/L"
+
+  # Microgram variations
+  "μg/dL": "mcg/dL"
+  "ug/dl": "mcg/dL"
+
+  # Case normalization
+  "ng/ml": "ng/mL"
+  "pg/ml": "pg/mL"
+  "iu/ml": "IU/mL"
+  "iu/mL": "IU/mL"
+
+  # T4/T3 specific
+  "ng/dl": "ng/dL"
+  "mcg/dl": "mcg/dL"
+
+# =============================================================================
+# VALIDATION RULES
+# =============================================================================
+validation:
+  # Strict mode: reject any unit not in allowlist
+  # Permissive mode: warn but allow unknown units
+  default_mode: "permissive"
+
+  # Units that should always fail validation (likely PHI or errors)
+  blocked_patterns:
+    - "MRN"
+    - "DOB"
+    - "SSN"

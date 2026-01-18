@@ -1,0 +1,289 @@
+# AI Provider Registry (Machine-Readable)
+#
+# This YAML file is the machine-readable complement to docs/ai/PROVIDER_REGISTRY.md.
+# It enables programmatic validation of provider usage against governance constraints.
+#
+# CRITICAL: This file contains NO SECRETS. Environment variable names only.
+# Never commit API keys, tokens, or credentials to this file.
+#
+# Version: 1.0.0
+# Last Updated: 2025-12-25
+
+schema_version: "1.0.0"
+
+providers:
+  # ============================================================================
+  # INTERNAL / OFFLINE TOOLS (Production Core - Repo Execution)
+  # ============================================================================
+
+  - name: "AIModelRouter"
+    type: "offline"
+    allowed_locations:
+      - "repo"
+    env_vars: []  # No environment variables required (internal)
+    allowed_data: "ANY_OFFLINE"  # No external transmission
+    allowed_intents:
+      - "cost_estimate"
+      - "mock_routing"
+      - "unit_test_mock"
+    notes: "Offline mock router for testing; deterministic behavior; no external calls"
+
+  - name: "Local RAG / Verification Guard"
+    type: "offline"
+    allowed_locations:
+      - "repo"
+    env_vars: []  # No environment variables required (internal)
+    allowed_data: "ANY_OFFLINE"  # No external transmission
+    allowed_intents:
+      - "phi_scan"
+      - "verification_guard"
+      - "consistency_check"
+    notes: "Offline parquet search; local corpus only; no external calls"
+
+  - name: "Pandera"
+    type: "offline"
+    allowed_locations:
+      - "repo"
+    env_vars: []  # No environment variables required (internal)
+    allowed_data: "ANY_OFFLINE"  # No external transmission
+    allowed_intents:
+      - "schema_validation"
+    notes: "DataFrame schema validation; offline only"
+
+  - name: "PyArrow / NumPy / Pandas"
+    type: "offline"
+    allowed_locations:
+      - "repo"
+    env_vars: []  # No environment variables required (internal)
+    allowed_data: "ANY_OFFLINE"  # No external transmission
+    allowed_intents:
+      - "data_processing"
+      - "transformations"
+      - "aggregations"
+    notes: "Offline data processing; standard scientific Python stack"
+
+  # ============================================================================
+  # EXTERNAL PROVIDERS (Runner Only - De-identified Data)
+  # ============================================================================
+
+  - name: "Azure OpenAI"
+    type: "external"
+    allowed_locations:
+      - "runner"
+    env_vars:
+      - "AZURE_OPENAI_API_KEY"
+      - "AZURE_OPENAI_ENDPOINT"
+      - "AZURE_OPENAI_DEPLOYMENT"
+    allowed_data: "DEIDENTIFIED_ONLY"  # NEVER PHI
+    allowed_intents:
+      - "governance_doc"
+      - "manuscript_methods_draft"
+      - "manuscript_discussion_draft"
+      - "figure_caption_polish"
+    notes: "Enterprise SLA; Azure compliance; regional deployment options"
+
+  - name: "OpenAI"
+    type: "external"
+    allowed_locations:
+      - "runner"
+    env_vars:
+      - "OPENAI_API_KEY"
+    allowed_data: "DEIDENTIFIED_ONLY"  # NEVER PHI
+    allowed_intents:
+      - "pr_summary"
+      - "governance_doc"
+      - "figure_caption_polish"
+      - "manuscript_methods_draft"
+      - "manuscript_discussion_draft"
+      - "structured_transform"
+      - "verification_guard"
+    notes: "General reasoning; fast; ~30-day retention for abuse monitoring"
+
+  - name: "Anthropic Claude"
+    type: "external"
+    allowed_locations:
+      - "runner"
+    env_vars:
+      - "ANTHROPIC_API_KEY"
+    allowed_data: "DEIDENTIFIED_ONLY"  # NEVER PHI
+    allowed_intents:
+      - "governance_doc"
+      - "figure_caption_polish"
+      - "manuscript_methods_draft"
+      - "manuscript_discussion_draft"
+      - "verification_guard"
+    notes: "Long context (200K+); lower hallucination; zero retention after processing"
+
+  - name: "Grok / xAI"
+    type: "external"
+    allowed_locations:
+      - "runner"
+    env_vars:
+      - "XAI_API_KEY"
+    allowed_data: "DEIDENTIFIED_ONLY"  # NEVER PHI
+    allowed_intents:
+      - "hypothesis_ideation"
+    notes: "Experimental; novel perspectives; mark outputs as beta quality"
+
+  - name: "TogetherAI"
+    type: "external"
+    allowed_locations:
+      - "runner"
+    env_vars:
+      - "TOGETHER_API_KEY"
+    allowed_data: "DEIDENTIFIED_ONLY"  # NEVER PHI
+    allowed_intents:
+      - "pr_summary"
+      - "structured_transform"
+      - "hypothesis_ideation"
+    notes: "Model flexibility (Llama, Mixtral, Qwen, DeepSeek); cost-effective"
+
+  - name: "DeepSeek (via TogetherAI)"
+    type: "external"
+    allowed_locations:
+      - "runner"
+    env_vars:
+      - "TOGETHER_API_KEY"  # Routed via TogetherAI; no direct DeepSeek API
+    allowed_data: "DEIDENTIFIED_ONLY"  # NEVER PHI
+    allowed_intents:
+      - "structured_transform"
+    notes: "Strong coding performance; accessed via TogetherAI routing; no direct API"
+
+  # ============================================================================
+  # ORCHESTRATION (n8n Host - Metadata Only)
+  # ============================================================================
+
+  - name: "n8n"
+    type: "orchestration"
+    allowed_locations:
+      - "n8n_host"
+    env_vars: []  # n8n credentials managed separately in n8n credential manager
+    allowed_data: "ORCHESTRATION_METADATA_ONLY"  # No raw PHI in workflows
+    allowed_intents:
+      - "workflow_orchestration"
+      - "file_watcher"
+      - "phi_scan_trigger"
+      - "runner_job_dispatch"
+    notes: "Visual workflows; human oversight; no provider keys in workflow JSON files"
+
+# ============================================================================
+# VALIDATION RULES (For Future Programmatic Validation)
+# ============================================================================
+
+validation_rules:
+  - rule: "repo_no_external_calls"
+    description: "Repository code must NEVER call external providers directly"
+    enforcement: "Grep search for provider API calls in src/; fail if found"
+
+  - rule: "runner_only_deidentified"
+    description: "External providers process de-identified data only"
+    enforcement: "Pre-scan all runner inputs for PHI; abort if detected"
+
+  - rule: "no_secrets_in_repo"
+    description: "API keys never committed to version control"
+    enforcement: "git-secrets or pre-commit hook to block API key patterns"
+
+  - rule: "manifest_required"
+    description: "All external AI calls require input/output manifests"
+    enforcement: "Runner validates manifest exists before/after each call"
+
+  - rule: "human_review_required"
+    description: "AI outputs require human review before committing"
+    enforcement: "Documented in docs/handoffs/README.md; operator accountability"
+
+# ============================================================================
+# INTENT-TO-PROVIDER ROUTING (Default Mappings)
+# ============================================================================
+
+intent_routing:
+  pr_summary:
+    default: "TogetherAI"
+    fallback: "OpenAI"
+    constraints:
+      - "echo_only"
+    prompt: "pr_summary.yaml"
+
+  governance_doc:
+    default: "Anthropic Claude"
+    fallback: "OpenAI"
+    constraints:
+      - "no_new_numbers"
+      - "clarity_policy"
+    prompt: "governance_doc_draft.yaml"
+
+  figure_caption_polish:
+    default: "OpenAI"
+    fallback: "Anthropic Claude"
+    constraints:
+      - "echo_only"
+    prompt: "figure_caption_polish.yaml"
+
+  manuscript_methods_draft:
+    default: "Anthropic Claude"
+    fallback: "OpenAI"
+    constraints:
+      - "no_new_numbers"
+      - "clarity_policy"
+    prompt: "manuscript_methods_draft.yaml"
+
+  manuscript_discussion_draft:
+    default: "Anthropic Claude"
+    fallback: "OpenAI"
+    constraints:
+      - "no_new_numbers"
+      - "clarity_policy"
+      - "overclaim_guard"
+    prompt: "manuscript_discussion_draft.yaml"
+
+  structured_transform:
+    default: "TogetherAI"  # DeepSeek via TogetherAI
+    fallback: "OpenAI"
+    constraints:
+      - "deterministic_output"
+      - "schema_validation_required"
+    prompt: "structured_transform.yaml"
+
+  verification_guard:
+    default: "Anthropic Claude"
+    fallback: "OpenAI"
+    constraints:
+      - "no_new_numbers"
+      - "flag_discrepancies_only"
+    prompt: "verification_guard.yaml"
+
+  hypothesis_ideation:
+    default: "Grok / xAI"
+    fallback: "TogetherAI"
+    constraints:
+      - "mark_as_experimental"
+      - "no_numerical_claims"
+    prompt: "hypothesis_ideation.yaml"
+
+  cost_estimate:
+    default: "AIModelRouter"
+    fallback: null  # No fallback; offline only
+    constraints:
+      - "offline_only"
+      - "deterministic_calculation"
+    prompt: null  # Internal logic
+
+  phi_scan:
+    default: "AIModelRouter"
+    fallback: "Local RAG / Verification Guard"
+    constraints:
+      - "offline_only"
+      - "high_sensitivity"
+    prompt: null  # Internal validator
+
+# ============================================================================
+# METADATA
+# ============================================================================
+
+metadata:
+  schema_author: "Research Operating System Governance"
+  last_updated: "2025-12-25"
+  review_cadence: "Quarterly"
+  changelog:
+    - version: "1.0.0"
+      date: "2025-12-25"
+      changes: "Initial canonical registry (Iteration 4)"

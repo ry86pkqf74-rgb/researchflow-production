@@ -1,0 +1,204 @@
+# Linker Configuration Schema
+# Validates linker_rules.yaml structure
+# Version: 1.0.0
+
+$schema: "http://json-schema.org/draft-07/schema#"
+title: "Cross-Modal Linker Rules Schema"
+description: "Schema for validating linker specification configuration"
+type: object
+
+required:
+  - entities
+  - link_types
+  - laterality_rules
+  - confidence_categories
+  - metadata
+
+properties:
+  entities:
+    type: object
+    description: "Linkable event type definitions"
+    additionalProperties:
+      type: object
+      required:
+        - description
+        - source_patterns
+        - required_fields
+      properties:
+        description:
+          type: string
+        source_patterns:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        required_fields:
+          type: array
+          items:
+            type: string
+          minItems: 4  # patient_id, event_date, laterality, event_id
+
+  link_types:
+    type: object
+    description: "Link type specifications"
+    additionalProperties:
+      type: object
+      required:
+        - source_entity
+        - target_entity
+        - directionality
+        - time_window
+        - laterality_rule
+        - cardinality
+      properties:
+        source_entity:
+          type: string
+        target_entity:
+          type: string
+        directionality:
+          type: string
+          enum:
+            - forward
+            - backward
+            - bidirectional
+        description:
+          type: string
+        time_window:
+          type: object
+          required:
+            - min_days
+            - max_days
+            - reference
+          properties:
+            min_days:
+              type: integer
+            max_days:
+              type: integer
+            reference:
+              type: string
+              enum:
+                - source_to_target
+                - relative_to_target
+                - symmetric
+        laterality_rule:
+          type: string
+          enum:
+            - exact_match
+            - match_or_bilateral_target
+            - match_or_bilateral_source
+            - any
+        cardinality:
+          type: string
+          enum:
+            - one_to_one
+            - one_to_many
+            - many_to_one
+            - many_to_many
+        confidence_adjustments:
+          type: object
+          properties:
+            window_position_weight:
+              type: number
+              minimum: 0
+              maximum: 1
+            laterality_match_weight:
+              type: number
+              minimum: 0
+              maximum: 1
+
+  laterality_rules:
+    type: object
+    required:
+      - valid_values
+      - compatibility_matrix
+      - matching_rules
+    properties:
+      valid_values:
+        type: array
+        items:
+          type: string
+          enum:
+            - LEFT
+            - RIGHT
+            - BILATERAL
+            - MIDLINE
+            - NA
+      compatibility_matrix:
+        type: object
+        description: "Maps source->target->confidence"
+      matching_rules:
+        type: object
+        additionalProperties:
+          type: object
+          required:
+            - description
+          properties:
+            description:
+              type: string
+            accepts_na:
+              type: boolean
+
+  confidence_categories:
+    type: object
+    additionalProperties:
+      type: object
+      required:
+        - code
+        - min_score
+        - criteria
+      properties:
+        code:
+          type: string
+          maxLength: 1
+        min_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        criteria:
+          type: array
+          items:
+            type: string
+
+  validation_rules:
+    type: object
+    properties:
+      schema_completeness:
+        type: array
+        items:
+          type: string
+      enum_validity:
+        type: array
+        items:
+          type: string
+      window_sanity:
+        type: array
+        items:
+          type: string
+      cardinality_consistency:
+        type: array
+        items:
+          type: string
+
+  metadata:
+    type: object
+    required:
+      - version
+      - status
+      - execution_permitted
+    properties:
+      version:
+        type: string
+        pattern: "^\\d+\\.\\d+\\.\\d+$"
+      created:
+        type: string
+        format: date
+      governance:
+        type: string
+      status:
+        type: string
+        enum:
+          - specification_only
+          - active
+          - deprecated
+      execution_permitted:
+        type: boolean

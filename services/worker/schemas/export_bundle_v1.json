@@ -1,0 +1,166 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ros.research/schemas/export_bundle_v1.json",
+  "title": "ROS Export Bundle v1",
+  "description": "JSON Schema for Research Operating System export bundle PROVENANCE.json",
+  "type": "object",
+  "required": [
+    "export_version",
+    "template_spec_version",
+    "template_id",
+    "template_version",
+    "export_timestamp",
+    "content_hash",
+    "bundle_hash",
+    "safety_flags"
+  ],
+  "properties": {
+    "export_version": {
+      "type": "string",
+      "const": "v1",
+      "description": "Export bundle schema version"
+    },
+    "template_spec_version": {
+      "type": "string",
+      "const": "v1",
+      "description": "Template specification version"
+    },
+    "template_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Source template identifier"
+    },
+    "template_name": {
+      "type": "string",
+      "description": "Human-readable template name"
+    },
+    "template_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Source template version"
+    },
+    "export_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of export"
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "SHA-256 hash of rendered content"
+    },
+    "bundle_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "SHA-256 hash of complete bundle"
+    },
+    "commit_sha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{7,40}$",
+      "description": "Git commit SHA at export time"
+    },
+    "app_version": {
+      "type": "string",
+      "description": "Application version string"
+    },
+    "safety_flags": {
+      "$ref": "#/definitions/safetyFlags",
+      "description": "Safety constraint snapshot"
+    },
+    "governance_reference": {
+      "type": "string",
+      "description": "Path to governance disclaimer document"
+    },
+    "mode_flags": {
+      "$ref": "#/definitions/modeFlags",
+      "description": "Runtime mode flags at export"
+    },
+    "pipeline_provenance_ref": {
+      "type": "string",
+      "description": "Path/reference to pipeline provenance file (e.g., metadata/pipeline_provenance_{run_id}.json)"
+    },
+    "figures_manifest_ref": {
+      "type": "string",
+      "description": "Path/reference to figures manifest file (e.g., figures/figures_manifest_{run_id}.json)"
+    },
+    "bundle_run_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "description": "Unique run identifier for this export bundle"
+    },
+    "bundle_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 checksum of the bundle archive (hex format, 64 chars)"
+    },
+    "phi_scan_report_ref": {
+      "type": "string",
+      "description": "Path/reference to PHI scan report from simulated-real mode (e.g., .tmp/artifacts/run_xyz/phi_scan_report.json)"
+    },
+    "phi_scrub_manifest_ref": {
+      "type": "string",
+      "description": "Path/reference to PHI scrub manifest from simulated-real mode (e.g., .tmp/artifacts/run_xyz/phi_scrub_manifest.json)"
+    },
+    "dataset_profile_ref": {
+      "type": "string",
+      "description": "Path/reference to dataset profile from simulated-real mode (e.g., .tmp/artifacts/run_xyz/dataset_profile.json)"
+    },
+    "scrubbed_dataset_ref": {
+      "type": "string",
+      "description": "Path/reference to scrubbed dataset from simulated-real mode (e.g., .tmp/work/run_xyz/scrubbed.csv) - only if post-scrub clean"
+    }
+  },
+  "definitions": {
+    "safetyFlags": {
+      "type": "object",
+      "required": ["ruo_required", "allow_network", "allow_uploads"],
+      "properties": {
+        "ruo_required": {
+          "type": "boolean",
+          "const": true,
+          "description": "RUO enforcement status"
+        },
+        "allow_network": {
+          "type": "boolean",
+          "const": false,
+          "description": "Network access status"
+        },
+        "allow_uploads": {
+          "type": "boolean",
+          "const": false,
+          "description": "File upload status"
+        }
+      }
+    },
+    "modeFlags": {
+      "type": "object",
+      "properties": {
+        "mock_only": {
+          "type": "boolean",
+          "description": "Whether mock mode is active"
+        },
+        "no_network": {
+          "type": "boolean",
+          "description": "Whether network is blocked"
+        },
+        "standby_mode": {
+          "type": "boolean",
+          "description": "Whether STANDBY mode is active"
+        },
+        "synthetic_upload_test": {
+          "type": "boolean",
+          "description": "Whether simulated-real mode is active (synthetic PHI test upload)"
+        },
+        "raw_upload_excluded": {
+          "type": "boolean",
+          "description": "Whether raw upload file is excluded from bundle (quarantine enforcement)"
+        },
+        "include_scrubbed_dataset": {
+          "type": "boolean",
+          "description": "Whether scrubbed dataset is included in bundle"
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

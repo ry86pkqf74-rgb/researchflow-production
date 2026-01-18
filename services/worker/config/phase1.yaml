@@ -1,0 +1,152 @@
+# =============================================================================
+# Phase 1 Configuration — INACTIVE / REFERENCE ONLY
+# =============================================================================
+# ⚠️ THIS CONFIGURATION IS NOT ACTIVE
+# ⚠️ THIS FILE EXISTS FOR DOCUMENTATION PURPOSES ONLY
+# ⚠️ PHASE 1 REQUIRES EXPLICIT GOVERNANCE APPROVAL BEFORE ACTIVATION
+#
+# This file documents what Phase 1 configuration WOULD look like if activated.
+# It does NOT enable any features. The application WILL NOT load this profile
+# unless explicit authorization is granted through the governance process.
+#
+# Activation Requirements:
+#   1. Written approval from PI, Security, Data Governance
+#   2. Pre-Flight Checklist 100% complete
+#   3. PHASE1_GOVERNANCE_APPROVED=1 environment variable
+#   4. Explicit operator acknowledgment
+#
+# Governance Reference:
+#   - docs/governance/phase_1_activation_plan.md
+#   - docs/governance/phase_1_non_authority_invariants_declaration.md
+#   - docs/governance/phase_1_execution_rules_of_engagement.md
+# =============================================================================
+
+# Configuration profile identifier
+profile: phase1
+version: "1.0-INACTIVE"
+description: "Phase 1 configuration — NOT ACTIVE — requires governance approval"
+status: INACTIVE  # DO NOT CHANGE without governance approval
+
+# =============================================================================
+# ⚠️ WARNING: NON-AUTHORIZATION STATEMENT
+# =============================================================================
+# This configuration file DOES NOT authorize Phase 1 activation.
+# Possession of this file confers NO execution authority.
+# All features below remain DISABLED until formal approval is granted.
+# =============================================================================
+
+# =============================================================================
+# SAFETY FLAGS (Phase 1 would modify ONLY allow_uploads)
+# =============================================================================
+
+safety_flags:
+  # Mock-only mode: STILL TRUE in Phase 1 (no live AI calls)
+  mock_only: true
+
+  # Network disabled: STILL TRUE in Phase 1 (offline operation)
+  no_network: true
+
+  # Uploads: WOULD BE ENABLED in Phase 1 (requires approval)
+  # This is the ONLY flag that changes from STANDBY
+  allow_uploads: true  # ⚠️ REQUIRES APPROVAL
+
+  # Strict PHI enforcement: ALWAYS TRUE (non-negotiable)
+  strict_phi_on_upload: true
+
+  # Phase 1 activation flag
+  phase1_active: true  # ⚠️ REQUIRES APPROVAL
+
+# =============================================================================
+# OPERATIONAL CONSTRAINTS (Phase 1)
+# =============================================================================
+
+operations:
+  # Results sections: STILL [PENDING] in Phase 1
+  # Phase 1 does NOT authorize result generation
+  results_locked: true
+  results_placeholder: "[PENDING — populated only after analysis phase]"
+
+  # Data processing: synthetic only (Phase 1 does NOT authorize real data)
+  data_mode: synthetic
+  allowed_data_sources:
+    - fixtures
+    - synthetic
+    - approved_samples  # Only pre-approved, PHI-scanned samples
+
+  # Logging: REQUIRED (governance mandate)
+  governance_logging: true
+  log_destination: "reports/local"
+
+  # Handoff packs: metadata only (no raw values)
+  handoff_mode: metadata_only
+  handoff_results: "[PENDING]"
+
+# =============================================================================
+# PROVIDER CONFIGURATION (Phase 1)
+# =============================================================================
+
+providers:
+  # Literature provider: STILL DISABLED (no network)
+  literature:
+    type: mock
+    enabled: false
+
+  # LLM provider: offline handoff only (no API calls)
+  llm:
+    type: offline_handoff
+    enabled: true
+    api_calls: false
+
+  # Storage provider: local only
+  storage:
+    type: local
+    path: "reports/local"
+
+# =============================================================================
+# PHASE 1 SCOPE LIMITATIONS
+# =============================================================================
+# Even when activated, Phase 1 does NOT authorize:
+#   - Clinical use or decision-making
+#   - Processing of real patient data or PHI
+#   - Generation of statistical results or figures
+#   - Code modifications or feature development
+#   - Network connectivity or external API calls
+#   - Deployment to any environment
+#   - External sharing of outputs
+#
+# See: docs/governance/phase_1_non_authority_invariants_declaration.md
+
+scope_limitations:
+  clinical_use: false
+  phi_processing: false
+  result_generation: false
+  code_changes: false
+  network_access: false
+  deployment: false
+  external_sharing: false
+
+# =============================================================================
+# ACTIVATION REQUIREMENTS
+# =============================================================================
+
+activation:
+  requires_approval: true
+  approval_sources:
+    - PI
+    - Security
+    - Data Governance
+  environment_flag: "PHASE1_GOVERNANCE_APPROVED=1"
+  pre_flight_checklist: required
+  operator_acknowledgment: required
+
+  # Rollback requirements
+  rollback_on_violation: true
+  rollback_to: standby
+
+# =============================================================================
+# FINAL REMINDER
+# =============================================================================
+# This file is DOCUMENTATION ONLY.
+# Phase 1 is NOT ACTIVE.
+# DO NOT assume this configuration is in effect.
+# =============================================================================

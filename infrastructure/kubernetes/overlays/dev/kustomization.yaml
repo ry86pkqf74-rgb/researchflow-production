@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: researchflow-dev
+
+resources:
+  - ../../base
+
+nameSuffix: -dev
+
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: orchestrator
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: worker
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: web
+
+configMapGenerator:
+  - name: researchflow-config
+    behavior: merge
+    literals:
+      - GOVERNANCE_MODE=DEMO
+      - LOG_LEVEL=debug
+
+images:
+  - name: researchflow/orchestrator
+    newTag: dev
+  - name: researchflow/worker
+    newTag: dev
+  - name: researchflow/web
+    newTag: dev

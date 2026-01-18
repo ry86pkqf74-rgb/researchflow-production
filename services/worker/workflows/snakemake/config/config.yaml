@@ -1,0 +1,31 @@
+# Snakemake Workflow Configuration
+# INF-1 / Task A - Workflow Orchestration Scaffolding
+#
+# Governance: STANDBY fail-closed by default
+#   - No network calls (NO_NETWORK=1)
+#   - Mock-only LLM providers (MOCK_ONLY=1)
+#   - All artifacts under .tmp/ quarantine
+#   - No PHI, no secrets, no content emission
+
+# Runtime control
+ros_mode: STANDBY  # STANDBY | SANDBOX | ACTIVE | LIVE
+no_network: true   # Enforce offline mode
+mock_only: true    # Use mock LLM providers only
+
+# Input/output paths (all under .tmp/ quarantine)
+literature_input: ".tmp/literature_runtime/inputs/"
+literature_artifacts: ".tmp/literature_runtime/artifacts/"
+sourcelit_manifests: ".tmp/sourcelit_runtime/manifests/"
+export_output: ".tmp/export_runs/"
+
+# Validation configuration
+strict_validation: true    # Enforce strict schema validation
+enable_ai_qa: false        # AI QA requires ACTIVE mode (disabled in STANDBY)
+
+# Provenance configuration (INF-13)
+data_version_id: "v1.0.0"  # Version identifier for input data
+# run_id: ""               # Optional: override auto-generated run ID (format: workflow_YYYYMMDDTHHMMSSZ_hex8)
+
+# Execution settings
+max_parallel_jobs: 1       # Sequential execution for determinism
+log_level: "INFO"          # DEBUG | INFO | WARNING | ERROR

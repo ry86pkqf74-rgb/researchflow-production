@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/qa_metrics.schema.json",
+  "title": "QA Metrics",
+  "description": "Schema for machine-readable QA metrics artifacts produced by validation runs",
+  "type": "object",
+  "required": [
+    "run_id",
+    "generated_at",
+    "tables",
+    "severity"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Unique identifier for the run that produced these metrics"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 datetime when these metrics were generated"
+    },
+    "tables": {
+      "type": "object",
+      "description": "Metrics keyed by table name",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "row_count": {
+            "type": "integer",
+            "description": "Total number of rows in the table",
+            "minimum": 0
+          },
+          "null_rates": {
+            "type": "object",
+            "description": "Null/missing value rates keyed by column name",
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "fk_checks": {
+            "type": "array",
+            "description": "Foreign key integrity check results",
+            "items": {
+              "type": "object",
+              "properties": {
+                "relation": {
+                  "type": "string",
+                  "description": "Name or description of the foreign key relationship"
+                },
+                "orphans": {
+                  "type": "integer",
+                  "description": "Number of orphaned records",
+                  "minimum": 0
+                },
+                "orphan_rate": {
+                  "type": "number",
+                  "description": "Proportion of orphaned records (0-1)",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "drift_summary": {
+      "type": "object",
+      "description": "Drift detection summary (optional in early tier; placeholder structure for maturity)",
+      "properties": {
+        "baseline_reference": {
+          "type": "string",
+          "description": "Identifier of the baseline used for comparison"
+        },
+        "row_count_drifts": {
+          "type": "object",
+          "description": "Row count changes by table",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "baseline": {
+                "type": "integer"
+              },
+              "current": {
+                "type": "integer"
+              },
+              "percent_change": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "distribution_drifts": {
+          "type": "array",
+          "description": "Detected distribution shifts",
+          "items": {
+            "type": "object",
+            "properties": {
+              "table": {
+                "type": "string"
+              },
+              "column": {
+                "type": "string"
+              },
+              "metric": {
+                "type": "string",
+                "description": "e.g., mean, median, p95"
+              },
+              "baseline_value": {
+                "type": "number"
+              },
+              "current_value": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    "severity": {
+      "type": "object",
+      "description": "Summary of validation outcomes by severity",
+      "required": ["hard_fail_count", "warn_count"],
+      "properties": {
+        "hard_fail_count": {
+          "type": "integer",
+          "description": "Number of hard fail validation checks",
+          "minimum": 0
+        },
+        "warn_count": {
+          "type": "integer",
+          "description": "Number of warning validation checks",
+          "minimum": 0
+        }
+      }
+    },
+    "dual_metrics": {
+      "type": "object",
+      "description": "Optional dual strict/tolerant validation metrics for monitoring and drift detection",
+      "additionalProperties": {
+        "type": "object",
+        "description": "Individual metric evaluation result",
+        "required": ["strict_pass"],
+        "additionalProperties": false,
+        "properties": {
+          "strict_pass": {
+            "type": "boolean",
+            "description": "Whether the metric passed strict (exact match) evaluation"
+          },
+          "tolerant_pass": {
+            "type": ["boolean", "null"],
+            "description": "Whether the metric passed tolerant evaluation (within configured tolerance); null if no tolerance applies"
+          },
+          "deviation": {
+            "type": ["number", "null"],
+            "description": "Calculated deviation from expected value; null if not applicable"
+          },
+          "deviation_unit": {
+            "type": ["string", "null"],
+            "enum": ["pct", "abs", "days", null],
+            "description": "Unit of the deviation: pct (percentage), abs (absolute), days (for dates), or null"
+          },
+          "tolerance": {
+            "type": ["number", "null"],
+            "description": "Configured tolerance threshold; null if no tolerance applies"
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "description": "Additional context or warnings about the evaluation"
+          }
+        }
+      }
+    }
+  }
+}

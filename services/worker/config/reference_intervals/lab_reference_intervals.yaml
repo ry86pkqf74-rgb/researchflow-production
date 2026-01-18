@@ -1,0 +1,220 @@
+# Laboratory Reference Interval Registry
+# ======================================
+# Timestamped reference intervals for laboratory analytes.
+#
+# Purpose:
+# - Provide authoritative reference ranges for clinical interpretation
+# - Support temporal validity (reference ranges change over time)
+# - Enable multi-site harmonization with source attribution
+#
+# IMPORTANT:
+# - These are METADATA only; no patient data
+# - Reference intervals vary by lab, method, and population
+# - Always verify against current institutional values
+#
+# Schema:
+#   analyte: Standard analyte name (matches schema field names)
+#   unit_ucum: UCUM unit code (must be in ucum_allowlist.yaml)
+#   ref_low: Lower bound of reference range (numeric)
+#   ref_high: Upper bound of reference range (numeric)
+#   effective_start: Start date of validity (YYYY-MM-DD)
+#   effective_end: End date of validity (YYYY-MM-DD, null if current)
+#   population: Population descriptor (e.g., "adult", "pediatric", "pregnant")
+#   sex: Sex-specific range ("all", "male", "female")
+#   source: Source of reference range (institution, guideline)
+#   method: Assay method if relevant
+#   notes: Additional context
+#
+# Version: 1.0.0
+# Date: 2025-12-26
+# Status: PRE-ANALYSIS SCAFFOLD
+# ---
+
+version: "1.0.0"
+last_updated: "2025-12-26"
+status: "pre-analysis-scaffold"
+
+# =============================================================================
+# THYROID FUNCTION TESTS
+# =============================================================================
+reference_intervals:
+  # -------------------------------------------------------------------------
+  # TSH (Thyroid Stimulating Hormone)
+  # -------------------------------------------------------------------------
+  - analyte: "tsh"
+    unit_ucum: "mIU/L"
+    ref_low: 0.4
+    ref_high: 4.0
+    effective_start: "2020-01-01"
+    effective_end: null
+    population: "adult"
+    sex: "all"
+    source: "ATA Guidelines 2015"
+    method: "immunoassay"
+    notes: "Standard adult reference range"
+
+  - analyte: "tsh"
+    unit_ucum: "mIU/L"
+    ref_low: 0.1
+    ref_high: 2.5
+    effective_start: "2020-01-01"
+    effective_end: null
+    population: "pregnant_first_trimester"
+    sex: "female"
+    source: "ATA Guidelines 2017 Pregnancy"
+    method: "immunoassay"
+    notes: "First trimester pregnancy range"
+
+  # -------------------------------------------------------------------------
+  # Free T4
+  # -------------------------------------------------------------------------
+  - analyte: "free_t4"
+    unit_ucum: "ng/dL"
+    ref_low: 0.8
+    ref_high: 1.8
+    effective_start: "2020-01-01"
+    effective_end: null
+    population: "adult"
+    sex: "all"
+    source: "Laboratory standard"
+    method: "immunoassay"
+    notes: "May vary by assay manufacturer"
+
+  # -------------------------------------------------------------------------
+  # Free T3
+  # -------------------------------------------------------------------------
+  - analyte: "free_t3"
+    unit_ucum: "pg/mL"
+    ref_low: 2.3
+    ref_high: 4.2
+    effective_start: "2020-01-01"
+    effective_end: null
+    population: "adult"
+    sex: "all"
+    source: "Laboratory standard"
+    method: "immunoassay"
+    notes: "Standard adult range"
+
+  # -------------------------------------------------------------------------
+  # Total T4
+  # -------------------------------------------------------------------------
+  - analyte: "total_t4"
+    unit_ucum: "mcg/dL"
+    ref_low: 5.0
+    ref_high: 12.0
+    effective_start: "2020-01-01"
+    effective_end: null
+    population: "adult"
+    sex: "all"
+    source: "Laboratory standard"
+    method: "immunoassay"
+    notes: "Affected by TBG levels"
+
+  # -------------------------------------------------------------------------
+  # Total T3
+  # -------------------------------------------------------------------------
+  - analyte: "total_t3"
+    unit_ucum: "ng/dL"
+    ref_low: 80.0
+    ref_high: 200.0
+    effective_start: "2020-01-01"
+    effective_end: null
+    population: "adult"
+    sex: "all"
+    source: "Laboratory standard"
+    method: "immunoassay"
+    notes: "Standard adult range"
+
+  # -------------------------------------------------------------------------
+  # Thyroglobulin (Tumor Marker)
+  # -------------------------------------------------------------------------
+  - analyte: "thyroglobulin"
+    unit_ucum: "ng/mL"
+    ref_low: 0.0
+    ref_high: 55.0
+    effective_start: "2020-01-01"
+    effective_end: null
+    population: "adult_with_thyroid"
+    sex: "all"
+    source: "Laboratory standard"
+    method: "immunoassay"
+    notes: "With intact thyroid gland; post-thyroidectomy target is undetectable"
+
+  - analyte: "thyroglobulin"
+    unit_ucum: "ng/mL"
+    ref_low: 0.0
+    ref_high: 0.2
+    effective_start: "2020-01-01"
+    effective_end: null
+    population: "adult_post_thyroidectomy"
+    sex: "all"
+    source: "ATA Guidelines 2015"
+    method: "immunoassay"
+    notes: "Post-thyroidectomy suppressed target; <0.2 considered excellent response"
+
+  # -------------------------------------------------------------------------
+  # Anti-Thyroglobulin Antibody
+  # -------------------------------------------------------------------------
+  - analyte: "anti_thyroglobulin"
+    unit_ucum: "IU/mL"
+    ref_low: 0.0
+    ref_high: 4.0
+    effective_start: "2020-01-01"
+    effective_end: null
+    population: "adult"
+    sex: "all"
+    source: "Laboratory standard"
+    method: "immunoassay"
+    notes: "Elevated levels interfere with thyroglobulin measurement"
+
+  # -------------------------------------------------------------------------
+  # Anti-TPO Antibody
+  # -------------------------------------------------------------------------
+  - analyte: "anti_tpo"
+    unit_ucum: "IU/mL"
+    ref_low: 0.0
+    ref_high: 35.0
+    effective_start: "2020-01-01"
+    effective_end: null
+    population: "adult"
+    sex: "all"
+    source: "Laboratory standard"
+    method: "immunoassay"
+    notes: "Marker for autoimmune thyroid disease"
+
+  # -------------------------------------------------------------------------
+  # Calcitonin (Medullary Thyroid Cancer Marker)
+  # -------------------------------------------------------------------------
+  - analyte: "calcitonin"
+    unit_ucum: "pg/mL"
+    ref_low: 0.0
+    ref_high: 5.0
+    effective_start: "2020-01-01"
+    effective_end: null
+    population: "adult"
+    sex: "female"
+    source: "Laboratory standard"
+    method: "immunoassay"
+    notes: "Female reference range"
+
+  - analyte: "calcitonin"
+    unit_ucum: "pg/mL"
+    ref_low: 0.0
+    ref_high: 8.4
+    effective_start: "2020-01-01"
+    effective_end: null
+    population: "adult"
+    sex: "male"
+    source: "Laboratory standard"
+    method: "immunoassay"
+    notes: "Male reference range"
+
+# =============================================================================
+# REGISTRY METADATA
+# =============================================================================
+registry_metadata:
+  maintainer: "Research Operating System"
+  review_cycle: "annual"
+  last_review: "2025-12-26"
+  next_review: "2026-12-26"
+  governance_doc: "docs/governance/DATASET_LIFECYCLE_ENFORCEMENT.md"

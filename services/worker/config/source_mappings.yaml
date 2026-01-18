@@ -1,0 +1,155 @@
+# Source Mappings Configuration for Thyroid Dataset Ingestion
+#
+# Maps 12 Excel files from data/restricted/thyroid_pilot/ to standardized outputs
+# Edit this file to match your actual file names and sheet structures
+
+datasets:
+  # 1. FNA (Fine Needle Aspiration) Results - Long Format
+  - file_name: "FNAs_Rescored_Long_Format.xlsx"
+    sheet_name: 0  # First sheet (or specify sheet name as string)
+    output_name: "fna_results"
+    description: "FNA cytology results with Bethesda scoring"
+    column_mappings: {}  # Keep original column names for now
+    columns: null  # Keep all columns
+
+  # 2. Thyroid Sizes (Standardized)
+  - file_name: "THyroid Sizes, Stanardized_12_2_25.xlsx"
+    sheet_name: 0
+    output_name: "thyroid_sizes"
+    description: "Thyroid gland measurements and nodule dimensions"
+    column_mappings: {}
+    columns: null  # Keep all columns
+
+  # 3. Thyroid Weight Data
+  - file_name: "Thyroid_Weight_Data_12_2_25.xlsx"
+    sheet_name: 0
+    output_name: "thyroid_weights"
+    description: "Post-surgical thyroid specimen weights"
+    column_mappings: {}
+    columns: null  # Keep all columns
+
+  # 4. Anti-Thyroglobulin Antibody (Wide Format)
+  - file_name: "anti_thyroglobulin_antibody_wide_by_research_id_split.xlsx"
+    sheet_name: 0
+    output_name: "anti_tg_antibody"
+    description: "Anti-thyroglobulin antibody lab values"
+    column_mappings: {}
+    columns: null  # Keep all columns
+
+  # 5. Thyroglobulin (Wide Format)
+  - file_name: "thyroglobulin_wide_by_research_id_split.xlsx"
+    sheet_name: 0
+    output_name: "thyroglobulin"
+    description: "Thyroglobulin lab values"
+    column_mappings: {}
+    columns: null
+
+  # 6. Benign Pathology Reports
+  - file_name: "FINAL_UPDATE_BenignPath_12_8_WithText.xlsx"
+    sheet_name: 0
+    output_name: "benign_pathology"
+    description: "Benign thyroid pathology reports with text"
+    column_mappings: {}
+    columns: null
+
+  # 7. Tumor Pathology Reports
+  - file_name: "FINAL_UPDATE_TumorPath_12_8_CLEANED.xlsx"
+    sheet_name: 0
+    output_name: "tumor_pathology"
+    description: "Malignant thyroid pathology reports"
+    column_mappings: {}
+    columns: null
+
+  # 8. Ultrasound Reports (Multi-Sheet)
+  - file_name: "COMPLETE_MULTI_SHEET_ULTRASOUND_REPORTS.xlsx"
+    sheet_name: 0  # Process first sheet, add more entries for additional sheets
+    output_name: "ultrasound_reports"
+    description: "Thyroid ultrasound imaging reports with TIRADS"
+    column_mappings: {}
+    columns: null
+
+  # 9. Nuclear Medicine Scans
+  - file_name: "Nuclear_Med_final.xlsx"
+    sheet_name: 0
+    output_name: "nuclear_medicine"
+    description: "Nuclear medicine thyroid scans and uptake studies"
+    column_mappings: {}
+    columns: null
+
+  # 10. Parathyroid Notes (Intent)
+  - file_name: "parathyroid_notes_intent.xlsx"
+    sheet_name: 0
+    output_name: "parathyroid_notes"
+    description: "Clinical notes related to parathyroid function"
+    column_mappings: {}
+    columns: null
+
+  # 11. MRI Extraction
+  - file_name: "mri_extraction__FINAL_11_20_25.xlsx"
+    sheet_name: 0
+    output_name: "mri_reports"
+    description: "MRI imaging extractions for thyroid"
+    column_mappings: {}
+    columns: null
+
+  # 12. CT Extraction
+  - file_name: "CT_thyroid_extraction_FINAL_11_20_25.xlsx"
+    sheet_name: 0
+    output_name: "ct_reports"
+    description: "CT imaging extractions for thyroid"
+    column_mappings: {}
+    columns: null
+
+# Global settings
+settings:
+  # Input directory (relative to project root)
+  input_dir: "data/restricted/thyroid_pilot"
+
+  # Output directory for processed Parquet files
+  output_dir: "data/interim"
+
+  # Validation settings
+  validate_phi: true  # Check for potential PHI columns (names, DOB, etc.)
+  fail_on_missing_files: false  # Continue if some files missing
+
+  # QC thresholds
+  qc_thresholds:
+    max_missing_percentage: 80  # Warn if >80% missing in any column
+    warn_duplicate_percentage: 5  # Warn if >5% duplicate rows
+
+# Linkage configuration (for data integration)
+linkage:
+  # Canonical linkage key - all variants are normalized to this name
+  primary_key: "research_id"
+
+  # Priority-ordered list of known key variants
+  # During normalization, the first matching column wins
+  key_variants:
+    - "research_id"           # Canonical (no change needed)
+    - "research_id_number"    # Found in: anti_tg_antibody, thyroglobulin
+    - "Research_ID"           # Found in: thyroid_sizes
+    - "ResearchID"            # Found in: nuclear_medicine
+    - "RESEARCH_ID"           # Potential all-caps variant
+
+  # Dataset-specific key mappings (for explicit documentation)
+  dataset_key_sources:
+    anti_tg_antibody: "research_id_number"
+    thyroglobulin: "research_id_number"
+    thyroid_sizes: "Research_ID"
+    nuclear_medicine: "ResearchID"
+    benign_pathology: "research_id"
+    tumor_pathology: "research_id"
+    parathyroid_notes: "research_id"
+    fna_results: "research_id"  # To be verified
+    ultrasound_reports: "research_id"  # To be verified
+    mri_reports: "research_id"  # To be verified
+    ct_reports: "research_id"  # To be verified
+    thyroid_weights: "research_id"  # To be verified
+
+  # Files that should contain the linkage key
+  required_linkage_files:
+    - fna_results
+    - thyroid_sizes
+    - benign_pathology
+    - tumor_pathology
+    - ultrasound_reports
