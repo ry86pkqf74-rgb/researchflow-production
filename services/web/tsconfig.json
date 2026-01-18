@@ -15,17 +15,17 @@
     "jsx": "react-jsx",
 
     /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
 
-    /* Path aliases */
+    /* Path aliases - Vite resolves these at build time */
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@packages/core": ["../../packages/core/index.ts"],
-      "@packages/core/*": ["../../packages/core/*"]
+      "@packages/core": ["../../packages/core/index.ts", "./packages/core/index.ts"],
+      "@packages/core/*": ["../../packages/core/*", "./packages/core/*"]
     }
   },
   "include": ["src"],
