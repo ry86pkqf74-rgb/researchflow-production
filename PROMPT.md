@@ -17,6 +17,35 @@ ResearchFlow Production is a restructured production deployment with:
 4. Run and fix any failing tests
 5. Update documentation as needed
 
+## Manuscript Engine Project
+
+### Overview
+Complete the manuscript-engine package (100 tasks across 6 phases).
+See `docs/manuscript-engine/MANUSCRIPT_ENGINE_PRD.md` for specifications.
+
+### Phase Reference
+- Phase 0: Package setup → docs/manuscript-engine/PHASE_0_PACKAGE_SETUP.md
+- Phase 1: Data integration (T1-T20) → PHASE_1_DATA_INTEGRATION.md
+- Phase 2: Literature integration (T21-T40) → PHASE_2_LITERATURE_INTEGRATION.md
+- Phase 3: Structure building (T41-T60) → PHASE_3_STRUCTURE_BUILDING.md
+- Phase 4: Writing assistance (T61-T80) → PHASE_4_WRITING_ASSISTANCE.md [PARTIALLY COMPLETE]
+- Phase 5: Review/export (T81-T100) → PHASE_5_REVIEW_EXPORT.md
+
+### Critical Requirements
+- PHI scanning mandatory at ALL data insertion points
+- Hash-chained audit logging for all operations
+- >80% test coverage required
+- All services exported from src/services/index.ts
+
+### Execution Approach
+1. Read PRD activity log to understand current progress
+2. Compare PRD tasks vs. existing src/services/ files
+3. Identify gaps (missing services, incomplete implementations)
+4. Work through gaps sequentially by phase
+5. Update `passes: true` in PRD after each task
+6. Run `npm test` after completing each phase
+7. Output <promise>MANUSCRIPT_ENGINE_COMPLETE</promise> when all tasks pass
+
 ## Key Principles
 - ONE task per loop - focus on the most important thing
 - Search the codebase before assuming something isn't implemented

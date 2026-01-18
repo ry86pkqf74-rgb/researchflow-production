@@ -1,5 +1,23 @@
 # ResearchFlow Production - Fix Plan
 
+## Manuscript Engine PRD Integration (100 Tasks)
+
+**Status**: In Progress
+**Source**: docs/manuscript-engine/MANUSCRIPT_ENGINE_PRD.md
+**Existing Work**: Phase 4 partially complete (~23 services exist)
+
+### High-Priority Tasks
+- [ ] Compare PRD task list vs. packages/manuscript-engine/src/services/
+- [ ] Identify missing services from Phases 0, 1, 2, 3, 5
+- [ ] Implement missing services by phase
+- [ ] Write tests for each new service
+- [ ] Verify Phase 4 against specification
+- [ ] Run verification tasks (V1: build, V2: exports, V3: PHI scanning)
+- [ ] Achieve >80% test coverage
+- [ ] Update PRD activity log
+
+---
+
 ## Project Status Overview
 
 This is a mature, production-grade research operating system with:
