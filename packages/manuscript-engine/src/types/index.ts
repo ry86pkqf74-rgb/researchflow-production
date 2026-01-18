@@ -5,3 +5,4 @@
 
 export * from './manuscript.types';
 export * from './imrad.types';
+export * from './citation.types';
