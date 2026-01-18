@@ -82,3 +82,15 @@ data/manifests/
 .cache/
 tmp/
 temp/
+.call_count
+.circuit_breaker_history
+.circuit_breaker_state
+.claude_session_id
+.exit_signals
+.last_reset
+.ralph_session
+.ralph_session_history
+.response_analysis
+progress.json
+status.json
+logs/

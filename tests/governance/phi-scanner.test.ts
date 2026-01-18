@@ -6,7 +6,7 @@ import {
   getOverrideResult,
   type PHIScanResult,
   type PHIOverrideResult
-} from '../../apps/api-node/services/phi-scanner';
+} from '@apps/api-node/services/phi-scanner';
 
 describe('PHI Scanner', () => {
   describe('SSN Detection', () => {

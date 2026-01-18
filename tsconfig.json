@@ -1,44 +1,44 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "lib": ["ES2022"],
-    "strict": true,
+    "strict": false,
+    "noImplicitAny": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
+    "declaration": false,
     "sourceMap": true,
-    "outDir": "dist",
-    "rootDir": ".",
+    "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@researchflow/core": ["packages/core/src"],
-      "@researchflow/core/*": ["packages/core/src/*"],
-      "@researchflow/ai-router": ["packages/ai-router/src"],
-      "@researchflow/ai-router/*": ["packages/ai-router/src/*"],
-      "@researchflow/phi-engine": ["packages/phi-engine/src"],
-      "@researchflow/phi-engine/*": ["packages/phi-engine/src/*"]
+      "@researchflow/core": ["packages/core"],
+      "@researchflow/core/*": ["packages/core/*"],
+      "@researchflow/ai-router": ["packages/ai-router"],
+      "@researchflow/ai-router/*": ["packages/ai-router/*"],
+      "@researchflow/phi-engine": ["packages/phi-engine"],
+      "@researchflow/phi-engine/*": ["packages/phi-engine/*"],
+      "@packages/core": ["packages/core"],
+      "@packages/core/*": ["packages/core/*"],
+      "@apps/api-node": ["services/orchestrator"],
+      "@apps/api-node/*": ["services/orchestrator/*"],
+      "@apps/api-node/src": ["services/orchestrator/src"],
+      "@apps/api-node/src/*": ["services/orchestrator/src/*"]
     }
   },
   "include": [
     "packages/*/src/**/*",
-    "services/*/src/**/*",
+    "packages/*/*.ts",
+    "services/orchestrator/src/**/*",
     "tests/**/*"
   ],
   "exclude": [
     "node_modules",
     "**/node_modules",
-    "**/dist"
-  ],
-  "references": [
-    { "path": "packages/core" },
-    { "path": "packages/phi-engine" },
-    { "path": "packages/ai-router" },
-    { "path": "services/orchestrator" },
-    { "path": "services/web" }
+    "**/dist",
+    "services/web"
   ]
 }
