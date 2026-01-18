@@ -8,6 +8,15 @@ export * from './phi-guard.service';
 export * from './data-mapper.service';
 export * from './data-tagger.service';
 export * from './version-control.service';
+export * from './visualization.service';
+export * from './data-citation.service';
+export * from './data-lineage.service';
+export * from './chart-embed.service';
+export * from './pre-draft-validator.service';
+export * from './comparison-importer.service';
+export * from './data-sync.service';
+export * from './quarantine.service';
+export * from './data-search.service';
 
 // Phase 2: Literature Integration Services
 export * from './citation-manager.service';
