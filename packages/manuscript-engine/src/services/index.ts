@@ -20,6 +20,18 @@ export * from './data-search.service';
 
 // Phase 2: Literature Integration Services
 export * from './citation-manager.service';
+export * from './pubmed.service';
+export * from './semantic-scholar.service';
+export * from './lit-review.service';
+export * from './arxiv.service';
+export * from './lit-matrix.service';
+export * from './plagiarism-check.service';
+export * from './lit-watcher.service';
+export * from './lit-summary-embed.service';
+export * from './conflict-detector.service';
+export * from './zotero.service';
+export * from './citation-formatter.service';
+export * from './relevance-scorer.service';
 
 // Phase 4: Writing Assistance Services
 export * from './abbreviation.service';
