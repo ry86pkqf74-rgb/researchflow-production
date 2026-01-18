@@ -1,0 +1,41 @@
+{
+  "name": "@researchflow/manuscript-engine",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "description": "Clinical data integration and manuscript generation engine with AI-powered writing assistance",
+  "exports": {
+    ".": "./index.ts",
+    "./types": "./src/types/index.ts",
+    "./services": "./src/services/index.ts",
+    "./templates": "./src/templates/index.ts",
+    "./prompts": "./src/prompts/index.ts"
+  },
+  "dependencies": {
+    "@researchflow/core": "*",
+    "@researchflow/phi-engine": "*",
+    "@researchflow/ai-router": "*",
+    "zod": "^3.25.76",
+    "nanoid": "^5.0.0",
+    "docx": "^8.5.0",
+    "pdfkit": "^0.15.0",
+    "chart.js": "^4.4.0",
+    "canvas": "^2.11.2"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3",
+    "vitest": "^2.1.9",
+    "@vitest/coverage-v8": "^2.1.9",
+    "@types/node": "^20.14.0",
+    "@types/pdfkit": "^0.13.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  }
+}
