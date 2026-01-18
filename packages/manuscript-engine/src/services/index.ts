@@ -41,6 +41,14 @@ export * from './results-scaffold.service';
 export * from './discussion-builder.service';
 export * from './references-builder.service';
 export * from './acknowledgments.service';
+export * from './word-count-tracker.service';
+export * from './outline-expander.service';
+export * from './keyword-generator.service';
+export * from './coi-disclosure.service';
+export * from './appendices-builder.service';
+export * from './title-generator.service';
+export * from './author-manager.service';
+export * from './branch-manager.service';
 
 // Phase 4: Writing Assistance Services
 export * from './abbreviation.service';
