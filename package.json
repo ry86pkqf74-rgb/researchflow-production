@@ -12,7 +12,7 @@
     "dev": "docker-compose up",
     "dev:build": "docker-compose up --build",
     "build": "npm run build:packages && npm run build:services",
-    "build:packages": "npm run build -w packages/core -w packages/phi-engine -w packages/ai-router",
+    "build:packages": "npm run build -w packages/core -w packages/phi-engine -w packages/ai-router -w packages/manuscript-engine",
     "build:services": "npm run build -w services/orchestrator -w services/web",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "vitest run",
