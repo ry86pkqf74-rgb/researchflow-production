@@ -11,3 +11,5 @@ export * from './citation-inserter.types';
 export * from './search-history.types';
 export * from './figure-table-inserter.types';
 export * from './section-reorder.types';
+export * from './collaborative-editor.types';
+export * from './co-writer-mode.types';
