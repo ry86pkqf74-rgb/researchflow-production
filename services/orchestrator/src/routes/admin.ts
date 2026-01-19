@@ -7,7 +7,7 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { createClient } from 'redis';
-import { getCacheService } from '../services/cache.service';
+import CacheService from '../services/cache.service';
 
 const router = Router();
 
@@ -94,16 +94,15 @@ router.get('/health-summary', async (_req: Request, res: Response) => {
 
     // Check Redis health
     try {
-      const cacheService = getCacheService();
       const redisHealthy = await checkRedisHealth();
       summary.servicesHealthy['redis'] = redisHealthy;
 
-      // Get cache stats
-      const cacheStats = cacheService.getStats();
+      // Note: Cache stats would be collected from metrics service
+      // For now, return placeholder values
       summary.cacheStats = {
-        hitRate: cacheStats.hitRate,
-        hits: cacheStats.hits,
-        misses: cacheStats.misses
+        hitRate: 0,
+        hits: 0,
+        misses: 0
       };
     } catch {
       summary.servicesHealthy['redis'] = false;

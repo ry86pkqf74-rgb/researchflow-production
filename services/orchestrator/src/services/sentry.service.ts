@@ -87,7 +87,8 @@ function scrubObject(obj: unknown): unknown {
 
 // Singleton state
 let sentryEnabled = false;
-let Sentry: typeof import('@sentry/node') | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Sentry: any = null;
 
 /**
  * Initialize Sentry if SENTRY_DSN is configured
@@ -102,7 +103,14 @@ export async function initSentry(): Promise<boolean> {
 
   try {
     // Dynamic import to avoid loading Sentry if not needed
-    Sentry = await import('@sentry/node');
+    // Sentry is an optional dependency - install @sentry/node to enable
+    // @ts-ignore - optional dependency may not be installed
+    Sentry = await import(/* webpackIgnore: true */ '@sentry/node').catch(() => null);
+
+    if (!Sentry) {
+      console.log('[Sentry] @sentry/node package not installed, error tracking disabled');
+      return false;
+    }
 
     const options: SentryOptions = {
       dsn,
@@ -111,13 +119,13 @@ export async function initSentry(): Promise<boolean> {
       tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1'),
 
       // PHI scrubbing before sending events
-      beforeSend: (event) => {
-        return scrubObject(event) as typeof event;
+      beforeSend: (event: unknown) => {
+        return scrubObject(event);
       },
 
       // PHI scrubbing for breadcrumbs
-      beforeBreadcrumb: (breadcrumb) => {
-        return scrubObject(breadcrumb) as typeof breadcrumb;
+      beforeBreadcrumb: (breadcrumb: unknown) => {
+        return scrubObject(breadcrumb);
       },
     };
 
