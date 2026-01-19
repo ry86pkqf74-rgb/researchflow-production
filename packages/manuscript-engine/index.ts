@@ -76,6 +76,13 @@ export { CitationSuggesterService } from './src/services/citation-suggester.serv
 export { ClaimHighlighterService } from './src/services/claim-highlighter.service';
 
 // ============================================================================
+// PHASE A: Literature Workflow Services (INTEGRATED ✅)
+// ============================================================================
+
+export * from './src/services/prisma-diagram.service';
+export * from './src/services/pdf-retrieval.service';
+
+// ============================================================================
 // Templates & Prompts
 // ============================================================================
 

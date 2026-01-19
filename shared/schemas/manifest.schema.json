@@ -1,0 +1,272 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://researchflow.io/schemas/manifest.json",
+  "title": "Manifest",
+  "description": "Manifest schema with snapshot, quarantine, provenance, and uncertainty (Tasks 172, 179, 186, 191)",
+  "type": "object",
+  "required": ["id", "jobId", "version", "snapshot", "security", "status", "createdAt", "updatedAt"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique manifest identifier"
+    },
+    "jobId": {
+      "type": "string",
+      "description": "Associated job ID"
+    },
+    "workflowId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "default": "1.0.0"
+    },
+    "snapshot": {
+      "type": "object",
+      "description": "Snapshot at creation time (Task 172)",
+      "required": ["createdAt", "inputArtifacts"],
+      "properties": {
+        "gitSha": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "schemaHash": {
+          "type": "string"
+        },
+        "jobSpecHash": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "inputArtifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["artifactId", "sha256", "sizeBytes"],
+            "properties": {
+              "artifactId": { "type": "string" },
+              "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "sizeBytes": { "type": "integer", "minimum": 0 },
+              "mimeType": { "type": "string" },
+              "filename": { "type": "string" }
+            }
+          }
+        },
+        "outputArtifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["artifactId", "sha256", "sizeBytes"],
+            "properties": {
+              "artifactId": { "type": "string" },
+              "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "sizeBytes": { "type": "integer", "minimum": 0 },
+              "mimeType": { "type": "string" },
+              "filename": { "type": "string" }
+            }
+          }
+        },
+        "environment": {
+          "type": "object",
+          "properties": {
+            "nodeVersion": { "type": "string" },
+            "pythonVersion": { "type": "string" },
+            "workerVersion": { "type": "string" },
+            "orchestratorVersion": { "type": "string" }
+          }
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "required": ["quarantine"],
+      "properties": {
+        "quarantine": {
+          "type": "object",
+          "description": "Quarantine status (Task 179)",
+          "required": ["status"],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["none", "quarantined", "released"]
+            },
+            "reasonCodes": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "reviewState": {
+              "type": "string",
+              "enum": ["pending", "approved", "rejected"]
+            },
+            "reviewedBy": { "type": "string" },
+            "reviewedAt": { "type": "string", "format": "date-time" },
+            "reviewNotes": { "type": "string" },
+            "triggeredRule": { "type": "string" }
+          }
+        },
+        "redaction": {
+          "type": "object",
+          "properties": {
+            "applied": { "type": "boolean" },
+            "summary": {
+              "type": "object",
+              "additionalProperties": { "type": "integer" }
+            },
+            "method": { "type": "string" },
+            "redactedFields": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "piiDetection": {
+          "type": "object",
+          "properties": {
+            "detected": { "type": "boolean" },
+            "types": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "count": { "type": "integer", "minimum": 0 },
+            "riskScore": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "accessControl": {
+          "type": "object",
+          "properties": {
+            "classification": {
+              "type": "string",
+              "enum": ["public", "internal", "confidential", "restricted"]
+            },
+            "allowedRoles": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "deniedUsers": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Provenance hash-chain (Task 186)",
+      "required": ["manifestHash", "hashedAt"],
+      "properties": {
+        "manifestHash": {
+          "type": "string",
+          "description": "SHA256 hash of canonical JSON manifest"
+        },
+        "prevManifestHash": {
+          "type": "string",
+          "description": "Previous manifest hash in chain"
+        },
+        "signature": { "type": "string" },
+        "signingKeyId": { "type": "string" },
+        "chainIndex": { "type": "integer", "minimum": 0 },
+        "hashedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "uncertainty": {
+      "type": "object",
+      "description": "Field-level uncertainty scores (Task 191)",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["score", "method"],
+        "properties": {
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "method": {
+            "type": "string",
+            "enum": ["rules_confidence", "self_consistency", "ensemble", "model_logprob", "human_review", "unknown"]
+          },
+          "confidenceInterval": {
+            "type": "object",
+            "properties": {
+              "lower": { "type": "number" },
+              "upper": { "type": "number" },
+              "level": { "type": "number" }
+            }
+          },
+          "sampleCount": { "type": "integer", "minimum": 1 },
+          "models": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "metadata": { "type": "object" }
+        }
+      }
+    },
+    "carbon": {
+      "type": "object",
+      "description": "Carbon/environmental metrics (Task 189)",
+      "required": ["runtimeSeconds", "method"],
+      "properties": {
+        "runtimeSeconds": { "type": "number", "minimum": 0 },
+        "co2eGrams": { "type": "number", "minimum": 0 },
+        "method": {
+          "type": "string",
+          "enum": ["measured", "estimated", "unknown"]
+        },
+        "energyWh": { "type": "number", "minimum": 0 },
+        "region": { "type": "string" },
+        "carbonIntensity": { "type": "number", "minimum": 0 }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "properties": {
+        "overallScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "completeness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "duplicationRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "validationPassRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "warningCount": { "type": "integer", "minimum": 0 },
+        "errorCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "processing", "completed", "failed", "quarantined"]
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "stack": { "type": "string" },
+        "retryable": { "type": "boolean" }
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finalizedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

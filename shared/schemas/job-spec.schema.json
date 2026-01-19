@@ -1,0 +1,172 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://researchflow.io/schemas/job-spec.json",
+  "title": "JobSpec",
+  "description": "Job specification with quality thresholds (Task 199)",
+  "type": "object",
+  "required": ["id", "type", "inputs", "createdAt"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique job identifier",
+      "pattern": "^job_[a-zA-Z0-9]{12,}$"
+    },
+    "type": {
+      "type": "string",
+      "description": "Job type",
+      "enum": [
+        "extraction",
+        "validation",
+        "analysis",
+        "transformation",
+        "enrichment",
+        "export",
+        "stage_run"
+      ]
+    },
+    "version": {
+      "type": "string",
+      "description": "Job spec version for schema evolution",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "inputs": {
+      "type": "object",
+      "description": "Input data/configuration"
+    },
+    "thresholds": {
+      "type": "object",
+      "description": "Quality thresholds for job enforcement (Task 199)",
+      "properties": {
+        "minFieldConfidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum field confidence score (0..1)"
+        },
+        "maxDuplicationRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Maximum duplication rate (0..1)"
+        },
+        "maxPiiRiskScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Maximum PII risk score (0..1)"
+        },
+        "maxUncertaintyScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Maximum uncertainty score (0..1)"
+        },
+        "minExtractionCompleteness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum extraction completeness (0..1)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "retry": {
+      "type": "object",
+      "description": "Retry policy",
+      "properties": {
+        "maxAttempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 3
+        },
+        "backoff": {
+          "type": "object",
+          "required": ["type", "delayMs"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["fixed", "exponential", "custom"]
+            },
+            "delayMs": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 300000
+            },
+            "maxDelayMs": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 3600000
+            },
+            "multiplier": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 10
+            }
+          }
+        },
+        "retryOn": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "noRetryOn": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "priority": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 50
+        },
+        "queue": {
+          "type": "string"
+        },
+        "deadline": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "maxItems": 20
+    },
+    "workflowId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "parentJobId": {
+      "type": "string"
+    },
+    "timeoutMs": {
+      "type": "integer",
+      "minimum": 1000,
+      "maximum": 86400000,
+      "default": 300000
+    },
+    "tracingEnabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}
