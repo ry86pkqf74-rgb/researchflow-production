@@ -44,10 +44,19 @@ export default defineConfig({
   ],
 
   // Run your local dev server before starting the tests
-  webServer: {
-    command: 'npm run dev -w services/web',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-  },
+  // Note: E2E tests need both frontend (port 5173) and orchestrator backend (port 3001)
+  webServer: [
+    {
+      command: 'NODE_ENV=test GOVERNANCE_MODE=LIVE npm run dev -w services/orchestrator',
+      url: 'http://localhost:3001/health',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+    },
+    {
+      command: 'npm run dev -w services/web',
+      url: 'http://localhost:5173',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+    },
+  ],
 });
