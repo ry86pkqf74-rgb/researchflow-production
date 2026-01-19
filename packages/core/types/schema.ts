@@ -304,8 +304,13 @@ export const insertApprovalGateSchema = createInsertSchema(approvalGates).omit({
   requestedAt: true,
 });
 
+export const updateApprovalGateSchema = createInsertSchema(approvalGates).omit({
+  id: true,
+}).partial();
+
 export type ApprovalGateRecord = typeof approvalGates.$inferSelect;
 export type InsertApprovalGate = z.infer<typeof insertApprovalGateSchema>;
+export type UpdateApprovalGate = z.infer<typeof updateApprovalGateSchema>;
 
 // Approval Audit Entries Table (linked to approval gates)
 export const APPROVAL_ACTIONS = ["CREATED", "APPROVED", "REJECTED", "ESCALATED", "EXPIRED", "VIEWED"] as const;
@@ -486,8 +491,14 @@ export const insertTopicSchema = createInsertSchema(topics).omit({
   updatedAt: true,
 });
 
+export const updateTopicSchema = createInsertSchema(topics).omit({
+  id: true,
+  createdAt: true,
+}).partial();
+
 export type Topic = typeof topics.$inferSelect;
 export type InsertTopic = z.infer<typeof insertTopicSchema>;
+export type UpdateTopic = z.infer<typeof updateTopicSchema>;
 
 // =====================
 // STATISTICAL ANALYSIS PLAN TABLES
@@ -533,8 +544,14 @@ export const insertStatisticalPlanSchema = createInsertSchema(statisticalPlans).
   updatedAt: true,
 });
 
+export const updateStatisticalPlanSchema = createInsertSchema(statisticalPlans).omit({
+  id: true,
+  createdAt: true,
+}).partial();
+
 export type StatisticalPlanRecord = typeof statisticalPlans.$inferSelect;
 export type InsertStatisticalPlan = z.infer<typeof insertStatisticalPlanSchema>;
+export type UpdateStatisticalPlan = z.infer<typeof updateStatisticalPlanSchema>;
 
 // =====================
 // RESEARCH BRIEFS TABLE
@@ -592,8 +609,14 @@ export const insertResearchBriefSchema = createInsertSchema(researchBriefs).omit
   updatedAt: true,
 });
 
+export const updateResearchBriefSchema = createInsertSchema(researchBriefs).omit({
+  id: true,
+  createdAt: true,
+}).partial();
+
 export type ResearchBriefRecord = typeof researchBriefs.$inferSelect;
 export type InsertResearchBrief = z.infer<typeof insertResearchBriefSchema>;
+export type UpdateResearchBrief = z.infer<typeof updateResearchBriefSchema>;
 
 // =====================
 // CONFERENCE MATERIALS TABLES
