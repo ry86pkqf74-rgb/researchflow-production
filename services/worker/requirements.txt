@@ -59,7 +59,7 @@ mypy_extensions==1.1.0
 narwhals==2.15.0
 nltk==3.9.2
 nodeenv==1.10.0
-numpy==1.26.4
+numpy==2.4.1
 packageurl-python==0.17.6
 packaging==25.0
 pandas==2.2.0
