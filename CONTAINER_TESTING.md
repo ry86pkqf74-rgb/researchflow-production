@@ -47,6 +47,15 @@ This repository includes a containerized testing environment with auto-approve e
 - **Coverage**: 23.15%
 - **Target**: 80%
 
+**Governance Tests:**
+- **Total Tests**: 179
+- **Passing**: 179 ✓
+- **RBAC**: 36 tests ✓
+- **PHI Scanner**: 36 tests ✓
+- **Fail-Closed**: 25 tests ✓
+- **Mode Enforcement**: 45 tests ✓
+- **App Invariants**: 37 tests ✓
+
 ### Test Breakdown
 - Phase 5 Services: 188 tests
   - export.service.ts: 47 tests
