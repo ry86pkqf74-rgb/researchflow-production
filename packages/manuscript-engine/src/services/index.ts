@@ -72,3 +72,36 @@ export * from './export.service';
 export * from './compliance-checker.service';
 export * from './peer-review.service';
 export * from './final-phi-scan.service';
+
+// Service instances for testing
+import { getOpenAIDrafter } from './openai-drafter.service';
+import { getClaudeWriter } from './claude-writer.service';
+import { getGrammarChecker } from './grammar-checker.service';
+import { getClaimVerifier } from './claim-verifier.service';
+import { getReadability } from './readability.service';
+import { getTransitionSuggester } from './transition-suggester.service';
+import { getToneAdjuster } from './tone-adjuster.service';
+import { getSynonymFinder } from './synonym-finder.service';
+import { getMedicalNLP } from './medical-nlp.service';
+import { getClarityAnalyzer } from './clarity-analyzer.service';
+import { getSentenceBuilder } from './sentence-builder.service';
+import { getParaphrase } from './paraphrase.service';
+import { getAbbreviation } from './abbreviation.service';
+import { getCitationSuggester } from './citation-suggester.service';
+import { getClaimHighlighter } from './claim-highlighter.service';
+
+export const openAIDrafterService = getOpenAIDrafter();
+export const claudeWriterService = getClaudeWriter();
+export const grammarCheckerService = getGrammarChecker();
+export const claimVerifierService = getClaimVerifier();
+export const readabilityService = getReadability();
+export const transitionSuggesterService = getTransitionSuggester();
+export const toneAdjusterService = getToneAdjuster();
+export const synonymFinderService = getSynonymFinder();
+export const medicalNLPService = getMedicalNLP();
+export const clarityAnalyzerService = getClarityAnalyzer();
+export const sentenceBuilderService = getSentenceBuilder();
+export const paraphraseService = getParaphrase();
+export const abbreviationService = getAbbreviation();
+export const citationSuggesterService = getCitationSuggester();
+export const claimHighlighterService = getClaimHighlighter();
