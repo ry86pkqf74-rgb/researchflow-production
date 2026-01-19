@@ -9,6 +9,8 @@ resources:
   - pvc.yaml
   - orchestrator-deployment.yaml
   - worker-deployment.yaml
+  - worker-hpa.yaml
+  - worker-consumer-keda.yaml
   - web-deployment.yaml
   - ingress.yaml
   - pruning-cronjob.yaml

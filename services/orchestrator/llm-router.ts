@@ -14,6 +14,7 @@ import {
 import { scan, redact } from "@researchflow/phi-engine";
 import { getModelRouter } from "@researchflow/ai-router";
 import type { AITaskType } from "@researchflow/ai-router";
+import { recordAIRequest, recordAIEscalation } from "./src/services/metrics.service";
 
 // Initialize ai-router (replaces direct OpenAI client)
 // Phase B: All LLM calls routed through ai-router for centralized routing,
@@ -145,6 +146,28 @@ ${lastValidationResult?.errors.map(e => `- ${e.path}: ${e.message}`).join("\n") 
 
       // Use the model that was actually used (may have escalated)
       const actualModel = routerResponse.routing.model;
+
+      // Phase C: Record AI metrics for Prometheus
+      recordAIRequest(
+        routerResponse.routing.provider,
+        actualModel,
+        routerResponse.routing.finalTier,
+        taskType,
+        'success',
+        routerResponse.usage.inputTokens,
+        routerResponse.usage.outputTokens,
+        routerResponse.usage.estimatedCostUsd,
+        routerResponse.metrics.latencyMs
+      );
+
+      // Record escalation if it happened
+      if (routerResponse.routing.escalated) {
+        recordAIEscalation(
+          routerResponse.routing.initialTier,
+          routerResponse.routing.finalTier,
+          routerResponse.routing.escalationReason || 'quality_gate'
+        );
+      }
 
       const parsedContent = JSON.parse(content);
       const validationResult = validateAgainstSchema(parsedContent, schema);

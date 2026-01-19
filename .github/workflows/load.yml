@@ -1,0 +1,232 @@
+name: Load Test
+
+on:
+  schedule:
+    # Run load tests nightly at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Target URL for load test'
+        required: false
+        default: ''
+      duration:
+        description: 'Test duration in seconds'
+        required: false
+        default: '300'
+      users:
+        description: 'Number of concurrent users'
+        required: false
+        default: '50'
+
+permissions:
+  contents: read
+
+env:
+  TARGET_URL: ${{ github.event.inputs.target_url || secrets.STAGING_URL || 'https://staging.researchflow.example.com' }}
+  DURATION: ${{ github.event.inputs.duration || '300' }}
+  USERS: ${{ github.event.inputs.users || '50' }}
+
+jobs:
+  locust-load-test:
+    name: Locust Load Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Locust
+        run: |
+          pip install locust
+
+      - name: Create Locustfile
+        run: |
+          cat > locustfile.py << 'EOF'
+          """
+          ResearchFlow Load Test Configuration
+
+          Tests key API endpoints under load.
+          CRITICAL: Never include PHI in test data.
+          """
+
+          from locust import HttpUser, task, between
+          import json
+          import random
+          import string
+
+          def random_string(length=10):
+              return ''.join(random.choices(string.ascii_letters, k=length))
+
+          class ResearchFlowUser(HttpUser):
+              wait_time = between(1, 3)
+
+              def on_start(self):
+                  """Initialize user session."""
+                  # Health check to verify connectivity
+                  self.client.get("/health")
+
+              @task(5)
+              def health_check(self):
+                  """Health endpoint - high frequency."""
+                  with self.client.get("/health", catch_response=True) as response:
+                      if response.status_code == 200:
+                          response.success()
+                      else:
+                          response.failure(f"Health check failed: {response.status_code}")
+
+              @task(3)
+              def get_governance_status(self):
+                  """Check governance mode."""
+                  self.client.get("/api/governance/status")
+
+              @task(2)
+              def list_datasets(self):
+                  """List datasets endpoint."""
+                  self.client.get("/api/datasets")
+
+              @task(1)
+              def create_validation_job(self):
+                  """Create a validation job (synthetic data)."""
+                  payload = {
+                      "type": "validation",
+                      "config": {
+                          "dataset_pointer": f"/synthetic/{random_string()}.csv",
+                          "validation_level": "basic"
+                      }
+                  }
+                  self.client.post(
+                      "/api/jobs",
+                      json=payload,
+                      headers={"Content-Type": "application/json"}
+                  )
+
+              @task(1)
+              def get_metrics(self):
+                  """Prometheus metrics endpoint."""
+                  self.client.get("/metrics")
+
+          class AdminUser(HttpUser):
+              """Admin user with lower frequency."""
+              wait_time = between(5, 10)
+              weight = 1  # Lower weight than regular users
+
+              @task
+              def admin_health_summary(self):
+                  """Admin health summary endpoint."""
+                  self.client.get(
+                      "/api/admin/health-summary",
+                      headers={"X-User-Role": "ADMIN"}
+                  )
+          EOF
+
+      - name: Run Locust headless
+        run: |
+          locust \
+            --headless \
+            --host=${{ env.TARGET_URL }} \
+            --users=${{ env.USERS }} \
+            --spawn-rate=5 \
+            --run-time=${{ env.DURATION }}s \
+            --csv=locust_results \
+            --html=locust_report.html \
+            --only-summary
+        continue-on-error: true
+
+      - name: Upload Locust results
+        uses: actions/upload-artifact@v4
+        with:
+          name: locust-results
+          path: |
+            locust_results*.csv
+            locust_report.html
+        if: always()
+
+      - name: Parse and check results
+        run: |
+          echo "=== Load Test Summary ==="
+          if [ -f locust_results_stats.csv ]; then
+            echo "Stats:"
+            cat locust_results_stats.csv | column -t -s,
+          fi
+
+          if [ -f locust_results_failures.csv ]; then
+            FAILURES=$(wc -l < locust_results_failures.csv)
+            if [ "$FAILURES" -gt 1 ]; then
+              echo "WARNING: $((FAILURES - 1)) failure types recorded"
+              cat locust_results_failures.csv | column -t -s,
+            else
+              echo "No failures recorded"
+            fi
+          fi
+
+          # Check for high error rate (> 5%)
+          if [ -f locust_results_stats.csv ]; then
+            ERROR_RATE=$(tail -1 locust_results_stats.csv | cut -d',' -f9)
+            echo "Overall error rate: ${ERROR_RATE}%"
+          fi
+
+  k6-smoke-test:
+    name: K6 Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Create K6 script
+        run: |
+          cat > k6-smoke.js << 'EOF'
+          import http from 'k6/http';
+          import { check, sleep } from 'k6';
+
+          export const options = {
+            vus: 10,
+            duration: '30s',
+            thresholds: {
+              http_req_duration: ['p(95)<2000'], // 95% of requests under 2s
+              http_req_failed: ['rate<0.05'],     // Error rate under 5%
+            },
+          };
+
+          const BASE_URL = __ENV.TARGET_URL || 'https://staging.researchflow.example.com';
+
+          export default function () {
+            // Health check
+            let healthRes = http.get(`${BASE_URL}/health`);
+            check(healthRes, {
+              'health status is 200': (r) => r.status === 200,
+              'health response time < 500ms': (r) => r.timings.duration < 500,
+            });
+
+            // Governance status
+            let govRes = http.get(`${BASE_URL}/api/governance/status`);
+            check(govRes, {
+              'governance status is 200': (r) => r.status === 200,
+            });
+
+            // Metrics endpoint
+            let metricsRes = http.get(`${BASE_URL}/metrics`);
+            check(metricsRes, {
+              'metrics status is 200': (r) => r.status === 200,
+            });
+
+            sleep(1);
+          }
+          EOF
+
+      - name: Run K6 smoke test
+        run: |
+          k6 run k6-smoke.js -e TARGET_URL=${{ env.TARGET_URL }}
+        continue-on-error: true

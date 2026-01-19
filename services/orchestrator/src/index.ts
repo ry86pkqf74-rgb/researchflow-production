@@ -15,7 +15,12 @@ import governanceRoutes from './routes/governance.js';
 import datasetRoutes from './routes/datasets.js';
 import conferenceRoutes from './routes/conference.js';
 import { healthRouter } from './routes/health.js';
+import metricsRouter from './routes/metrics.js';
+import adminRouter from './routes/admin.js';
+import integrationsRouter from './routes/integrations.js';
 import { mockAuthMiddleware } from './middleware/auth.js';
+import { initSentry, sentryRequestHandler, sentryErrorHandler } from './services/sentry.service.js';
+import { metricsMiddleware } from './middleware/metrics.middleware.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { validateEnv } from './config/env-validator.js';
 
@@ -24,6 +29,11 @@ dotenv.config();
 
 // Validate environment variables (exits on failure)
 const env = validateEnv();
+
+// Initialize Sentry for error tracking (if SENTRY_DSN is set)
+initSentry().catch(() => {
+  console.warn('[Sentry] Failed to initialize - continuing without error tracking');
+});
 
 const app = express();
 const PORT = env.PORT;
@@ -46,8 +56,14 @@ if (NODE_ENV === 'development') {
   });
 }
 
+// Metrics middleware (track all requests)
+app.use(metricsMiddleware);
+
 // Health check routes (no auth required)
 app.use('/', healthRouter);
+
+// Prometheus metrics (no auth required)
+app.use('/metrics', metricsRouter);
 
 // Mock authentication middleware (sets req.user for RBAC)
 app.use(mockAuthMiddleware);
@@ -56,6 +72,8 @@ app.use(mockAuthMiddleware);
 app.use('/api/governance', governanceRoutes);
 app.use('/api/datasets', datasetRoutes);
 app.use('/api/ros', conferenceRoutes);
+app.use('/api/admin', adminRouter);
+app.use('/api/integrations', integrationsRouter);
 
 // 404 handler
 app.use((req, res) => {

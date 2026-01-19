@@ -1,0 +1,153 @@
+groups:
+  - name: researchflow-alerts
+    rules:
+      # 5xx Error Spike
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(researchflow_http_requests_total{status=~"5.."}[5m]))
+          / sum(rate(researchflow_http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "More than 5% of requests are returning 5xx errors over the last 5 minutes."
+
+      # Queue Backlog High
+      - alert: HighQueueBacklog
+        expr: sum(researchflow_queue_depth) > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Job queue backlog is high"
+          description: "Queue depth has exceeded 100 pending jobs for more than 10 minutes."
+
+      - alert: CriticalQueueBacklog
+        expr: sum(researchflow_queue_depth) > 500
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Job queue backlog is critical"
+          description: "Queue depth has exceeded 500 pending jobs. System may be overloaded."
+
+      # AI Cost Threshold (daily)
+      - alert: HighDailyAICost
+        expr: sum(increase(researchflow_ai_cost_usd_total[24h])) / 1000000 > 100
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Daily AI costs are high"
+          description: "AI costs have exceeded $100 in the last 24 hours."
+
+      - alert: CriticalDailyAICost
+        expr: sum(increase(researchflow_ai_cost_usd_total[24h])) / 1000000 > 500
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Daily AI costs are critically high"
+          description: "AI costs have exceeded $500 in the last 24 hours. Budget may be at risk."
+
+      # PHI Blocks Threshold
+      - alert: HighPHIBlockRate
+        expr: sum(rate(researchflow_phi_blocks_total[1h])) > 10
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate of PHI blocks"
+          description: "More than 10 PHI blocks per hour detected. Review data sources."
+
+      - alert: CriticalPHIBlockRate
+        expr: sum(rate(researchflow_phi_blocks_total[1h])) > 50
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical PHI block rate"
+          description: "More than 50 PHI blocks per hour. Possible data contamination."
+
+      # AI Latency
+      - alert: HighAILatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(researchflow_ai_latency_seconds_bucket[5m])) by (le)) > 30
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI request latency is high"
+          description: "95th percentile AI latency exceeds 30 seconds."
+
+      # Cache Hit Rate Low
+      - alert: LowCacheHitRate
+        expr: researchflow_cache_hit_rate{cache_type="redis"} < 0.5
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis cache hit rate is low"
+          description: "Cache hit rate has dropped below 50%. Review cache configuration."
+
+      # Job Failures
+      - alert: HighJobFailureRate
+        expr: |
+          sum(rate(researchflow_jobs_total{status="failed"}[5m]))
+          / sum(rate(researchflow_jobs_total[5m])) > 0.1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High job failure rate"
+          description: "More than 10% of jobs are failing over the last 5 minutes."
+
+      # Memory Usage
+      - alert: HighMemoryUsage
+        expr: researchflow_process_memory_bytes{type="heap_used"} > 1073741824
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Orchestrator heap usage exceeds 1GB."
+
+      # AI Escalation Rate
+      - alert: HighEscalationRate
+        expr: |
+          sum(rate(researchflow_ai_escalations_total[1h]))
+          / sum(rate(researchflow_ai_requests_total[1h])) > 0.3
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "High AI tier escalation rate"
+          description: "More than 30% of AI requests are being escalated. Review task type mappings."
+
+  - name: researchflow-slos
+    rules:
+      # Request Latency SLO
+      - alert: SLOLatencyViolation
+        expr: |
+          histogram_quantile(0.99, sum(rate(researchflow_http_request_duration_seconds_bucket[5m])) by (le)) > 5
+        for: 10m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "Latency SLO violation"
+          description: "99th percentile request latency exceeds 5 seconds."
+
+      # Availability SLO
+      - alert: SLOAvailabilityViolation
+        expr: |
+          sum(rate(researchflow_http_requests_total{status!~"5.."}[1h]))
+          / sum(rate(researchflow_http_requests_total[1h])) < 0.995
+        for: 15m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "Availability SLO violation"
+          description: "Service availability dropped below 99.5%."

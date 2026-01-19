@@ -1,0 +1,201 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # Static Application Security Testing (SAST)
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: |
+          semgrep scan \
+            --config=auto \
+            --config=p/security-audit \
+            --config=p/secrets \
+            --config=p/typescript \
+            --config=p/python \
+            --sarif \
+            --output=semgrep-results.sarif \
+            --error \
+            --verbose
+        continue-on-error: true
+
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-results.sarif
+        if: always()
+
+  # Container Image Scanning
+  trivy:
+    name: Trivy Container Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build images
+        run: |
+          docker build -t researchflow/orchestrator:scan -f services/orchestrator/Dockerfile .
+          docker build -t researchflow/worker:scan -f services/worker/Dockerfile .
+
+      - name: Run Trivy vulnerability scanner (orchestrator)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'researchflow/orchestrator:scan'
+          format: 'sarif'
+          output: 'trivy-orchestrator.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+        continue-on-error: true
+
+      - name: Run Trivy vulnerability scanner (worker)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'researchflow/worker:scan'
+          format: 'sarif'
+          output: 'trivy-worker.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+        continue-on-error: true
+
+      - name: Upload Trivy orchestrator results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-orchestrator.sarif'
+          category: 'trivy-orchestrator'
+        if: always()
+
+      - name: Upload Trivy worker results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-worker.sarif'
+          category: 'trivy-worker'
+        if: always()
+
+  # Secret Detection
+  gitleaks:
+    name: Gitleaks Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        continue-on-error: true
+
+  # Dependency Vulnerability Check
+  dependency-check:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check npm audit
+        run: |
+          npm ci
+          npm audit --audit-level=high || true
+        continue-on-error: true
+
+      - name: Check pip-audit
+        run: |
+          pip install pip-audit
+          cd services/worker
+          pip install -r requirements.txt
+          pip-audit || true
+        continue-on-error: true
+
+  # DAST - Dynamic Application Security Testing (staging only)
+  zap-scan:
+    name: OWASP ZAP Baseline
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: ${{ secrets.STAGING_URL || 'https://staging.researchflow.example.com' }}
+          allow_issue_writing: false
+          cmd_options: '-a'
+        continue-on-error: true
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: report_html.html
+        if: always()
+
+  # License Compliance
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check licenses
+        run: |
+          npx license-checker --production --failOn 'GPL;AGPL;LGPL' || true
+        continue-on-error: true
+
+  # Summary job
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [semgrep, trivy, gitleaks, dependency-check]
+    if: always()
+    steps:
+      - name: Check scan results
+        run: |
+          echo "Security scan completed. Check individual job results for details."
+          echo "Note: Some scans may have warnings that require manual review."

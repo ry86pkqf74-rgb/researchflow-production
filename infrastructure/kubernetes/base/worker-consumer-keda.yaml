@@ -1,0 +1,216 @@
+---
+# KEDA ScaledObject for Worker Consumer
+#
+# Scales worker-consumer pods based on Redis list length.
+# This provides more responsive scaling compared to HPA
+# for event-driven workloads.
+#
+# Prerequisites:
+# - KEDA operator installed (helm install keda kedacore/keda)
+# - Redis connection accessible from KEDA operator
+#
+# Note: This coexists with HPA. KEDA manages this separate deployment
+# while HPA manages the main worker deployment for CPU/memory scaling.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: worker-consumer-scaledobject
+  namespace: researchflow
+  labels:
+    app: worker-consumer
+    component: autoscaling
+spec:
+  scaleTargetRef:
+    name: worker-consumer
+  pollingInterval: 15              # Check queue every 15 seconds
+  cooldownPeriod: 60               # Wait 60s after last trigger before scaling down
+  minReplicaCount: 1               # Always have at least 1 consumer
+  maxReplicaCount: 20              # Scale up to 20 consumers
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 30
+          policies:
+            - type: Pods
+              value: 4
+              periodSeconds: 30
+        scaleDown:
+          stabilizationWindowSeconds: 120
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 60
+  triggers:
+    # Scale based on Redis list length
+    - type: redis
+      metadata:
+        # Redis connection string from environment
+        addressFromEnv: REDIS_URL
+        listName: researchflow:jobs:pending
+        listLength: "5"            # Scale up when more than 5 jobs pending per pod
+        activationListLength: "1"  # Start scaling when at least 1 job pending
+        enableTLS: "false"
+        # Optional: Use authentication
+        # passwordFromEnv: REDIS_PASSWORD
+
+---
+# TriggerAuthentication for Redis (if password required)
+# Uncomment and configure if Redis requires authentication
+# apiVersion: keda.sh/v1alpha1
+# kind: TriggerAuthentication
+# metadata:
+#   name: redis-trigger-auth
+#   namespace: researchflow
+# spec:
+#   secretTargetRef:
+#     - parameter: password
+#       name: redis-secret
+#       key: redis-password
+
+---
+# Worker Consumer Deployment
+#
+# Dedicated deployment for Redis job queue consumers.
+# Scaled by KEDA based on queue depth.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-consumer
+  namespace: researchflow
+  labels:
+    app: worker-consumer
+    component: worker
+spec:
+  replicas: 1                      # KEDA will manage this
+  selector:
+    matchLabels:
+      app: worker-consumer
+  template:
+    metadata:
+      labels:
+        app: worker-consumer
+        component: worker
+    spec:
+      serviceAccountName: worker-sa
+      containers:
+        - name: worker-consumer
+          image: ghcr.io/researchflow/worker:latest
+          imagePullPolicy: Always
+          command: ["python", "-m", "src.main"]
+          env:
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: researchflow-secrets
+                  key: redis-url
+            - name: ORCHESTRATOR_URL
+              value: "http://orchestrator:3001"
+            - name: GOVERNANCE_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: researchflow-config
+                  key: governance-mode
+            - name: LOG_LEVEL
+              value: "info"
+            - name: WORKER_CONSUMER_HEALTH_PORT
+              value: "8001"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          ports:
+            - name: health
+              containerPort: 8001
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+
+---
+# PodDisruptionBudget for Worker Consumer
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: worker-consumer-pdb
+  namespace: researchflow
+  labels:
+    app: worker-consumer
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: worker-consumer
+
+---
+# ScaledJob for burst job processing (alternative pattern)
+#
+# Creates ephemeral jobs to process queue items.
+# Useful for long-running jobs that shouldn't block the queue.
+# Uncomment to use job-based scaling instead of/in addition to deployment scaling.
+#
+# apiVersion: keda.sh/v1alpha1
+# kind: ScaledJob
+# metadata:
+#   name: worker-scaledjob
+#   namespace: researchflow
+#   labels:
+#     app: worker-scaledjob
+# spec:
+#   jobTargetRef:
+#     parallelism: 1
+#     completions: 1
+#     activeDeadlineSeconds: 600
+#     backoffLimit: 2
+#     template:
+#       spec:
+#         containers:
+#           - name: worker-job
+#             image: ghcr.io/researchflow/worker:latest
+#             command: ["python", "-m", "src.job_processor"]
+#             env:
+#               - name: REDIS_URL
+#                 valueFrom:
+#                   secretKeyRef:
+#                     name: researchflow-secrets
+#                     key: redis-url
+#               - name: ORCHESTRATOR_URL
+#                 value: "http://orchestrator:3001"
+#             resources:
+#               requests:
+#                 cpu: "100m"
+#                 memory: "256Mi"
+#               limits:
+#                 cpu: "1"
+#                 memory: "1Gi"
+#         restartPolicy: Never
+#   pollingInterval: 10
+#   minReplicaCount: 0
+#   maxReplicaCount: 50
+#   successfulJobsHistoryLimit: 5
+#   failedJobsHistoryLimit: 10
+#   triggers:
+#     - type: redis
+#       metadata:
+#         addressFromEnv: REDIS_URL
+#         listName: researchflow:jobs:pending
+#         listLength: "1"
