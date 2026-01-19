@@ -1,6 +1,6 @@
 #!/bin/bash
-# ResearchFlow Production - Replit Startup Script
-# This script starts all services in production mode on Replit
+# ResearchFlow Production - Local Development Startup Script
+# This script starts all services locally without Docker
 
 set -e
 
@@ -35,7 +35,7 @@ export WORKER_PORT=${WORKER_PORT:-8000}
 export WEB_PORT=${WEB_PORT:-5173}
 
 # Data directories
-DATA_DIR="${REPL_HOME:-$(pwd)}/data"
+DATA_DIR="${PROJECT_ROOT:-$(pwd)}/data"
 LOGS_DIR="$DATA_DIR/logs"
 PG_DATA="$DATA_DIR/postgres"
 REDIS_DATA="$DATA_DIR/redis"
@@ -345,9 +345,9 @@ main() {
     echo ""
     echo "Access Points:"
     echo "--------------"
-    echo "  Web UI:      https://${REPL_SLUG}.${REPL_OWNER}.repl.co"
-    echo "  API:         https://${REPL_SLUG}.${REPL_OWNER}.repl.co:3001/api"
-    echo "  API Health:  https://${REPL_SLUG}.${REPL_OWNER}.repl.co:3001/health"
+    echo "  Web UI:      http://localhost:$WEB_PORT"
+    echo "  API:         http://localhost:$PORT/api"
+    echo "  API Health:  http://localhost:$PORT/health"
     echo ""
     echo "Logs are in: $LOGS_DIR/"
     echo ""

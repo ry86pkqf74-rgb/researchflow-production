@@ -1,11 +1,11 @@
 #!/bin/bash
-# ResearchFlow Production - Replit Setup Script
-# Run this once to initialize the environment
+# ResearchFlow Production - Local Development Setup Script
+# Run this once to initialize the local development environment
 
 set -e
 
 echo "=========================================="
-echo "  ResearchFlow Production - Setup"
+echo "  ResearchFlow Production - Local Setup"
 echo "=========================================="
 
 # Create data directories
@@ -16,7 +16,7 @@ if [ ! -f .env ]; then
     if [ -f .env.example ]; then
         cp .env.example .env
         echo "[INFO] Created .env from .env.example"
-        echo "[WARN] Please update .env with your production values!"
+        echo "[WARN] Please update .env with your development/production values!"
         echo "       - Set ANTHROPIC_API_KEY"
         echo "       - Set JWT_SECRET to a strong random value"
         echo "       - Configure database credentials if using external DB"
@@ -51,7 +51,7 @@ echo "  Setup Complete!"
 echo "=========================================="
 echo ""
 echo "Next steps:"
-echo "  1. Update .env with your production secrets"
-echo "  2. Add secrets to Replit Secrets Manager"
-echo "  3. Click 'Run' to start the application"
+echo "  1. Update .env with your secrets"
+echo "  2. Run 'npm run local:start' to start all services"
+echo "  3. Or use 'npm run dev' for Docker-based development"
 echo ""

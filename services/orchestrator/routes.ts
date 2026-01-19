@@ -9,7 +9,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { topics } from "@researchflow/core/schema";
 import { eq } from "drizzle-orm";
-import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { setupAuth, registerAuthRoutes, isAuthenticated } from "./auth_integrations/auth";
 import {
   requireRole,
   requirePermission,
@@ -804,15 +804,15 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Setup Replit Auth FIRST before other routes
+  // Setup OIDC Auth FIRST before other routes
   await setupAuth(app);
   registerAuthRoutes(app);
-  
+
   // Apply lifecycle state middleware to all routes
   app.use(lifecycleStateMiddleware);
 
   // Authentication middleware - sets user context for RBAC
-  // Uses authenticated user from Replit Auth or falls back to dev user for unauthenticated routes
+  // Uses authenticated user from OIDC Auth or falls back to dev user for unauthenticated routes
   app.use((req: Request, _res: Response, next: NextFunction) => {
     // Check for role override header (for testing) or default to RESEARCHER
     const roleHeader = req.headers['x-user-role'] as Role | undefined;
@@ -821,7 +821,7 @@ export async function registerRoutes(
       ? roleHeader as Role 
       : ROLES.RESEARCHER;
     
-    // If user is authenticated via Replit Auth, use their info
+    // If user is authenticated via OIDC Auth, use their info
     if (req.user && 'claims' in req.user && (req.user as any).claims) {
       const claims = (req.user as any).claims;
       req.user = {

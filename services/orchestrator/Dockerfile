@@ -72,7 +72,7 @@ COPY services/orchestrator/ ./services/orchestrator/
 WORKDIR /app/services/orchestrator
 
 # Remove development-only files before build
-RUN rm -f vite.ts && rm -rf replit_integrations
+RUN rm -f vite.ts && rm -rf auth_integrations
 
 # Build with TypeScript
 RUN npm run build 2>&1 | tee /tmp/build.log || (cat /tmp/build.log && exit 1)
