@@ -3,6 +3,7 @@
  * Task T80: Comprehensive AI feature tests with PHI checking
  */
 
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   openAIDrafterService,
   claudeWriterService,

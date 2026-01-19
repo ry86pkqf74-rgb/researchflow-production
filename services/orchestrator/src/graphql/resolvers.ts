@@ -9,6 +9,7 @@
  */
 
 import { GraphQLScalarType, Kind } from 'graphql';
+// @ts-ignore - apollo-server-express types may not be installed
 import { ApolloError, AuthenticationError, ForbiddenError } from 'apollo-server-express';
 
 // Custom scalars

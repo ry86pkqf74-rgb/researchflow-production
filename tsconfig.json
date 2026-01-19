@@ -39,6 +39,10 @@
     "node_modules",
     "**/node_modules",
     "**/dist",
-    "services/web"
+    "services/web",
+    "tests/integration/**/*",
+    "tests/e2e/**/*",
+    "tests/governance/**/*",
+    "tests/utils/**/*"
   ]
 }

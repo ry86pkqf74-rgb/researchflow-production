@@ -879,7 +879,12 @@ export async function registerRoutes(
   // Health check endpoint for system status monitoring
   app.get("/api/v1/health", async (_req, res) => {
     try {
-      const rosStatus = await fetch(`${ROS_API_URL}/api/ros/status`).then(r => r.json()).catch(() => null);
+      const rosStatus = await fetch(`${ROS_API_URL}/api/ros/status`).then(r => r.json()).catch(() => null) as {
+        mode?: string;
+        mock_only?: boolean;
+        no_network?: boolean;
+        allow_uploads?: boolean;
+      } | null;
       res.json({
         status: "healthy",
         timestamp: new Date().toISOString(),
@@ -1457,7 +1462,7 @@ export async function registerRoutes(
     try {
       const response = await fetch(`${ROS_API_URL}/api/ros/status`);
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as Record<string, unknown>;
         res.json({ ...data, backend_connected: true });
       } else {
         // Fallback status if Python API not available

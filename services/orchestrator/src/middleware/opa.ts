@@ -59,7 +59,7 @@ async function checkOPA(req: Request): Promise<boolean> {
             headers: {
               authorization: req.headers.authorization || '',
               'user-agent': req.headers['user-agent'] || '',
-              'x-request-id': req.headers['x-request-id'] || '',
+              'x-request-id': (Array.isArray(req.headers['x-request-id']) ? req.headers['x-request-id'][0] : req.headers['x-request-id']) || '',
             },
           },
         },

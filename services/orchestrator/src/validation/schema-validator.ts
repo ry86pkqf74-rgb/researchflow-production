@@ -96,7 +96,7 @@ export function validateSchema(datasetName: string, version?: string) {
         return res.status(400).json({
           error: 'Validation failed',
           dataset: datasetName,
-          validationErrors: result.errors
+          validationErrors: 'errors' in result ? 'errors' in result ? result.errors : [] : []
         });
       }
 
@@ -124,7 +124,7 @@ export function validateQuery(schema: z.ZodSchema) {
     if (!result.success) {
       return res.status(400).json({
         error: 'Invalid query parameters',
-        validationErrors: result.errors
+        validationErrors: 'errors' in result ? result.errors : []
       });
     }
 
@@ -164,7 +164,7 @@ export function validateBatch(datasetName: string, version?: string) {
       if (!result.success) {
         return res.status(400).json({
           error: 'Batch validation failed',
-          validationErrors: result.errors
+          validationErrors: 'errors' in result ? result.errors : []
         });
       }
 
@@ -193,7 +193,7 @@ export function validate(schemaDef: SchemaDefinition | z.ZodSchema) {
     if (!result.success) {
       return res.status(400).json({
         error: 'Validation failed',
-        validationErrors: result.errors
+        validationErrors: 'errors' in result ? result.errors : []
       });
     }
 

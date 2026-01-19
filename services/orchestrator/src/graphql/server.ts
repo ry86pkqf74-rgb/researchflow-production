@@ -98,11 +98,6 @@ export async function createApolloServer(
       return formattedError;
     },
 
-    // Cache control
-    cacheControl: {
-      defaultMaxAge: 60 // 1 minute default
-    },
-
     // Introspection
     introspection: process.env.NODE_ENV !== 'production'
   });

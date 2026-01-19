@@ -60,7 +60,7 @@ export class WebhookService {
   private webhooks: Map<string, WebhookConfig> = new Map();
   private deliveries: Map<string, WebhookDelivery> = new Map();
   private retryQueue: WebhookDelivery[] = [];
-  private retryInterval?: NodeJS.Timer;
+  private retryInterval?: ReturnType<typeof setInterval>;
 
   constructor() {
     // Start retry processor

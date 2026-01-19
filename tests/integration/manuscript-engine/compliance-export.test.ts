@@ -3,6 +3,7 @@
  * Task T100: E2E workflow testing
  */
 
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   peerReviewService,
   complianceCheckerService,
