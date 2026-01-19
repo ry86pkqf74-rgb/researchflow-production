@@ -22,7 +22,7 @@ WORKDIR /app
 
 # Dependencies stage
 FROM base AS deps
-COPY requirements.txt pyproject.toml ./
+COPY services/worker/requirements.txt services/worker/pyproject.toml ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
@@ -35,7 +35,7 @@ WORKDIR /app
 
 COPY --from=deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
-COPY . .
+COPY services/worker/ .
 
 ENV PYTHONPATH=/app/src:/app
 ENV PYTHONUNBUFFERED=1
@@ -66,7 +66,7 @@ RUN groupadd -r worker && useradd -r -g worker worker
 # Copy dependencies and application
 COPY --from=deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
-COPY . .
+COPY services/worker/ .
 
 # Create data directories
 RUN mkdir -p /data/artifacts /data/logs /data/manifests && \
