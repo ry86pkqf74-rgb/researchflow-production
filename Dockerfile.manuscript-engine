@@ -1,24 +1,17 @@
-# Simplified Development Dockerfile for manuscript-engine testing
+# Development Dockerfile for manuscript-engine testing
 FROM node:20-alpine
 
 WORKDIR /workspace
 
 # Copy root package files
-COPY package.json ./
+COPY package.json package-lock.json* ./
 COPY tsconfig.json ./
 
-# Copy all workspace packages (they reference each other)
+# Copy all workspace packages
 COPY packages/ ./packages/
 
-# Install root dependencies first
-RUN npm install --legacy-peer-deps
-
-# Install manuscript-engine specific dependencies
-WORKDIR /workspace/packages/manuscript-engine
-RUN npm install --legacy-peer-deps
-
-# Return to workspace root
-WORKDIR /workspace
+# Install ALL dependencies at workspace root (this handles workspaces correctly)
+RUN npm install --include=dev
 
 # Set working directory to manuscript-engine
 WORKDIR /workspace/packages/manuscript-engine
