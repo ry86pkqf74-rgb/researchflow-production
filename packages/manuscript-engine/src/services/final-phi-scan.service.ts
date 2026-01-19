@@ -87,37 +87,37 @@ export class FinalPhiScanService {
     // PHI patterns following HIPAA 18 identifiers
     const patterns = [
       // Names
-      { type: 'name', pattern: /\\b(?:Mr\\.|Mrs\\.|Ms\\.|Dr\\.)\\s+[A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?/g, severity: 'critical' as const },
+      { type: 'name', pattern: /\b(?:Mr\.|Mrs\.|Ms\.|Dr\.)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?/g, severity: 'critical' as const },
       // Dates of birth
-      { type: 'dob', pattern: /\\b(?:DOB|born|birth)[:\\s]+\\d{1,2}[\\/\\-]\\d{1,2}[\\/\\-]\\d{2,4}/gi, severity: 'critical' as const },
+      { type: 'dob', pattern: /\b(?:DOB|born|birth)[:\s]+\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/gi, severity: 'critical' as const },
       // SSN
-      { type: 'ssn', pattern: /\\b\\d{3}[-\\s]?\\d{2}[-\\s]?\\d{4}\\b/g, severity: 'critical' as const },
+      { type: 'ssn', pattern: /\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/g, severity: 'critical' as const },
       // MRN
-      { type: 'mrn', pattern: /\\b(?:MRN|medical\\s+record)[:\\s#]*[\\d\\-]+/gi, severity: 'critical' as const },
+      { type: 'mrn', pattern: /\b(?:MRN|medical\s+record)[:\s#]*[\d\-]+/gi, severity: 'critical' as const },
       // Phone numbers
-      { type: 'phone', pattern: /\\b(?:\\+1\\s?)?\\(?\\d{3}\\)?[-\.\\s]?\\d{3}[-\.\\s]?\\d{4}\\b/g, severity: 'high' as const },
+      { type: 'phone', pattern: /\b(?:\+1\s?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, severity: 'high' as const },
       // Email addresses
-      { type: 'email', pattern: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b/g, severity: 'high' as const },
+      { type: 'email', pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, severity: 'high' as const },
       // Street addresses
-      { type: 'address', pattern: /\\b\\d+\\s+(?:[A-Z][a-z]+\\s+){1,3}(?:Street|St|Avenue|Ave|Road|Rd)\\b/gi, severity: 'high' as const },
+      { type: 'address', pattern: /\b\d+\s+(?:[A-Z][a-z]+\s+){1,3}(?:Street|St|Avenue|Ave|Road|Rd)\b/gi, severity: 'high' as const },
       // ZIP codes
-      { type: 'zip', pattern: /\\b\\d{5}(?:-\\d{4})?\\b/g, severity: 'medium' as const },
+      { type: 'zip', pattern: /\b\d{5}(?:-\d{4})?\b/g, severity: 'medium' as const },
       // Account numbers
-      { type: 'account', pattern: /\\b(?:account|acct)[:\\s#]*[\\d\\-]+/gi, severity: 'high' as const },
+      { type: 'account', pattern: /\b(?:account|acct)[:\s#]*[\d\-]+/gi, severity: 'high' as const },
       // License/Certificate numbers
-      { type: 'license', pattern: /\\b(?:license|certificate)[:\\s#]*[A-Z\\d\\-]+/gi, severity: 'medium' as const },
+      { type: 'license', pattern: /\b(?:license|certificate)[:\s#]*[A-Z\d\-]+/gi, severity: 'medium' as const },
       // Vehicle identifiers
-      { type: 'vehicle', pattern: /\\b(?:VIN|plate)[:\\s#]*[A-Z\\d\\-]+/gi, severity: 'medium' as const },
+      { type: 'vehicle', pattern: /\b(?:VIN|plate)[:\s#]*[A-Z\d\-]+/gi, severity: 'medium' as const },
       // Device identifiers
-      { type: 'device', pattern: /\\b(?:serial|device\\s+id)[:\\s#]*[A-Z\\d\\-]+/gi, severity: 'medium' as const },
+      { type: 'device', pattern: /\b(?:serial|device\s+id)[:\s#]*[A-Z\d\-]+/gi, severity: 'medium' as const },
       // URLs with identifiers
-      { type: 'url', pattern: /https?:\\/\\/[^\\s]+(?:patient|record|id=)[^\\s]*/gi, severity: 'high' as const },
+      { type: 'url', pattern: /https?:\/\/[^\s]+(?:patient|record|id=)[^\s]*/gi, severity: 'high' as const },
       // IP addresses
-      { type: 'ip', pattern: /\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b/g, severity: 'medium' as const },
+      { type: 'ip', pattern: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g, severity: 'medium' as const },
       // Biometric identifiers
-      { type: 'biometric', pattern: /\\b(?:fingerprint|retina|voiceprint)[:\\s]*[^\\s]+/gi, severity: 'critical' as const },
+      { type: 'biometric', pattern: /\b(?:fingerprint|retina|voiceprint)[:\s]*[^\s]+/gi, severity: 'critical' as const },
       // Photos
-      { type: 'photo', pattern: /\\b(?:photograph|photo)\\s+(?:of|showing)\\s+(?:patient|subject)/gi, severity: 'critical' as const }
+      { type: 'photo', pattern: /\b(?:photograph|photo)\s+(?:of|showing)\s+(?:patient|subject)/gi, severity: 'critical' as const }
     ];
 
     for (const { type, pattern, severity } of patterns) {
