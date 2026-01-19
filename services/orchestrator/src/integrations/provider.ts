@@ -4,80 +4,23 @@
  * Unified interface for OAuth integrations with external services.
  */
 
-// Types defined locally to avoid module resolution issues
+// Import types from core package
+import type {
+  IntegrationProvider,
+  IntegrationProviderClient,
+  OAuthTokenSet,
+  ProviderIdentity,
+  IntegrationSyncResult,
+} from '@researchflow/core/src/types/integration';
 
-export type IntegrationProvider =
-  | 'orcid'
-  | 'notion'
-  | 'salesforce'
-  | 'zoom'
-  | 'apple_health'
-  | 'jira'
-  | 'zapier'
-  | 'github'
-  | 'google_scholar';
-
-export interface OAuthTokenSet {
-  accessToken: string;
-  refreshToken?: string;
-  expiresAt?: string;
-  scope?: string;
-  tokenType?: string;
-  idToken?: string;
-}
-
-export interface ProviderIdentity {
-  externalAccountId: string;
-  externalAccountLabel?: string;
-  meta?: Record<string, unknown>;
-}
-
-export interface IntegrationSyncResult {
-  success: boolean;
-  itemsSynced: number;
-  itemsCreated: number;
-  itemsUpdated: number;
-  itemsDeleted: number;
-  nextCursor?: string;
-  hasMore: boolean;
-  error?: string;
-  durationMs: number;
-  syncedAt: string;
-}
-
-export interface IntegrationProviderClient {
-  provider: IntegrationProvider;
-  startOAuth(params: {
-    userId: string;
-    redirectUri: string;
-    scopes?: string[];
-    state?: string;
-  }): Promise<{
-    authorizationUrl: string;
-    state: string;
-    codeVerifier?: string;
-  }>;
-  finishOAuth(params: {
-    code: string;
-    state: string;
-    redirectUri: string;
-    codeVerifier?: string;
-  }): Promise<{
-    tokens: OAuthTokenSet;
-    identity: ProviderIdentity;
-  }>;
-  refreshToken?(params: { refreshToken: string }): Promise<OAuthTokenSet>;
-  revokeToken?(params: { accessToken?: string; refreshToken?: string }): Promise<void>;
-  runSync?(params: {
-    connectionId: string;
-    cursor?: string;
-    fullSync?: boolean;
-  }): Promise<IntegrationSyncResult>;
-  validateConnection?(params: { accessToken: string }): Promise<{
-    valid: boolean;
-    identity?: ProviderIdentity;
-  }>;
-}
+// Re-export types for backwards compatibility
+export type {
+  IntegrationProvider,
+  IntegrationProviderClient,
+  OAuthTokenSet,
+  ProviderIdentity,
+  IntegrationSyncResult,
+};
 
 /**
  * Provider configuration

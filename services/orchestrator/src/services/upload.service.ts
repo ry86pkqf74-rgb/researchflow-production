@@ -9,6 +9,7 @@
  */
 
 import crypto from 'crypto';
+import { logger } from '../logger/file-logger.js';
 
 // S3 client type (using AWS SDK v3 interface)
 interface S3Client {
@@ -69,7 +70,7 @@ export class UploadService {
       const { S3Client: AWS_S3Client } = await import('@aws-sdk/client-s3');
       this.s3Client = new AWS_S3Client({ region: this.config.region });
     } catch (error) {
-      console.warn('AWS SDK not available, using mock S3 service');
+      logger.warn('AWS SDK not available, using mock S3 service');
     }
   }
 

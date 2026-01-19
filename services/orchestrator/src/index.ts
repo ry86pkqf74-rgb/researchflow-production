@@ -23,6 +23,7 @@ import { initSentry, sentryRequestHandler, sentryErrorHandler } from './services
 import { metricsMiddleware } from './middleware/metrics.middleware.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { validateEnv } from './config/env-validator.js';
+import { logger } from './logger/file-logger.js';
 
 // Load environment variables
 dotenv.config();
@@ -32,7 +33,7 @@ const env = validateEnv();
 
 // Initialize Sentry for error tracking (if SENTRY_DSN is set)
 initSentry().catch(() => {
-  console.warn('[Sentry] Failed to initialize - continuing without error tracking');
+  logger.warn('[Sentry] Failed to initialize - continuing without error tracking');
 });
 
 const app = express();
@@ -51,7 +52,7 @@ app.use(express.urlencoded({ extended: true }));
 // Request logging (development only)
 if (NODE_ENV === 'development') {
   app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    logger.debug(`${req.method} ${req.path}`);
     next();
   });
 }
@@ -60,7 +61,10 @@ if (NODE_ENV === 'development') {
 app.use(metricsMiddleware);
 
 // Health check routes (no auth required)
+// Mounted at / for K8s probes (/healthz, /readyz) and legacy (/health)
 app.use('/', healthRouter);
+// Also mount at /api/health for normalized API access
+app.use('/api', healthRouter);
 
 // Prometheus metrics (no auth required)
 app.use('/metrics', metricsRouter);
@@ -89,31 +93,23 @@ app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
-  console.log('='.repeat(60));
-  console.log('ResearchFlow Canvas Server');
-  console.log('='.repeat(60));
-  console.log(`Environment:      ${NODE_ENV}`);
-  console.log(`Port:             ${PORT}`);
-  console.log(`Governance Mode:  ${process.env.GOVERNANCE_MODE || 'DEMO'}`);
-  console.log(`Health Check:     http://localhost:${PORT}/health`);
-  console.log(`API Base:         http://localhost:${PORT}/api`);
-  console.log('='.repeat(60));
-  console.log('Phase 1-2 Features: ACTIVE');
-  console.log('  ✓ RBAC Middleware');
-  console.log('  ✓ Data Classification');
-  console.log('  ✓ Approval Gates');
-  console.log('  ✓ Claim Linter');
-  console.log('  ✓ PHI Scanning');
-  console.log('='.repeat(60));
+  logger.info('ResearchFlow Canvas Server starting', {
+    environment: NODE_ENV,
+    port: PORT,
+    governanceMode: process.env.GOVERNANCE_MODE || 'DEMO',
+    healthCheck: `http://localhost:${PORT}/health`,
+    apiBase: `http://localhost:${PORT}/api`,
+    features: ['RBAC Middleware', 'Data Classification', 'Approval Gates', 'Claim Linter', 'PHI Scanning']
+  });
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
+  logger.info('SIGTERM signal received: closing HTTP server');
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT signal received: closing HTTP server');
+  logger.info('SIGINT signal received: closing HTTP server');
   process.exit(0);
 });

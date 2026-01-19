@@ -3,6 +3,7 @@ import { db } from "../../db";
 import { topics, Topic, InsertTopic } from "@researchflow/core/schema";
 import { eq, desc, and, ne } from "drizzle-orm";
 import { createAuditEntry } from "./auditService";
+import { logger } from "../logger/file-logger.js";
 
 interface TopicContentForHash {
   title: string;
@@ -74,7 +75,7 @@ export async function createTopic(data: {
       },
     });
   } catch (auditError) {
-    console.warn("Failed to create audit entry for topic creation:", auditError);
+    logger.warn("Failed to create audit entry for topic creation:", auditError);
   }
 
   return topic;
@@ -168,7 +169,7 @@ export async function updateTopic(
       },
     });
   } catch (auditError) {
-    console.warn("Failed to create audit entry for topic update:", auditError);
+    logger.warn("Failed to create audit entry for topic update:", auditError);
   }
 
   return newTopic;
@@ -226,7 +227,7 @@ export async function lockTopic(id: string, userId: string): Promise<Topic> {
       },
     });
   } catch (auditError) {
-    console.warn("Failed to create audit entry for topic lock:", auditError);
+    logger.warn("Failed to create audit entry for topic lock:", auditError);
   }
 
   return result[0];

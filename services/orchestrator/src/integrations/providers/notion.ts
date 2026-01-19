@@ -13,6 +13,7 @@ import type {
   ProviderIdentity,
   IntegrationSyncResult,
 } from '../provider';
+import { logger } from '../../logger/file-logger.js';
 
 interface NotionConfig {
   clientId: string;
@@ -143,7 +144,7 @@ export function createNotionProvider(config: NotionConfig): IntegrationProviderC
     async revokeToken({ accessToken }) {
       // Notion doesn't have a revoke endpoint
       // Users must revoke access through Notion settings
-      console.log('[Notion] Token revocation not supported - user must revoke in Notion settings');
+      logger.info('[Notion] Token revocation not supported - user must revoke in Notion settings');
     },
 
     async validateConnection({ accessToken }) {

@@ -22,6 +22,7 @@ import {
 } from '@aws-sdk/client-s3';
 // @ts-ignore - @aws-sdk/lib-storage is an optional dependency
 import { Upload } from '@aws-sdk/lib-storage';
+import { logger } from '../logger/file-logger.js';
 
 /**
  * Backup configuration
@@ -139,7 +140,7 @@ export async function backupDatabase(
       pgDump.stdout.pipe(gzip).pipe(output);
 
       pgDump.stderr.on('data', (data) => {
-        console.error(`[Backup] pg_dump stderr: ${data}`);
+        logger.error(`[Backup] pg_dump stderr: ${data}`);
       });
 
       pgDump.on('close', (code) => {
@@ -178,7 +179,7 @@ export async function backupDatabase(
     // Cleanup temp file
     await unlink(tmpFile);
 
-    console.log(`[Backup] Database backup completed: ${key} (${stats.size} bytes)`);
+    logger.info(`[Backup] Database backup completed: ${key} (${stats.size} bytes)`);
 
     return {
       id: backupId,
@@ -197,7 +198,7 @@ export async function backupDatabase(
     } catch {}
 
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[Backup] Database backup failed: ${errorMessage}`);
+    logger.error(`[Backup] Database backup failed: ${errorMessage}`);
 
     return {
       id: backupId,
@@ -231,7 +232,7 @@ export async function backupArtifacts(
       const tar = spawn('tar', ['-czf', tmpFile, '-C', cfg.artifactsDir!, '.']);
 
       tar.stderr.on('data', (data) => {
-        console.error(`[Backup] tar stderr: ${data}`);
+        logger.error(`[Backup] tar stderr: ${data}`);
       });
 
       tar.on('close', (code) => {
@@ -267,7 +268,7 @@ export async function backupArtifacts(
     await upload.done();
     await unlink(tmpFile);
 
-    console.log(`[Backup] Artifacts backup completed: ${key} (${stats.size} bytes)`);
+    logger.info(`[Backup] Artifacts backup completed: ${key} (${stats.size} bytes)`);
 
     return {
       id: backupId,
@@ -285,7 +286,7 @@ export async function backupArtifacts(
     } catch {}
 
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[Backup] Artifacts backup failed: ${errorMessage}`);
+    logger.error(`[Backup] Artifacts backup failed: ${errorMessage}`);
 
     return {
       id: backupId,
@@ -346,7 +347,7 @@ export async function backupLogs(
     await upload.done();
     await unlink(tmpFile);
 
-    console.log(`[Backup] Logs backup completed: ${key} (${stats.size} bytes)`);
+    logger.info(`[Backup] Logs backup completed: ${key} (${stats.size} bytes)`);
 
     return {
       id: backupId,
@@ -385,7 +386,7 @@ export async function backupLogs(
 export async function runFullBackup(
   config: Partial<BackupConfig> = {}
 ): Promise<BackupResult[]> {
-  console.log('[Backup] Starting full backup...');
+  logger.info('[Backup] Starting full backup...');
 
   const results: BackupResult[] = [];
 
@@ -399,7 +400,7 @@ export async function runFullBackup(
   results.push(dbResult, artifactsResult, logsResult);
 
   const successful = results.filter(r => r.success).length;
-  console.log(`[Backup] Full backup completed: ${successful}/${results.length} successful`);
+  logger.info(`[Backup] Full backup completed: ${successful}/${results.length} successful`);
 
   return results;
 }
@@ -453,7 +454,7 @@ export async function cleanupOldBackups(
   const toDelete = backups.filter(b => b.lastModified < cutoffDate);
 
   if (toDelete.length === 0) {
-    console.log('[Backup] No old backups to clean up');
+    logger.info('[Backup] No old backups to clean up');
     return 0;
   }
 
@@ -475,7 +476,7 @@ export async function cleanupOldBackups(
     deletedCount += response.Deleted?.length ?? 0;
   }
 
-  console.log(`[Backup] Cleaned up ${deletedCount} old backups`);
+  logger.info(`[Backup] Cleaned up ${deletedCount} old backups`);
   return deletedCount;
 }
 

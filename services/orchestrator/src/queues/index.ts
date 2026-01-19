@@ -8,6 +8,7 @@
 import type { QueueAdapter, QueueBackend, EnqueueOpts } from './adapter';
 import { BullMQAdapter, createBullMQAdapter } from './bullmq-adapter';
 import { RabbitMQAdapter, createRabbitMQAdapter } from './rabbitmq-adapter';
+import { logger } from '../logger/file-logger.js';
 
 // Re-export types
 export type { QueueAdapter, EnqueueOpts, JobResult, QueueStats, BackoffConfig } from './adapter';
@@ -45,10 +46,10 @@ class DualQueueAdapter implements QueueAdapter {
 
     // Log any failures
     if (bullmqResult.status === 'rejected') {
-      console.error('[DualQueue] BullMQ enqueue failed:', bullmqResult.reason);
+      logger.error('[DualQueue] BullMQ enqueue failed:', bullmqResult.reason);
     }
     if (rabbitmqResult.status === 'rejected') {
-      console.error('[DualQueue] RabbitMQ enqueue failed:', rabbitmqResult.reason);
+      logger.error('[DualQueue] RabbitMQ enqueue failed:', rabbitmqResult.reason);
     }
 
     // Return result from primary
@@ -73,10 +74,10 @@ class DualQueueAdapter implements QueueAdapter {
     ]);
 
     if (bullmqResult.status === 'rejected') {
-      console.error('[DualQueue] BullMQ bulk enqueue failed:', bullmqResult.reason);
+      logger.error('[DualQueue] BullMQ bulk enqueue failed:', bullmqResult.reason);
     }
     if (rabbitmqResult.status === 'rejected') {
-      console.error('[DualQueue] RabbitMQ bulk enqueue failed:', rabbitmqResult.reason);
+      logger.error('[DualQueue] RabbitMQ bulk enqueue failed:', rabbitmqResult.reason);
     }
 
     if (this.primary === 'bullmq' && bullmqResult.status === 'fulfilled') {
@@ -175,12 +176,12 @@ export function getQueueAdapter(): QueueAdapter {
   switch (backend) {
     case 'bullmq':
       queueAdapter = createBullMQAdapter();
-      console.log('[Queue] Using BullMQ backend');
+      logger.info('[Queue] Using BullMQ backend');
       break;
 
     case 'rabbitmq':
       queueAdapter = createRabbitMQAdapter();
-      console.log('[Queue] Using RabbitMQ backend');
+      logger.info('[Queue] Using RabbitMQ backend');
       break;
 
     case 'dual': {
@@ -188,7 +189,7 @@ export function getQueueAdapter(): QueueAdapter {
       const rabbitmq = createRabbitMQAdapter();
       const primary = (process.env.QUEUE_PRIMARY ?? 'bullmq') as 'bullmq' | 'rabbitmq';
       queueAdapter = new DualQueueAdapter(bullmq, rabbitmq, primary);
-      console.log(`[Queue] Using dual backend (primary: ${primary})`);
+      logger.info(`[Queue] Using dual backend (primary: ${primary})`);
       break;
     }
 

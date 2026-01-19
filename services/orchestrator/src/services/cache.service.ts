@@ -8,6 +8,8 @@
  * - Session data
  */
 
+import { logger } from '../logger/file-logger.js';
+
 interface CacheConfig {
   url: string;
   prefix: string;
@@ -66,9 +68,9 @@ export class CacheService {
       const { createClient } = await import('redis');
       this.client = createClient({ url: this.config.url }) as unknown as RedisClient;
       await (this.client as any).connect();
-      console.log('Connected to Redis');
+      logger.info('Connected to Redis');
     } catch (error) {
-      console.warn('Redis not available, using in-memory cache');
+      logger.warn('Redis not available, using in-memory cache');
     }
   }
 
@@ -89,7 +91,7 @@ export class CacheService {
         this.stats.misses++;
         return null;
       } catch (error) {
-        console.error('Redis get error:', error);
+        logger.error('Redis get error:', error);
       }
     }
 
@@ -118,7 +120,7 @@ export class CacheService {
         await this.client.set(fullKey, serialized, { EX: expiration });
         return;
       } catch (error) {
-        console.error('Redis set error:', error);
+        logger.error('Redis set error:', error);
       }
     }
 
@@ -139,7 +141,7 @@ export class CacheService {
       try {
         await this.client.del(fullKey);
       } catch (error) {
-        console.error('Redis del error:', error);
+        logger.error('Redis del error:', error);
       }
     }
 
@@ -161,7 +163,7 @@ export class CacheService {
           count = await this.client.del(keys);
         }
       } catch (error) {
-        console.error('Redis invalidate error:', error);
+        logger.error('Redis invalidate error:', error);
       }
     }
 
@@ -205,7 +207,7 @@ export class CacheService {
         const values = await this.client.mget(fullKeys);
         return values.map(v => (v ? JSON.parse(v) : null));
       } catch (error) {
-        console.error('Redis mget error:', error);
+        logger.error('Redis mget error:', error);
       }
     }
 
@@ -226,7 +228,7 @@ export class CacheService {
       try {
         return (await this.client.exists(fullKey)) === 1;
       } catch (error) {
-        console.error('Redis exists error:', error);
+        logger.error('Redis exists error:', error);
       }
     }
 

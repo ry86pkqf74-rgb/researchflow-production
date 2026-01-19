@@ -5,31 +5,20 @@
  * Hooks are disabled by default unless EXTENSIONS_ENABLED=true.
  */
 
-// Types defined locally to avoid circular dependencies
+// Import types from core package
+import type {
+  ExtensionHook,
+  ExtensionHookType,
+  ExtensionConfig,
+} from '@researchflow/core/src/types/integration';
+import { logger } from '../logger/file-logger.js';
 
-export type ExtensionHookType =
-  | 'beforeJobDispatch'
-  | 'afterWorkerResult'
-  | 'onManifestFinalized'
-  | 'onIntegrationSync'
-  | 'onQuarantineApplied'
-  | 'onUserAction';
-
-export interface ExtensionHook<T = unknown, R = void> {
-  name: string;
-  type: ExtensionHookType;
-  priority?: number;
-  enabled: boolean;
-  handler: (context: T) => Promise<R>;
-  timeoutMs?: number;
-}
-
-export interface ExtensionConfig {
-  enabled: boolean;
-  allowedHooks: ExtensionHookType[];
-  maxExecutionTimeMs: number;
-  failOnError: boolean;
-}
+// Re-export types for backwards compatibility
+export type {
+  ExtensionHook,
+  ExtensionHookType,
+  ExtensionConfig,
+};
 
 /**
  * Default extension configuration
@@ -65,12 +54,12 @@ export function initExtensions(customConfig?: Partial<ExtensionConfig>): void {
   config = { ...defaultConfig, ...customConfig };
 
   if (!config.enabled) {
-    console.log('[Extensions] Extension hooks are disabled');
+    logger.info('[Extensions] Extension hooks are disabled');
     return;
   }
 
-  console.log('[Extensions] Extension hooks enabled');
-  console.log('[Extensions] Allowed hooks:', config.allowedHooks.join(', '));
+  logger.info('[Extensions] Extension hooks enabled');
+  logger.info('[Extensions] Allowed hooks:', { hooks: config.allowedHooks.join(', ') });
 }
 
 /**
@@ -80,7 +69,7 @@ export function registerHook<T = unknown, R = void>(
   hook: ExtensionHook<T, R>
 ): void {
   if (!config.enabled) {
-    console.warn(`[Extensions] Cannot register hook "${hook.name}" - extensions disabled`);
+    logger.warn(`[Extensions] Cannot register hook "${hook.name}" - extensions disabled`);
     return;
   }
 
@@ -104,7 +93,7 @@ export function registerHook<T = unknown, R = void>(
 
   hookRegistry.set(hook.type, hooks);
 
-  console.log(
+  logger.info(
     `[Extensions] Registered hook "${hook.name}" (type: ${hook.type}, priority: ${hook.priority ?? 100})`
   );
 }
@@ -117,7 +106,7 @@ export function unregisterHook(name: string): boolean {
     const index = hooks.findIndex(h => h.name === name);
     if (index >= 0) {
       hooks.splice(index, 1);
-      console.log(`[Extensions] Unregistered hook "${name}"`);
+      logger.info(`[Extensions] Unregistered hook "${name}"`);
       return true;
     }
   }
@@ -148,7 +137,7 @@ export async function executeHooks<T, R = void>(
   for (const hook of enabledHooks) {
     // Check total execution time
     if (Date.now() - startTime > config.maxExecutionTimeMs) {
-      console.warn(
+      logger.warn(
         `[Extensions] Max execution time exceeded for ${type} hooks, skipping remaining`
       );
       break;
@@ -164,7 +153,7 @@ export async function executeHooks<T, R = void>(
       results.push(result as R);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[Extensions] Hook "${hook.name}" failed: ${errorMessage}`);
+      logger.error(`[Extensions] Hook "${hook.name}" failed: ${errorMessage}`);
 
       if (config.failOnError || hook.timeoutMs === undefined) {
         throw error;

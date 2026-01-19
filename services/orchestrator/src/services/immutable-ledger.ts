@@ -9,6 +9,7 @@
  */
 
 import * as crypto from 'crypto';
+import { logger } from '../logger/file-logger.js';
 
 /**
  * Ledger entry that will be anchored to the immutable ledger.
@@ -86,7 +87,7 @@ class HyperledgerFabricBackend implements LedgerBackend {
     // 3. Get the contract
     // 4. Submit transaction
 
-    console.log('[Ledger] Would submit to Hyperledger Fabric:', entry.entryId);
+    logger.info('[Ledger] Would submit to Hyperledger Fabric:', entry.entryId);
 
     // Stub: Simulate successful submission
     return {
@@ -99,13 +100,13 @@ class HyperledgerFabricBackend implements LedgerBackend {
 
   async verify(entryId: string, transactionId: string): Promise<boolean> {
     // TODO: Implement verification against Fabric ledger
-    console.log('[Ledger] Would verify:', entryId, transactionId);
+    logger.info('[Ledger] Would verify:', { entryId, transactionId });
     return true;
   }
 
   async getStatus(transactionId: string): Promise<LedgerStatus> {
     // TODO: Query transaction status from Fabric
-    console.log('[Ledger] Would get status for:', transactionId);
+    logger.info('[Ledger] Would get status for:', transactionId);
     return 'CONFIRMED';
   }
 }
@@ -127,7 +128,7 @@ class MockLedgerBackend implements LedgerBackend {
       blockNumber,
     });
 
-    console.log('[Mock Ledger] Submitted:', entry.entryId, '-> Block', blockNumber);
+    logger.info('[Mock Ledger] Submitted:', { entryId: entry.entryId, blockNumber });
 
     return {
       entryId: entry.entryId,
@@ -162,7 +163,7 @@ export class ImmutableLedgerService {
       this.backend = new HyperledgerFabricBackend();
     } else {
       this.backend = new MockLedgerBackend();
-      console.log('[Ledger] Using mock backend (development mode)');
+      logger.info('[Ledger] Using mock backend (development mode)');
     }
   }
 
@@ -212,15 +213,14 @@ export class ImmutableLedgerService {
   async submitEntry(entry: LedgerEntry): Promise<LedgerWriteResult> {
     try {
       const result = await this.backend.submit(entry);
-      console.log(
+      logger.info(
         `[Ledger] Entry ${entry.entryId} submitted:`,
-        result.status,
-        result.transactionId ? `tx=${result.transactionId}` : ''
+        { status: result.status, transactionId: result.transactionId }
       );
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[Ledger] Submit failed:', errorMessage);
+      logger.error('[Ledger] Submit failed:', errorMessage);
       return {
         entryId: entry.entryId,
         status: 'FAILED',
@@ -299,7 +299,7 @@ export async function queueAuditForLedger(
 
   // Submit asynchronously - don't await
   service.submitEntry(entry).catch((error) => {
-    console.error('[Ledger] Async submit failed:', error);
+    logger.error('[Ledger] Async submit failed:', error);
   });
 
   return entry.entryId;

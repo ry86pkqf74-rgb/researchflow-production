@@ -15,6 +15,7 @@ import {
 } from '../../../../packages/core/src/schema/zod-generator.js';
 import fs from 'fs/promises';
 import path from 'path';
+import { logger } from '../logger/file-logger.js';
 
 /**
  * Schema cache to avoid re-loading schemas on every request
@@ -67,7 +68,7 @@ export async function loadSchemaFromRegistry(
 
     return zodSchema;
   } catch (error) {
-    console.error(`Failed to load schema for ${datasetName}:`, error);
+    logger.error(`Failed to load schema for ${datasetName}:`, error);
     return null;
   }
 }
@@ -105,7 +106,7 @@ export function validateSchema(datasetName: string, version?: string) {
 
       next();
     } catch (error) {
-      console.error('Schema validation error:', error);
+      logger.error('Schema validation error:', error);
       return res.status(500).json({
         error: 'Internal validation error',
         message: error instanceof Error ? error.message : 'Unknown error'
@@ -171,7 +172,7 @@ export function validateBatch(datasetName: string, version?: string) {
       req.validatedData = result.data;
       next();
     } catch (error) {
-      console.error('Batch validation error:', error);
+      logger.error('Batch validation error:', error);
       return res.status(500).json({
         error: 'Internal validation error'
       });

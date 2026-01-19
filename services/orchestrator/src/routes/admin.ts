@@ -8,6 +8,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { createClient } from 'redis';
 import CacheService from '../services/cache.service';
+import { logger } from '../logger/file-logger.js';
 
 const router = Router();
 
@@ -133,7 +134,7 @@ router.get('/health-summary', async (_req: Request, res: Response) => {
 
     res.json(summary);
   } catch (error) {
-    console.error('Error generating health summary:', error);
+    logger.error('Error generating health summary:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       code: 'HEALTH_SUMMARY_FAILED',

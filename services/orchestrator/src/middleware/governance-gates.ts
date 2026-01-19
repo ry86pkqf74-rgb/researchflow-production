@@ -5,6 +5,7 @@ import { eq, and, gte } from 'drizzle-orm';
 import { logAction } from '../services/audit-service';
 import { scanForPhi } from '../services/phi-protection';
 import type { User as CoreUser } from '@researchflow/core';
+import { logger } from '../logger/file-logger.js';
 
 // Extend Express to include user type from our core package
 // This augments the empty User interface from passport
@@ -105,7 +106,7 @@ export function governanceGate(options: GovernanceGateOptions) {
       });
 
     } catch (error) {
-      console.error('Governance gate error:', error);
+      logger.error('Governance gate error', { error });
       return res.status(500).json({
         error: 'GOVERNANCE_ERROR',
         message: 'Failed to process governance gate'

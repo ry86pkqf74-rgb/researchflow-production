@@ -11,6 +11,7 @@
 
 import { Router, Request, Response } from 'express';
 import * as crypto from 'crypto';
+import { logger } from '../logger/file-logger.js';
 
 const router = Router();
 
@@ -101,7 +102,7 @@ router.post('/jira/webhook', async (req: Request, res: Response) => {
 
   // Verify signature
   if (process.env.JIRA_WEBHOOK_SECRET && !verifyJiraSignature(req)) {
-    console.warn('[Jira Webhook] Invalid signature from', clientIp);
+    logger.warn('[Jira Webhook] Invalid signature from', clientIp);
     return res.status(401).json({
       error: 'Unauthorized',
       code: 'INVALID_SIGNATURE'
@@ -112,7 +113,7 @@ router.post('/jira/webhook', async (req: Request, res: Response) => {
     const { webhookEvent, issue, user, changelog } = req.body;
 
     // Log event type only (no PHI)
-    console.log('[Jira Webhook] Event:', webhookEvent, 'Issue:', issue?.key);
+    logger.info('[Jira Webhook] Event:', { webhookEvent, issueKey: issue?.key });
 
     // Process based on event type
     switch (webhookEvent) {
@@ -126,12 +127,12 @@ router.post('/jira/webhook', async (req: Request, res: Response) => {
         await handleJiraCommentCreated(issue, req.body.comment);
         break;
       default:
-        console.log('[Jira Webhook] Unhandled event:', webhookEvent);
+        logger.info('[Jira Webhook] Unhandled event:', webhookEvent);
     }
 
     res.status(200).json({ status: 'received' });
   } catch (error) {
-    console.error('[Jira Webhook] Error:', error instanceof Error ? error.message : 'Unknown error');
+    logger.error('[Jira Webhook] Error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({
       error: 'Internal Server Error',
       code: 'WEBHOOK_PROCESSING_FAILED'
@@ -157,7 +158,7 @@ router.post('/zapier/hook', async (req: Request, res: Response) => {
 
   // Verify signature/token
   if (!verifyZapierSignature(req)) {
-    console.warn('[Zapier Webhook] Invalid signature from', clientIp);
+    logger.warn('[Zapier Webhook] Invalid signature from', clientIp);
     return res.status(401).json({
       error: 'Unauthorized',
       code: 'INVALID_SIGNATURE'
@@ -168,7 +169,7 @@ router.post('/zapier/hook', async (req: Request, res: Response) => {
     const { action, data, metadata } = req.body;
 
     // Log action only (no PHI)
-    console.log('[Zapier Webhook] Action:', action, 'Metadata:', metadata?.id);
+    logger.info('[Zapier Webhook] Action:', { action, metadataId: metadata?.id });
 
     // Process based on action
     switch (action) {
@@ -182,12 +183,12 @@ router.post('/zapier/hook', async (req: Request, res: Response) => {
         await handleZapierNotification(data);
         break;
       default:
-        console.log('[Zapier Webhook] Unhandled action:', action);
+        logger.info('[Zapier Webhook] Unhandled action:', action);
     }
 
     res.status(200).json({ status: 'received', id: metadata?.id });
   } catch (error) {
-    console.error('[Zapier Webhook] Error:', error instanceof Error ? error.message : 'Unknown error');
+    logger.error('[Zapier Webhook] Error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({
       error: 'Internal Server Error',
       code: 'WEBHOOK_PROCESSING_FAILED'
@@ -220,8 +221,8 @@ router.post('/webhooks/test', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Not Found' });
   }
 
-  console.log('[Webhook Test] Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('[Webhook Test] Body:', JSON.stringify(req.body, null, 2));
+  logger.info('[Webhook Test] Headers:', JSON.stringify(req.headers, null, 2));
+  logger.info('[Webhook Test] Body:', JSON.stringify(req.body, null, 2));
 
   res.status(200).json({
     status: 'received',
@@ -235,35 +236,35 @@ router.post('/webhooks/test', (req: Request, res: Response) => {
 async function handleJiraIssueCreated(issue: { key: string; fields?: { summary?: string; project?: { key: string } } }): Promise<void> {
   // TODO: Implement Jira issue creation handling
   // Example: Create corresponding research task
-  console.log('[Jira] Issue created:', issue.key, issue.fields?.project?.key);
+  logger.info('[Jira] Issue created:', { issueKey: issue.key, projectKey: issue.fields?.project?.key });
 }
 
 async function handleJiraIssueUpdated(issue: { key: string }, changelog?: { items?: Array<{ field: string; toString?: string }> }): Promise<void> {
   // TODO: Implement Jira issue update handling
   // Example: Sync status changes
-  console.log('[Jira] Issue updated:', issue.key, 'Changes:', changelog?.items?.map(i => i.field).join(', '));
+  logger.info('[Jira] Issue updated:', { issueKey: issue.key, changes: changelog?.items?.map(i => i.field).join(', ') });
 }
 
 async function handleJiraCommentCreated(issue: { key: string }, comment?: { body?: string }): Promise<void> {
   // TODO: Implement Jira comment handling
   // CRITICAL: Do not log comment body (may contain PHI)
-  console.log('[Jira] Comment added to:', issue.key);
+  logger.info('[Jira] Comment added to:', issue.key);
 }
 
 async function handleZapierCreateResearch(data: { title?: string; type?: string }): Promise<void> {
   // TODO: Implement research creation from Zapier
-  console.log('[Zapier] Create research:', data.type);
+  logger.info('[Zapier] Create research:', data.type);
 }
 
 async function handleZapierTriggerValidation(data: { datasetId?: string }): Promise<void> {
   // TODO: Implement validation trigger from Zapier
-  console.log('[Zapier] Trigger validation for dataset:', data.datasetId);
+  logger.info('[Zapier] Trigger validation for dataset:', data.datasetId);
 }
 
 async function handleZapierNotification(data: { message?: string; channel?: string }): Promise<void> {
   // TODO: Implement notification handling from Zapier
   // CRITICAL: Do not log message content (may contain PHI)
-  console.log('[Zapier] Notification to channel:', data.channel);
+  logger.info('[Zapier] Notification to channel:', data.channel);
 }
 
 export default router;

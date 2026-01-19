@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import type { AIRouterRequest, ModelTier } from '@researchflow/ai-router';
 import { getModelRouter } from '@researchflow/ai-router';
 import { getGovernanceMode } from '../middleware/governanceMode';
+import { logger } from '../logger/file-logger.js';
 
 /**
  * Batch job status
@@ -158,7 +159,7 @@ export class BatchProcessorService {
 
     // Start processing asynchronously
     this.processJobAsync(jobId).catch((error) => {
-      console.error(`Batch job ${jobId} failed:`, error);
+      logger.error(`Batch job ${jobId} failed:`, error);
     });
 
     return job;
@@ -255,7 +256,7 @@ export class BatchProcessorService {
         }),
       });
     } catch (error) {
-      console.error(`Failed to call webhook for job ${job.jobId}:`, error);
+      logger.error(`Failed to call webhook for job ${job.jobId}:`, error);
     }
   }
 

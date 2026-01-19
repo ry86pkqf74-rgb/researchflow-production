@@ -18,6 +18,7 @@ import http from 'http';
 import cors from 'cors';
 import { typeDefs } from './schema.js';
 import { resolvers } from './resolvers.js';
+import { logger } from '../logger/file-logger.js';
 
 // Context interface
 interface GraphQLContext {
@@ -63,12 +64,12 @@ export async function createApolloServer(
           return {
             async willSendResponse(ctx) {
               const duration = Date.now() - start;
-              console.log(`GraphQL ${ctx.operationName || 'anonymous'}: ${duration}ms`);
+              logger.debug(`GraphQL ${ctx.operationName || 'anonymous'}: ${duration}ms`);
             },
 
             async didEncounterErrors(ctx) {
               for (const error of ctx.errors) {
-                console.error('GraphQL Error:', {
+                logger.error('GraphQL Error', {
                   message: error.message,
                   path: error.path,
                   extensions: error.extensions
@@ -82,8 +83,8 @@ export async function createApolloServer(
 
     // Format errors for production
     formatError: (formattedError, error) => {
-      // Log the original error
-      console.error('GraphQL Error:', error);
+      // Log the original error (scrubbed)
+      logger.error('GraphQL Error', { error });
 
       // Hide internal errors in production
       if (process.env.NODE_ENV === 'production') {
@@ -149,7 +150,7 @@ async function extractUser(req: Request): Promise<GraphQLContext['user'] | undef
 
     return undefined;
   } catch (error) {
-    console.error('Auth error:', error);
+    logger.error('Auth error', { error });
     return undefined;
   }
 }
@@ -174,7 +175,7 @@ export async function mountGraphQL(
     middleware
   );
 
-  console.log('GraphQL endpoint mounted at /graphql');
+  logger.info('GraphQL endpoint mounted at /graphql');
 }
 
 export default { createApolloServer, mountGraphQL };

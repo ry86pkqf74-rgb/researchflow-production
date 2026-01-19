@@ -9,6 +9,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import axios from 'axios';
+import { logger } from '../logger/file-logger.js';
 
 const OPA_URL = process.env.OPA_URL || 'http://opa.researchflow.svc.cluster.local:8181';
 const OPA_POLICY_PATH = process.env.OPA_POLICY_PATH || '/v1/data/envoy/authz/allow';
@@ -90,11 +91,11 @@ async function checkOPA(req: Request): Promise<boolean> {
     return response.data.result === true;
   } catch (error) {
     // Fail closed: deny access on OPA errors
-    console.error('OPA authorization check failed:', error);
+    logger.error('OPA authorization check failed', { error });
 
     // In development, you might want to fail open
     if (process.env.NODE_ENV === 'development') {
-      console.warn('OPA check failed in development, allowing request');
+      logger.warn('OPA check failed in development, allowing request');
       return true;
     }
 
@@ -127,7 +128,7 @@ export async function opaMiddleware(
       });
     }
   } catch (error) {
-    console.error('OPA middleware error:', error);
+    logger.error('OPA middleware error', { error });
     res.status(500).json({
       error: 'Internal Server Error',
       code: 'OPA_ERROR',
@@ -182,7 +183,7 @@ export async function checkOPAPolicy(
 
     return response.data.result === true;
   } catch (error) {
-    console.error(`OPA policy check failed for ${resource}:${action}:`, error);
+    logger.error(`OPA policy check failed for ${resource}:${action}`, { error });
 
     // Fail closed
     if (process.env.NODE_ENV !== 'development') {
@@ -190,7 +191,7 @@ export async function checkOPAPolicy(
     }
 
     // In development, log and allow
-    console.warn('Allowing request in development mode');
+    logger.warn('Allowing request in development mode');
     return true;
   }
 }
@@ -216,7 +217,7 @@ export function requireRole(...roles: string[]) {
         });
       }
     } catch (error) {
-      console.error('Role check error:', error);
+      logger.error('Role check error', { error });
       res.status(500).json({
         error: 'Internal Server Error',
         code: 'AUTHZ_ERROR',

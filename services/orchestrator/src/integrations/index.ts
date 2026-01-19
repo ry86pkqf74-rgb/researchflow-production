@@ -18,6 +18,7 @@ import { createOrcidProvider } from './providers/orcid';
 import { createNotionProvider } from './providers/notion';
 import { createSalesforceProvider } from './providers/salesforce';
 import { createZoomProvider } from './providers/zoom';
+import { logger } from '../logger/file-logger.js';
 
 // Re-export types
 export type {
@@ -54,7 +55,7 @@ export function initializeProviders(): void {
       sandbox: process.env.ORCID_SANDBOX === 'true',
     });
     registerProvider('orcid', orcidProvider);
-    console.log('[Integrations] ORCID provider registered');
+    logger.info('[Integrations] ORCID provider registered');
   }
 
   // Notion
@@ -64,7 +65,7 @@ export function initializeProviders(): void {
       clientSecret: process.env.NOTION_CLIENT_SECRET,
     });
     registerProvider('notion', notionProvider);
-    console.log('[Integrations] Notion provider registered');
+    logger.info('[Integrations] Notion provider registered');
   }
 
   // Salesforce
@@ -75,7 +76,7 @@ export function initializeProviders(): void {
       loginBaseUrl: process.env.SALESFORCE_LOGIN_BASE,
     });
     registerProvider('salesforce', salesforceProvider);
-    console.log('[Integrations] Salesforce provider registered');
+    logger.info('[Integrations] Salesforce provider registered');
   }
 
   // Zoom
@@ -87,10 +88,10 @@ export function initializeProviders(): void {
       serverToServer: process.env.ZOOM_S2S === 'true',
     });
     registerProvider('zoom', zoomProvider);
-    console.log('[Integrations] Zoom provider registered');
+    logger.info('[Integrations] Zoom provider registered');
   }
 
-  console.log(`[Integrations] ${getRegisteredProviders().length} providers initialized`);
+  logger.info(`[Integrations] ${getRegisteredProviders().length} providers initialized`);
 }
 
 /**

@@ -14,6 +14,7 @@ import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
 import { requireRole, logAuditEvent, ROLES } from '../middleware/rbac';
 import { blockExportInDemo } from '../../middleware/mode-guard';
+import { logger } from '../logger/file-logger.js';
 import {
   createBundleRequest,
   approveBundleRequest,
@@ -340,7 +341,7 @@ router.get(
       archive.pipe(res);
       await archive.finalize();
     } catch (error) {
-      console.error('Error generating bundle archive:', error);
+      logger.error('Error generating bundle archive:', error);
       res.status(500).json({
         error: 'Failed to generate bundle archive',
         code: 'ARCHIVE_GENERATION_FAILED',

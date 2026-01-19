@@ -16,6 +16,7 @@ import { eq, and, desc, asc } from "drizzle-orm";
 import { db } from "../../db";
 import * as schema from "@researchflow/core/schema";
 import { scanForPHI, type PHIScanResult, type RiskLevel } from "../../services/phi-scanner";
+import { logger } from "../logger/file-logger.js";
 
 // =====================
 // Type Definitions
@@ -384,7 +385,7 @@ export async function createBundleRequest(request: BundleRequest): Promise<Bundl
       message: 'Bundle export request created. Awaiting STEWARD approval.',
     };
   } catch (error) {
-    console.error('Error creating bundle request:', error);
+    logger.error('Error creating bundle request:', error);
     return {
       bundleId,
       requestId: '',
@@ -454,7 +455,7 @@ export async function approveBundleRequest(
 
     return { success: true, expiresAt: expiresAt.toISOString() };
   } catch (error) {
-    console.error('Error approving bundle request:', error);
+    logger.error('Error approving bundle request:', error);
     return { success: false, error: 'Failed to approve request', code: 'APPROVAL_FAILED' };
   }
 }
@@ -510,7 +511,7 @@ export async function denyBundleRequest(
 
     return { success: true };
   } catch (error) {
-    console.error('Error denying bundle request:', error);
+    logger.error('Error denying bundle request:', error);
     return { success: false, error: 'Failed to deny request', code: 'DENIAL_FAILED' };
   }
 }
@@ -598,7 +599,7 @@ export async function requestPHIOverride(
       conditions: conditions || defaultConditions,
     };
   } catch (error) {
-    console.error('Error processing PHI override:', error);
+    logger.error('Error processing PHI override:', error);
     return { success: false, error: 'Failed to process override', code: 'OVERRIDE_FAILED' };
   }
 }
@@ -645,7 +646,7 @@ export async function getPendingBundleRequests(): Promise<RequestStatus[]> {
       };
     });
   } catch (error) {
-    console.error('Error fetching pending bundle requests:', error);
+    logger.error('Error fetching pending bundle requests:', error);
     return [];
   }
 }
@@ -690,7 +691,7 @@ export async function getProjectBundleRequests(projectId: string): Promise<Reque
       };
     });
   } catch (error) {
-    console.error('Error fetching project bundle requests:', error);
+    logger.error('Error fetching project bundle requests:', error);
     return [];
   }
 }
@@ -729,7 +730,7 @@ export async function getBundleRequestStatus(requestId: string): Promise<Request
       metadata,
     };
   } catch (error) {
-    console.error('Error getting bundle request status:', error);
+    logger.error('Error getting bundle request status:', error);
     return null;
   }
 }

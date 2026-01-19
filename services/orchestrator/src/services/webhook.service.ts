@@ -9,6 +9,7 @@
  */
 
 import crypto from 'crypto';
+import { logger } from '../logger/file-logger.js';
 
 // Types
 export type WebhookEvent =
@@ -157,7 +158,7 @@ export class WebhookService {
     const matchingWebhooks = Array.from(this.webhooks.values())
       .filter(w => w.active && w.events.includes(event));
 
-    console.log(`Triggering ${event} to ${matchingWebhooks.length} webhooks`);
+    logger.info(`Triggering ${event} to ${matchingWebhooks.length} webhooks`);
 
     // Deliver to each webhook
     for (const webhook of matchingWebhooks) {
@@ -236,7 +237,7 @@ export class WebhookService {
         delivery.status = 'success';
         webhook.lastDeliveryAt = new Date();
         webhook.lastDeliveryStatus = 'success';
-        console.log(`Webhook delivered: ${delivery.id} to ${webhook.url}`);
+        logger.info(`Webhook delivered: ${delivery.id} to ${webhook.url}`);
         return true;
       } else {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -250,10 +251,10 @@ export class WebhookService {
         const retryDelay = RETRY_DELAYS[delivery.attempts - 1] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
         delivery.nextRetryAt = new Date(Date.now() + retryDelay * 1000);
         this.retryQueue.push(delivery);
-        console.log(`Webhook delivery failed, retry scheduled: ${delivery.id}`);
+        logger.warn(`Webhook delivery failed, retry scheduled: ${delivery.id}`);
       } else {
         delivery.status = 'failed';
-        console.error(`Webhook delivery permanently failed: ${delivery.id}`);
+        logger.error(`Webhook delivery permanently failed: ${delivery.id}`);
       }
 
       return false;

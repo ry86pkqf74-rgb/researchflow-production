@@ -9,6 +9,7 @@ import { v4 as uuid } from 'uuid';
 import { createHash } from 'crypto';
 import { db } from '../../db';
 import { statisticalPlans, topics, artifacts } from '@researchflow/core/schema';
+import { logger } from '../logger/file-logger.js';
 import {
   generateSAPFromTopic,
   validateSAP,
@@ -110,7 +111,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       message: 'SAP generated successfully. Review and modify as needed before approval.'
     });
   } catch (error) {
-    console.error('Error generating SAP:', error);
+    logger.error('Error generating SAP:', error);
     res.status(500).json({
       error: 'Failed to generate SAP',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -144,7 +145,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     res.json(sap);
   } catch (error) {
-    console.error('Error fetching SAP:', error);
+    logger.error('Error fetching SAP:', error);
     res.status(500).json({
       error: 'Failed to fetch SAP',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -175,7 +176,7 @@ router.get('/research/:researchId', async (req: Request, res: Response) => {
       total: saps.length
     });
   } catch (error) {
-    console.error('Error fetching SAPs:', error);
+    logger.error('Error fetching SAPs:', error);
     res.status(500).json({
       error: 'Failed to fetch SAPs',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -252,7 +253,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       message: 'SAP updated successfully'
     });
   } catch (error) {
-    console.error('Error updating SAP:', error);
+    logger.error('Error updating SAP:', error);
     res.status(500).json({
       error: 'Failed to update SAP',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -355,7 +356,7 @@ router.post('/:id/approve', async (req: Request, res: Response) => {
       message: 'SAP approved and locked. No further modifications allowed.'
     });
   } catch (error) {
-    console.error('Error approving SAP:', error);
+    logger.error('Error approving SAP:', error);
     res.status(500).json({
       error: 'Failed to approve SAP',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -441,7 +442,7 @@ router.post('/:id/generate-methods', blockAIInDemo, async (req: Request, res: Re
       message: 'Statistical methods narrative generated successfully'
     });
   } catch (error) {
-    console.error('Error generating methods:', error);
+    logger.error('Error generating methods:', error);
     res.status(500).json({
       error: 'Failed to generate methods',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -496,7 +497,7 @@ router.get('/suggestions/subgroups/:topicId', async (req: Request, res: Response
       message: 'Suggested subgroup analyses based on topic characteristics'
     });
   } catch (error) {
-    console.error('Error generating subgroup suggestions:', error);
+    logger.error('Error generating subgroup suggestions:', error);
     res.status(500).json({
       error: 'Failed to generate suggestions',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -560,7 +561,7 @@ router.post('/:id/validate', async (req: Request, res: Response) => {
         : 'SAP validation failed. Please address errors before approval.'
     });
   } catch (error) {
-    console.error('Error validating SAP:', error);
+    logger.error('Error validating SAP:', error);
     res.status(500).json({
       error: 'Failed to validate SAP',
       message: error instanceof Error ? error.message : 'Unknown error'

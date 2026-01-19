@@ -97,6 +97,7 @@ export async function initSentry(): Promise<boolean> {
   const dsn = process.env.SENTRY_DSN;
 
   if (!dsn) {
+    // Note: Use console here since logger may not be available at init time
     console.log('[Sentry] SENTRY_DSN not set, error tracking disabled');
     return false;
   }

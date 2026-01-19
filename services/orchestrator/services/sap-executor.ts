@@ -115,13 +115,24 @@ export function generateMockResults(config: SAPConfig): AnalysisResults {
     });
   }
 
-  const secondaryAnalyses = [];
+  const secondaryAnalyses: Array<{
+    name: string;
+    method: string;
+    results: Array<{
+      name: string;
+      coefficient: number;
+      standardError: number;
+      pValue: number;
+      confidenceInterval: [number, number];
+      interpretation: string;
+    }>;
+  }> = [];
   if (config.subgroups && config.subgroups.length > 0) {
     for (const subgroup of config.subgroups.slice(0, 3)) {
       const subCoef = generateCoefficient();
       const subSE = Math.abs(subCoef * 0.35) + 0.08;
       const subPVal = generatePValue();
-      
+
       secondaryAnalyses.push({
         name: `Subgroup Analysis: ${subgroup}`,
         method: config.analysisType === 'survival' ? 'Cox Proportional Hazards' : 'Multivariable Regression',

@@ -11,6 +11,7 @@ import Ajv from 'ajv';
 // @ts-ignore - ajv-formats is an optional peer dependency
 import addFormats from 'ajv-formats';
 import { createHash } from 'crypto';
+import { logger } from '../logger/file-logger.js';
 
 // Type alias for compiled validator (compatible with both Ajv v6 and v8)
 type ValidateFunction = ((data: unknown) => boolean) & { errors?: Array<{ dataPath?: string; instancePath?: string; message?: string; keyword: string }> };
@@ -127,7 +128,7 @@ export class SchemaCache {
 
         return validator;
       } catch (err) {
-        console.error(`[SchemaCache] Failed to parse cached schema ${schemaId}:`, err);
+        logger.error(`[SchemaCache] Failed to parse cached schema ${schemaId}:`, err);
         // Fall through to compile
       }
     }
@@ -225,7 +226,7 @@ export class SchemaCache {
    */
   async warmup(schemaId: string, schema: object): Promise<void> {
     await this.getValidator(schemaId, schema);
-    console.log(`[SchemaCache] Warmed up schema: ${schemaId}`);
+    logger.info(`[SchemaCache] Warmed up schema: ${schemaId}`);
   }
 
   /**
@@ -235,7 +236,7 @@ export class SchemaCache {
     schemas: Array<{ id: string; schema: object }>
   ): Promise<void> {
     await Promise.all(schemas.map(s => this.warmup(s.id, s.schema)));
-    console.log(`[SchemaCache] Warmed up ${schemas.length} schemas`);
+    logger.info(`[SchemaCache] Warmed up ${schemas.length} schemas`);
   }
 
   /**

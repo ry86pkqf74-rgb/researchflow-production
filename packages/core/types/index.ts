@@ -43,3 +43,16 @@ export {
 export * from './topic-declaration';
 // Export research brief types for AI-generated briefs
 export * from './research-brief';
+
+// Export integration and extension types from src/types
+export type {
+  OAuthTokenSet,
+  ProviderIdentity,
+  IntegrationProvider,
+  IntegrationProviderClient,
+  OAuthConnection,
+  IntegrationSyncResult,
+  ExtensionHookType,
+  ExtensionHook,
+  ExtensionConfig,
+} from '../src/types/integration';

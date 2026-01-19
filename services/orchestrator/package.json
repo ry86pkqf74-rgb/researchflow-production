@@ -10,12 +10,14 @@
     "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
-    "@researchflow/ai-router": "file:./packages/ai-router",
-    "@researchflow/core": "file:./packages/core",
-    "@researchflow/phi-engine": "file:./packages/phi-engine",
+    "@researchflow/ai-router": "*",
+    "@researchflow/core": "*",
+    "@researchflow/phi-engine": "*",
     "@apollo/server": "^4.10.0",
     "@aws-sdk/client-s3": "^3.500.0",
     "@aws-sdk/s3-request-presigner": "^3.500.0",
+    "ajv-formats": "^3.0.1",
+    "apollo-server-express": "^3.13.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "drizzle-orm": "^0.39.3",
@@ -29,6 +31,10 @@
     "redis": "^4.6.0",
     "uuid": "^13.0.0",
     "zod": "^3.25.76"
+  },
+  "optionalDependencies": {
+    "bullmq": "^5.0.0",
+    "amqplib": "^0.10.4"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

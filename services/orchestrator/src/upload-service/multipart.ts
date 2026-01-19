@@ -16,6 +16,7 @@ import {
   GetObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { logger } from '../logger/file-logger.js';
 
 // Minimum part size (5MB) per S3 requirements
 const MIN_PART_SIZE = 5 * 1024 * 1024;
@@ -176,7 +177,7 @@ export async function startMultipartUpload(params: {
   };
 
   // TODO: Store session in database
-  console.log(`[Upload] Created multipart upload session ${session.id}`);
+  logger.info(`[Upload] Created multipart upload session ${session.id}`);
 
   return session;
 }
@@ -244,7 +245,7 @@ export async function markPartCompleted(
   session.updatedAt = new Date().toISOString();
 
   // TODO: Update session in database
-  console.log(
+  logger.info(
     `[Upload] Part ${part.partNumber}/${session.totalParts} completed for session ${session.id}`
   );
 
@@ -310,7 +311,7 @@ export async function completeMultipartUpload(
   session.updatedAt = new Date().toISOString();
 
   // TODO: Update session in database
-  console.log(`[Upload] Multipart upload ${session.id} completed`);
+  logger.info(`[Upload] Multipart upload ${session.id} completed`);
 
   return {
     location: response.Location ?? `s3://${session.bucket}/${session.key}`,
@@ -339,7 +340,7 @@ export async function abortMultipartUpload(
   session.updatedAt = new Date().toISOString();
 
   // TODO: Update session in database
-  console.log(`[Upload] Multipart upload ${session.id} aborted`);
+  logger.info(`[Upload] Multipart upload ${session.id} aborted`);
 }
 
 /**

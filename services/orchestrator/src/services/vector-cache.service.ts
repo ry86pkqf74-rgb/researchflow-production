@@ -5,6 +5,7 @@
 
 import Redis from 'ioredis';
 import crypto from 'crypto';
+import { logger } from '../logger/file-logger.js';
 
 export interface VectorCacheEntry {
   vector: number[];
@@ -45,7 +46,7 @@ export class VectorCacheService {
 
     // Handle Redis errors
     this.redis.on('error', (err) => {
-      console.error('Vector cache Redis error:', err);
+      logger.error('Vector cache Redis error:', err);
     });
   }
 

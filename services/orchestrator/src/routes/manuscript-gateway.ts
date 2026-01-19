@@ -7,6 +7,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import http from 'http';
 import https from 'https';
+import { logger } from '../logger/file-logger.js';
 
 const router = Router();
 
@@ -72,7 +73,7 @@ async function proxyToManuscriptService(
     });
 
     proxyReq.on('error', (error) => {
-      console.error('[Manuscript Gateway] Proxy error:', error);
+      logger.error('[Manuscript Gateway] Proxy error:', error);
       res.status(503).json({
         error: 'Manuscript service unavailable',
         message: error.message,

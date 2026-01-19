@@ -15,6 +15,7 @@ import type {
   BackoffConfig,
 } from './adapter';
 import { calculateBackoff, DEFAULT_JOB_OPTIONS } from './adapter';
+import { logger } from '../logger/file-logger.js';
 
 /**
  * RabbitMQ adapter configuration
@@ -77,13 +78,13 @@ export class RabbitMQAdapter implements QueueAdapter {
       this.connection = await amqp.connect(this.url);
 
       this.connection.on('error', (err) => {
-        console.error('[RabbitMQ] Connection error:', err);
+        logger.error('[RabbitMQ] Connection error:', err);
         this.connection = null;
         this.channel = null;
       });
 
       this.connection.on('close', () => {
-        console.log('[RabbitMQ] Connection closed');
+        logger.info('[RabbitMQ] Connection closed');
         this.connection = null;
         this.channel = null;
       });
@@ -246,7 +247,7 @@ export class RabbitMQAdapter implements QueueAdapter {
   ): Promise<JobResult<T> | null> {
     // RabbitMQ doesn't have native job tracking
     // This would need to be implemented with a separate store
-    console.warn('[RabbitMQ] getJob requires external job store - not implemented');
+    logger.warn('[RabbitMQ] getJob requires external job store - not implemented');
     return null;
   }
 
@@ -254,7 +255,7 @@ export class RabbitMQAdapter implements QueueAdapter {
    * Remove a job (not directly supported by RabbitMQ)
    */
   async removeJob(queueName: string, jobId: string): Promise<boolean> {
-    console.warn('[RabbitMQ] removeJob requires external job store - not implemented');
+    logger.warn('[RabbitMQ] removeJob requires external job store - not implemented');
     return false;
   }
 
@@ -283,14 +284,14 @@ export class RabbitMQAdapter implements QueueAdapter {
    */
   async pauseQueue(queueName: string): Promise<void> {
     // RabbitMQ doesn't have native pause - would need to cancel consumers
-    console.warn('[RabbitMQ] pauseQueue requires consumer management - not implemented');
+    logger.warn('[RabbitMQ] pauseQueue requires consumer management - not implemented');
   }
 
   /**
    * Resume a queue (restart consumers)
    */
   async resumeQueue(queueName: string): Promise<void> {
-    console.warn('[RabbitMQ] resumeQueue requires consumer management - not implemented');
+    logger.warn('[RabbitMQ] resumeQueue requires consumer management - not implemented');
   }
 
   /**
@@ -313,7 +314,7 @@ export class RabbitMQAdapter implements QueueAdapter {
     status: 'completed' | 'failed'
   ): Promise<number> {
     // RabbitMQ uses message TTL for cleanup
-    console.warn('[RabbitMQ] cleanQueue uses TTL - manual cleanup not supported');
+    logger.warn('[RabbitMQ] cleanQueue uses TTL - manual cleanup not supported');
     return 0;
   }
 

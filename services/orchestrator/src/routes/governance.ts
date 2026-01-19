@@ -12,7 +12,8 @@ import { requireRole } from '../middleware/rbac';
 import { validateAuditChain } from '../services/auditService.js';
 import { db } from '../../db.js';
 import { auditLogs } from '@researchflow/core/schema';
-import { desc, gte, lte, eq, and, sql } from 'drizzle-orm';
+import { desc, gte, lte, eq, and, sql, type SQL } from 'drizzle-orm';
+import { logger } from '../logger/file-logger.js';
 
 // Simple async handler wrapper
 function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) {
@@ -219,7 +220,7 @@ router.get(
     }
 
     // Build query conditions
-    const conditions = [];
+    const conditions: SQL<unknown>[] = [];
     if (eventType) {
       conditions.push(eq(auditLogs.eventType, eventType));
     }
@@ -519,7 +520,7 @@ router.post(
     };
 
     // In production, this would write to the database
-    console.log('[AUDIT] PHI Reveal:', JSON.stringify(auditEntry));
+    logger.info('[AUDIT] PHI Reveal:', JSON.stringify(auditEntry));
 
     // Generate a reveal token (expires in 5 minutes)
     const revealToken = `phi_reveal_${crypto.randomUUID()}`;
