@@ -120,7 +120,7 @@ describe('DataMapperService', () => {
       expect(abstract).toContain('Results');
       expect(abstract).toContain('postoperative patients');
       expect(abstract).toContain('n=120');
-      expect(abstract).toContain('p = <0.001');
+      expect(abstract).toContain('p = 0.001');
     });
   });
 

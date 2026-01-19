@@ -18,7 +18,7 @@ export const DEMOGRAPHICS_TABLE: TableTemplate = {
     { Characteristic: 'Age, years, mean ± SD', Value: '' },
     { Characteristic: 'Female sex, n (%)', Value: '' },
     { Characteristic: 'BMI, kg/m², mean ± SD', Value: '' },
-    { Characteristic: 'Race/Ethnicity, n (%)' Value: '' },
+    { Characteristic: 'Race/Ethnicity, n (%)', Value: '' },
     { Characteristic: '  White', Value: '' },
     { Characteristic: '  Black or African American', Value: '' },
     { Characteristic: '  Hispanic or Latino', Value: '' },

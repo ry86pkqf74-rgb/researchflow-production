@@ -1,9 +1,35 @@
 /**
  * @researchflow/manuscript-engine
  * Complete manuscript generation and export engine
- * 
+ *
  * @packageDocumentation
  */
+
+// Import getter functions for initialization
+import { getPhiGuard } from './src/services/phi-guard.service';
+import { getDataMapper } from './src/services/data-mapper.service';
+import { getDataTagger } from './src/services/data-tagger.service';
+import { getVersionControl } from './src/services/version-control.service';
+import { getCitationManager } from './src/services/citation-manager.service';
+import { getExportService } from './src/services/export.service';
+import { getComplianceChecker } from './src/services/compliance-checker.service';
+
+// Import Phase 4 service classes
+import { OpenAIDrafterService } from './src/services/openai-drafter.service';
+import { ClaudeWriterService } from './src/services/claude-writer.service';
+import { GrammarCheckerService } from './src/services/grammar-checker.service';
+import { ClaimVerifierService } from './src/services/claim-verifier.service';
+import { TransitionSuggesterService } from './src/services/transition-suggester.service';
+import { ToneAdjusterService } from './src/services/tone-adjuster.service';
+import { SynonymFinderService } from './src/services/synonym-finder.service';
+import { MedicalNLPService } from './src/services/medical-nlp.service';
+import { ClarityAnalyzerService } from './src/services/clarity-analyzer.service';
+import { ParaphraseService } from './src/services/paraphrase.service';
+import { SentenceBuilderService } from './src/services/sentence-builder.service';
+import { ReadabilityService } from './src/services/readability.service';
+import { AbbreviationService } from './src/services/abbreviation.service';
+import { CitationSuggesterService } from './src/services/citation-suggester.service';
+import { ClaimHighlighterService } from './src/services/claim-highlighter.service';
 
 // ============================================================================
 // PHASE 1: Data Integration & PHI Protection (DEPLOYED ✅)
@@ -11,23 +37,23 @@
 
 export * from './src/types';
 
-export { PhiGuardService, getPhiGuard, PHIDetectedError, PHIScanFailureError } from './src/services/phi-guard.service';
-export { DataMapperService, getDataMapper } from './src/services/data-mapper.service';
-export { DataTaggerService, getDataTagger } from './src/services/data-tagger.service';
-export { VersionControlService, getVersionControl } from './src/services/version-control.service';
+export * from './src/services/phi-guard.service';
+export * from './src/services/data-mapper.service';
+export * from './src/services/data-tagger.service';
+export * from './src/services/version-control.service';
 
 // ============================================================================
 // PHASE 2: Literature & Citations (DEPLOYED ✅)
 // ============================================================================
 
-export { CitationManagerService, getCitationManager } from './src/services/citation-manager.service';
+export * from './src/services/citation-manager.service';
 
 // ============================================================================
 // PHASE 3: Export & Compliance (DEPLOYED ✅)
 // ============================================================================
 
-export { ExportService, getExportService } from './src/services/export.service';
-export { ComplianceCheckerService, getComplianceChecker } from './src/services/compliance-checker.service';
+export * from './src/services/export.service';
+export * from './src/services/compliance-checker.service';
 
 // ============================================================================
 // PHASE 4: AI Writing Assistance (INTEGRATED ✅)
@@ -83,24 +109,17 @@ export const PHASE_STATUS = {
 
 /**
  * Initialize all manuscript engine services
+ * @param config - Optional configuration for services that require it
  * @returns Object containing all service instances
  */
-export function initializeManuscriptEngine() {
-  return {
-    // Phase 1: Data
-    phiGuard: getPhiGuard(),
-    dataMapper: getDataMapper(),
-    dataTagger: getDataTagger(),
-    versionControl: getVersionControl(),
-    
-    // Phase 2: Literature
-    citationManager: getCitationManager(),
-    
-    // Phase 3: Export
-    exportService: getExportService(),
-    complianceChecker: getComplianceChecker(),
-    
-    // Phase 4: AI Writing
+export function initializeManuscriptEngine(config?: {
+  phiGuardConfig?: any;
+  includePhase1?: boolean;
+  includePhase2?: boolean;
+  includePhase3?: boolean;
+}) {
+  const services: any = {
+    // Phase 4: AI Writing (Always available - no external deps)
     openaiDrafter: new OpenAIDrafterService(),
     claudeWriter: new ClaudeWriterService(),
     grammarChecker: new GrammarCheckerService(),
@@ -117,6 +136,37 @@ export function initializeManuscriptEngine() {
     citationSuggester: new CitationSuggesterService(),
     claimHighlighter: new ClaimHighlighterService(),
   };
+
+  // Optionally include Phase 1-3 services if config provided
+  if (config?.includePhase1 && config?.phiGuardConfig) {
+    try {
+      services.phiGuard = getPhiGuard(config.phiGuardConfig);
+      services.dataMapper = getDataMapper();
+      services.dataTagger = getDataTagger();
+      services.versionControl = getVersionControl();
+    } catch (error) {
+      console.warn('Phase 1 services not available:', error);
+    }
+  }
+
+  if (config?.includePhase2) {
+    try {
+      services.citationManager = getCitationManager();
+    } catch (error) {
+      console.warn('Phase 2 services not available:', error);
+    }
+  }
+
+  if (config?.includePhase3) {
+    try {
+      services.exportService = getExportService();
+      services.complianceChecker = getComplianceChecker();
+    } catch (error) {
+      console.warn('Phase 3 services not available:', error);
+    }
+  }
+
+  return services;
 }
 
 /**
