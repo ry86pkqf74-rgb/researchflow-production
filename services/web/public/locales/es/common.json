@@ -1,0 +1,56 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "pipeline": "Pipeline",
+    "governance": "Gobernanza",
+    "manuscripts": "Manuscritos",
+    "analytics": "Análisis",
+    "settings": "Configuración",
+    "profile": "Perfil",
+    "logout": "Cerrar sesión"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "export": "Exportar",
+    "import": "Importar",
+    "download": "Descargar",
+    "upload": "Subir",
+    "refresh": "Actualizar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "submit": "Enviar",
+    "close": "Cerrar",
+    "confirm": "Confirmar",
+    "yes": "Sí",
+    "no": "No"
+  },
+  "status": {
+    "pending": "Pendiente",
+    "processing": "Procesando",
+    "completed": "Completado",
+    "failed": "Fallido",
+    "cancelled": "Cancelado"
+  },
+  "errors": {
+    "generic": "Algo salió mal. Por favor, inténtalo de nuevo.",
+    "network": "Error de red. Por favor, verifica tu conexión.",
+    "unauthorized": "No estás autorizado para realizar esta acción.",
+    "notFound": "El recurso solicitado no fue encontrado."
+  },
+  "accessibility": {
+    "skipToContent": "Saltar al contenido principal",
+    "menuToggle": "Alternar menú",
+    "themeToggle": "Alternar tema",
+    "languageSelect": "Seleccionar idioma"
+  }
+}
