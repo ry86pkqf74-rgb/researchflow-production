@@ -119,8 +119,8 @@ ${lastValidationResult?.errors.map(e => `- ${e.path}: ${e.message}`).join("\n") 
         temperature,
         maxTokens,
         metadata: {
-          stageId: context.stageId,
-          stageName: context.stageName,
+          stageId: parseInt(context.stageId, 10) || undefined,
+          workflowStep: context.stageName,
           researchId: context.researchId,
         },
       });

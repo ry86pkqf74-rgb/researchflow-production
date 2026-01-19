@@ -113,7 +113,7 @@ Return only valid JSON, no markdown.`;
       response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
   }
 
-  return response.parsed as ResearchBrief || JSON.parse(response.content);
+  return (response.parsed as unknown as ResearchBrief) || JSON.parse(response.content);
 }
 
 export async function generateEvidenceGapMap(
@@ -150,7 +150,7 @@ Return only valid JSON, no markdown.`;
       response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
   }
 
-  return response.parsed as EvidenceGapMap || JSON.parse(response.content);
+  return (response.parsed as unknown as EvidenceGapMap) || JSON.parse(response.content);
 }
 
 export async function generateDataContribution(
@@ -193,7 +193,7 @@ Return only valid JSON, no markdown.`;
       response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
   }
 
-  return response.parsed as DataContribution || JSON.parse(response.content);
+  return (response.parsed as unknown as DataContribution) || JSON.parse(response.content);
 }
 
 export async function generateStudyCards(
@@ -333,7 +333,7 @@ Return only valid JSON, no markdown.`;
       response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
   }
 
-  return response.parsed as LiteratureSearchResult || JSON.parse(response.content);
+  return (response.parsed as unknown as LiteratureSearchResult) || JSON.parse(response.content);
 }
 
 export interface ExtractionVariable {
@@ -405,7 +405,7 @@ Return only valid JSON, no markdown.`;
       response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
   }
 
-  return response.parsed as PlannedExtractionResult || JSON.parse(response.content);
+  return (response.parsed as unknown as PlannedExtractionResult) || JSON.parse(response.content);
 }
 
 export async function generateDecisionMatrix(studyCards: StudyCard[]): Promise<DecisionMatrix> {
@@ -442,7 +442,7 @@ Base scores on the feasibility and method complexity. Return only valid JSON.`;
       response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
   }
 
-  return response.parsed as DecisionMatrix || JSON.parse(response.content);
+  return (response.parsed as unknown as DecisionMatrix) || JSON.parse(response.content);
 }
 
 export interface JournalRecommendation {
@@ -587,7 +587,7 @@ Return only valid JSON.`;
       response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
   }
 
-  return response.parsed as JournalSubmissionRequirements || JSON.parse(response.content);
+  return (response.parsed as unknown as JournalSubmissionRequirements) || JSON.parse(response.content);
 }
 
 export async function generateSubmissionDocuments(

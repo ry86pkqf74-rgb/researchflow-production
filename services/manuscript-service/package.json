@@ -13,10 +13,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@researchflow/core": "1.0.0",
-    "@researchflow/phi-engine": "1.0.0",
-    "@researchflow/ai-router": "1.0.0",
-    "@researchflow/manuscript-engine": "1.0.0",
+    "@researchflow/core": "*",
+    "@researchflow/phi-engine": "*",
+    "@researchflow/ai-router": "*",
+    "@researchflow/manuscript-engine": "*",
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "zod": "^3.23.0",
