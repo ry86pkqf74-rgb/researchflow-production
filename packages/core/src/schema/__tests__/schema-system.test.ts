@@ -186,7 +186,8 @@ describe('PR4: Schema & Manifest System', () => {
     it('should validate FAIR metadata completeness', () => {
       const metadata = generateFAIRMetadata({
         id: 'test-001',
-        title: 'Test',
+        title: 'Test Dataset',
+        description: 'A comprehensive test dataset for validation',
         createdBy: 'User',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
