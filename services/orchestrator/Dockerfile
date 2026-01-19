@@ -13,29 +13,34 @@ RUN apk add --no-cache python3 make g++ git
 # Dependencies stage
 FROM base AS deps
 
-# Copy root package.json for workspace configuration
-COPY package.json package-lock.json* ./
+# Copy root package.json and tsconfig for workspace configuration
+COPY package.json package-lock.json* tsconfig.json ./
 
 # Copy service package files
 COPY services/orchestrator/package.json ./services/orchestrator/
 
 # Copy workspace packages
+# Core package - complete copy
 COPY packages/core/package.json ./packages/core/
-COPY packages/core/types ./packages/core/types
 COPY packages/core/index.ts ./packages/core/
+COPY packages/core/schema.ts ./packages/core/
+COPY packages/core/tsconfig.json ./packages/core/
+COPY packages/core/types ./packages/core/types
 COPY packages/core/src ./packages/core/src
 COPY packages/core/policy ./packages/core/policy
-COPY packages/core/tsconfig.json ./packages/core/
 
+# PHI Engine package
 COPY packages/phi-engine/package.json ./packages/phi-engine/
 COPY packages/phi-engine/index.ts ./packages/phi-engine/
 COPY packages/phi-engine/src ./packages/phi-engine/src
 COPY packages/phi-engine/tsconfig.json* ./packages/phi-engine/
 
+# AI Router package - complete copy
 COPY packages/ai-router/package.json ./packages/ai-router/
 COPY packages/ai-router/index.ts ./packages/ai-router/
+COPY packages/ai-router/tsconfig.json ./packages/ai-router/
 COPY packages/ai-router/src ./packages/ai-router/src
-COPY packages/ai-router/tsconfig.json* ./packages/ai-router/
+COPY packages/ai-router/prompts ./packages/ai-router/prompts
 
 # Install all dependencies (workspace-aware)
 RUN npm ci --workspace=services/orchestrator --include-workspace-root
@@ -57,13 +62,20 @@ CMD ["npm", "run", "dev"]
 # Build stage
 FROM base AS build
 WORKDIR /app
+# Copy root files for workspace
+COPY package.json tsconfig.json ./
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages ./packages
 COPY --from=deps /app/services/orchestrator ./services/orchestrator
 COPY services/orchestrator/ ./services/orchestrator/
 
 WORKDIR /app/services/orchestrator
-RUN npm run build
+
+# Remove development-only files before build
+RUN rm -f vite.ts && rm -rf replit_integrations
+
+# Build with TypeScript
+RUN npm run build 2>&1 | tee /tmp/build.log || (cat /tmp/build.log && exit 1)
 
 # Production stage
 FROM node:20-alpine AS production
