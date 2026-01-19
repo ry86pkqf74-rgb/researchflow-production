@@ -3,7 +3,7 @@
 # ============================================
 
 # Base stage
-FROM python:3.11-slim AS base
+FROM python:3.14-slim AS base
 
 # Install system dependencies (including ML/NLP deps for PR3)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -45,7 +45,7 @@ EXPOSE 8000
 CMD ["python", "api_server.py"]
 
 # Production stage
-FROM python:3.11-slim AS production
+FROM python:3.14-slim AS production
 
 # Install minimal runtime dependencies (including ML/NLP runtime deps for PR3)
 RUN apt-get update && apt-get install -y --no-install-recommends \
