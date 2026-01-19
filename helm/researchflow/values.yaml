@@ -1,0 +1,110 @@
+# Phase A - Task 9: Default values for ResearchFlow Helm chart
+# These values can be overridden during helm install/upgrade
+
+# Replica counts per service
+replicaCount:
+  orchestrator: 2
+  worker: 3
+  web: 2
+
+# Container images
+image:
+  registry: ghcr.io
+  prefix: ry86pkqf74-rgb/researchflow
+  orchestrator:
+    repository: orchestrator
+    tag: latest
+    pullPolicy: IfNotPresent
+  worker:
+    repository: worker
+    tag: latest
+    pullPolicy: IfNotPresent
+  web:
+    repository: web
+    tag: latest
+    pullPolicy: IfNotPresent
+
+# Governance mode: DEMO or LIVE
+governance:
+  mode: DEMO
+
+# Resource limits and requests
+resources:
+  orchestrator:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+  worker:
+    requests:
+      cpu: "500m"
+      memory: "2Gi"
+    limits:
+      cpu: "4000m"
+      memory: "8Gi"
+  web:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "500m"
+      memory: "256Mi"
+
+# Persistence configuration
+persistence:
+  artifacts:
+    enabled: true
+    storageClass: standard
+    size: 50Gi
+  logs:
+    enabled: true
+    storageClass: standard
+    size: 20Gi
+  postgres:
+    enabled: true
+    storageClass: standard
+    size: 50Gi
+  redis:
+    enabled: true
+    storageClass: standard
+    size: 10Gi
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: researchflow.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: researchflow-tls
+      hosts:
+        - researchflow.example.com
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: true
+  worker:
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+# Kustomize overlay to use
+kustomize:
+  overlay: production
+  # Path relative to repo root
+  overlayPath: infrastructure/kubernetes/overlays
+
+# Feature flags
+features:
+  prometheus: true
+  grafana: false
+  loki: false
+  istio: false
+  argoRollouts: true

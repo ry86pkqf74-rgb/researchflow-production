@@ -1,0 +1,65 @@
+# Phase A - Task 23: Redis persistence configuration (AOF + RDB)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: redis
+data:
+  redis.conf: |
+    # Phase A - Task 23: Redis persistence configuration
+    # Combines AOF for durability with RDB for faster recovery
+
+    # === AOF Configuration ===
+    # Enable AOF persistence
+    appendonly yes
+
+    # fsync policy: everysec balances durability and performance
+    # Options: always (safest, slow), everysec (recommended), no (fastest, risky)
+    appendfsync everysec
+
+    # Disable fsync during rewrites for better performance
+    no-appendfsync-on-rewrite no
+
+    # Auto-rewrite AOF when it grows by 100% and is at least 64MB
+    auto-aof-rewrite-percentage 100
+    auto-aof-rewrite-min-size 64mb
+
+    # === RDB Configuration ===
+    # Snapshot triggers: <seconds> <changes>
+    # Save after 900 seconds if at least 1 key changed
+    save 900 1
+    # Save after 300 seconds if at least 10 keys changed
+    save 300 10
+    # Save after 60 seconds if at least 10000 keys changed
+    save 60 10000
+
+    # Compress RDB snapshots
+    rdbcompression yes
+    rdbchecksum yes
+
+    # === Data Directory ===
+    dir /data
+    dbfilename dump.rdb
+    appendfilename "appendonly.aof"
+
+    # === Memory Management ===
+    maxmemory 512mb
+    maxmemory-policy allkeys-lru
+
+    # === Performance Tuning ===
+    # Enable lazy freeing for better performance
+    lazyfree-lazy-eviction yes
+    lazyfree-lazy-expire yes
+    lazyfree-lazy-server-del yes
+
+    # === Security ===
+    # Disable dangerous commands in production
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    rename-command DEBUG ""
+
+    # === Logging ===
+    loglevel notice

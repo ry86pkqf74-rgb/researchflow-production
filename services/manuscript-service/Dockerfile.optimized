@@ -1,0 +1,98 @@
+# syntax=docker/dockerfile:1.7
+# Phase A - Task 1: Optimized multi-stage Dockerfile for manuscript-service
+# Target: 50% size reduction with improved layer caching
+
+ARG NODE_VERSION=20
+
+# =============================================================================
+# Stage 1: Builder - Install dependencies and build
+# =============================================================================
+FROM node:${NODE_VERSION}-alpine AS builder
+
+WORKDIR /app
+
+# Install build dependencies (only needed for native modules)
+RUN --mount=type=cache,target=/var/cache/apk \
+    apk add --no-cache python3 make g++
+
+# Copy root package files first for better caching
+COPY package*.json ./
+COPY packages/core/package.json ./packages/core/
+COPY packages/phi-engine/package.json ./packages/phi-engine/
+COPY packages/ai-router/package.json ./packages/ai-router/
+COPY packages/manuscript-engine/package.json ./packages/manuscript-engine/
+COPY services/manuscript-service/package.json ./services/manuscript-service/
+
+# Install dependencies with cache mount
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --workspace=services/manuscript-service --ignore-scripts
+
+# Copy source code
+COPY packages/core ./packages/core
+COPY packages/phi-engine ./packages/phi-engine
+COPY packages/ai-router ./packages/ai-router
+COPY packages/manuscript-engine ./packages/manuscript-engine
+COPY services/manuscript-service ./services/manuscript-service
+COPY tsconfig.json ./
+
+# Build all packages and service
+RUN npm run build -w packages/core && \
+    npm run build -w packages/phi-engine && \
+    npm run build -w packages/ai-router && \
+    npm run build -w packages/manuscript-engine && \
+    npm run build -w services/manuscript-service
+
+# Prune dev dependencies for smaller production image
+RUN npm prune --production --workspace=services/manuscript-service
+
+# =============================================================================
+# Stage 2: Runtime - Minimal production image
+# =============================================================================
+FROM node:${NODE_VERSION}-alpine AS runtime
+
+# Install tini for proper signal handling and dumb-init as fallback
+RUN --mount=type=cache,target=/var/cache/apk \
+    apk add --no-cache tini
+
+# Create non-root user for security
+RUN addgroup -g 10001 -S appgroup && \
+    adduser -u 10001 -S appuser -G appgroup
+
+WORKDIR /app
+
+# Copy only production artifacts from builder
+COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
+COPY --from=builder --chown=appuser:appgroup /app/packages/core/dist ./packages/core/dist
+COPY --from=builder --chown=appuser:appgroup /app/packages/core/package.json ./packages/core/
+COPY --from=builder --chown=appuser:appgroup /app/packages/phi-engine/dist ./packages/phi-engine/dist
+COPY --from=builder --chown=appuser:appgroup /app/packages/phi-engine/package.json ./packages/phi-engine/
+COPY --from=builder --chown=appuser:appgroup /app/packages/ai-router/dist ./packages/ai-router/dist
+COPY --from=builder --chown=appuser:appgroup /app/packages/ai-router/package.json ./packages/ai-router/
+COPY --from=builder --chown=appuser:appgroup /app/packages/manuscript-engine/dist ./packages/manuscript-engine/dist
+COPY --from=builder --chown=appuser:appgroup /app/packages/manuscript-engine/package.json ./packages/manuscript-engine/
+COPY --from=builder --chown=appuser:appgroup /app/services/manuscript-service/dist ./services/manuscript-service/dist
+COPY --from=builder --chown=appuser:appgroup /app/services/manuscript-service/package.json ./services/manuscript-service/
+
+# Set environment variables
+ENV NODE_ENV=production \
+    PORT=3002 \
+    # Disable npm update checks
+    NO_UPDATE_NOTIFIER=1 \
+    # Optimize Node.js for container
+    NODE_OPTIONS="--max-old-space-size=512"
+
+# Switch to non-root user
+USER appuser
+
+# Expose service port
+EXPOSE 3002
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD node -e "require('http').get('http://127.0.0.1:3002/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+
+# Use tini as init system for proper signal handling
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Start the service
+CMD ["node", "services/manuscript-service/dist/index.js"]

@@ -24,25 +24,25 @@ env:
   IMAGE_PREFIX: ${{ github.repository_owner }}/researchflow
 
 jobs:
+  # Phase A - Task 5: Trivy scans are now BLOCKING (gating builds on HIGH/CRITICAL)
   trivy-filesystem:
     name: Trivy Filesystem Scan
     runs-on: ubuntu-latest
-    # Note: Non-blocking until vulnerabilities are addressed
-    continue-on-error: true
+    # REMOVED: continue-on-error - scans are now blocking
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-fs-results.sarif'
           severity: 'CRITICAL,HIGH'
-          exit-code: '0'  # Don't fail initially, just report
+          exit-code: '0'  # SARIF report doesn't fail
           ignore-unfixed: true
 
       - name: Upload Trivy results to GitHub Security
@@ -52,15 +52,16 @@ jobs:
           sarif_file: 'trivy-fs-results.sarif'
           category: 'filesystem'
 
-      - name: Run Trivy filesystem scan (table format)
-        uses: aquasecurity/trivy-action@master
+      - name: Run Trivy filesystem scan (BLOCKING)
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'table'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1'  # Fail on HIGH/CRITICAL
-          ignore-unfixed: false
+          exit-code: '1'  # FAIL on HIGH/CRITICAL vulnerabilities
+          ignore-unfixed: true
+          trivyignores: '.trivyignore'
 
   trivy-config:
     name: Trivy Config Scan
@@ -89,8 +90,7 @@ jobs:
   trivy-orchestrator:
     name: Trivy Scan - Orchestrator Image
     runs-on: ubuntu-latest
-    # Note: Non-blocking until vulnerabilities are addressed
-    continue-on-error: true
+    # Phase A - Task 5: BLOCKING - removed continue-on-error
 
     steps:
       - name: Checkout repository
@@ -105,7 +105,7 @@ jobs:
             .
 
       - name: Run Trivy scan on Orchestrator
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: 'researchflow-orchestrator:scan'
           format: 'sarif'
@@ -120,8 +120,8 @@ jobs:
           sarif_file: 'trivy-orchestrator-results.sarif'
           category: 'orchestrator-image'
 
-      - name: Run Trivy scan (fail on issues)
-        uses: aquasecurity/trivy-action@master
+      - name: Run Trivy scan (BLOCKING)
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: 'researchflow-orchestrator:scan'
           format: 'table'
@@ -132,8 +132,7 @@ jobs:
   trivy-worker:
     name: Trivy Scan - Worker Image
     runs-on: ubuntu-latest
-    # Note: Non-blocking until vulnerabilities are addressed
-    continue-on-error: true
+    # Phase A - Task 5: BLOCKING - removed continue-on-error
 
     steps:
       - name: Checkout repository
@@ -148,7 +147,7 @@ jobs:
             .
 
       - name: Run Trivy scan on Worker
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: 'researchflow-worker:scan'
           format: 'sarif'
@@ -163,8 +162,8 @@ jobs:
           sarif_file: 'trivy-worker-results.sarif'
           category: 'worker-image'
 
-      - name: Run Trivy scan (fail on issues)
-        uses: aquasecurity/trivy-action@master
+      - name: Run Trivy scan (BLOCKING)
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: 'researchflow-worker:scan'
           format: 'table'
@@ -175,8 +174,7 @@ jobs:
   trivy-web:
     name: Trivy Scan - Web Image
     runs-on: ubuntu-latest
-    # Note: Non-blocking until vulnerabilities are addressed
-    continue-on-error: true
+    # Phase A - Task 5: BLOCKING - removed continue-on-error
 
     steps:
       - name: Checkout repository
@@ -191,7 +189,7 @@ jobs:
             .
 
       - name: Run Trivy scan on Web
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: 'researchflow-web:scan'
           format: 'sarif'
@@ -206,8 +204,8 @@ jobs:
           sarif_file: 'trivy-web-results.sarif'
           category: 'web-image'
 
-      - name: Run Trivy scan (fail on issues)
-        uses: aquasecurity/trivy-action@master
+      - name: Run Trivy scan (BLOCKING)
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: 'researchflow-web:scan'
           format: 'table'

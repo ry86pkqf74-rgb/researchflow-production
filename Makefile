@@ -46,6 +46,14 @@ help:
 	@echo "  make deploy-staging    - Deploy to staging"
 	@echo "  make deploy-production - Deploy to production"
 	@echo ""
+	@echo "$(GREEN)Production Operations:$(NC)"
+	@echo "  make prod-up           - Start production environment"
+	@echo "  make prod-logs         - Tail production logs"
+	@echo "  make prod-down-safe    - Gracefully stop production services"
+	@echo "  make prod-restart      - Restart production services gracefully"
+	@echo "  make prod-status       - Show production service status"
+	@echo "  make prod-health       - Check production health endpoints"
+	@echo ""
 	@echo "$(GREEN)Utilities:$(NC)"
 	@echo "  make clean        - Clean up build artifacts"
 	@echo "  make setup        - Initial project setup"
@@ -174,6 +182,40 @@ deploy-production:
 	@echo "$(YELLOW)WARNING: Deploying to production!$(NC)"
 	@read -p "Are you sure? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
 	./scripts/deploy.sh production
+
+# ===================
+# Production Operations (Phase A - Task 21)
+# ===================
+
+prod-logs:
+	@echo "$(BLUE)Tailing production logs...$(NC)"
+	docker compose -f docker-compose.prod.yml logs -f --tail=200
+
+prod-down-safe:
+	@echo "$(YELLOW)Gracefully stopping production services...$(NC)"
+	docker compose -f docker-compose.prod.yml stop -t 30
+	docker compose -f docker-compose.prod.yml down
+	@echo "$(GREEN)Production services stopped safely.$(NC)"
+
+prod-up:
+	@echo "$(BLUE)Starting production environment...$(NC)"
+	docker compose -f docker-compose.prod.yml up -d
+
+prod-restart:
+	@echo "$(YELLOW)Restarting production services gracefully...$(NC)"
+	docker compose -f docker-compose.prod.yml stop -t 30
+	docker compose -f docker-compose.prod.yml up -d
+	@echo "$(GREEN)Production services restarted.$(NC)"
+
+prod-status:
+	@echo "$(BLUE)Production service status:$(NC)"
+	docker compose -f docker-compose.prod.yml ps
+
+prod-health:
+	@echo "$(BLUE)Checking production health endpoints...$(NC)"
+	@curl -sf http://localhost:3001/healthz && echo "$(GREEN)Orchestrator: healthy$(NC)" || echo "$(RED)Orchestrator: unhealthy$(NC)"
+	@curl -sf http://localhost:8000/healthz && echo "$(GREEN)Worker: healthy$(NC)" || echo "$(RED)Worker: unhealthy$(NC)"
+	@curl -sf http://localhost/health && echo "$(GREEN)Nginx: healthy$(NC)" || echo "$(RED)Nginx: unhealthy$(NC)"
 
 # Kubernetes deployments
 k8s-dev:

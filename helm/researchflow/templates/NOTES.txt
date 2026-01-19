@@ -1,0 +1,29 @@
+ResearchFlow has been deployed!
+
+Governance Mode: {{ .Values.governance.mode }}
+
+Services deployed:
+  - Orchestrator: {{ .Values.replicaCount.orchestrator }} replicas
+  - Worker: {{ .Values.replicaCount.worker }} replicas
+  - Web: {{ .Values.replicaCount.web }} replicas
+
+To verify the deployment:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+To check health:
+  kubectl port-forward svc/orchestrator 3001:3001 -n {{ .Release.Namespace }}
+  curl http://localhost:3001/healthz
+
+{{- if .Values.ingress.enabled }}
+Application URL:
+{{- range .Values.ingress.hosts }}
+  https://{{ .host }}
+{{- end }}
+{{- end }}
+
+IMPORTANT: Ensure you have configured the following secrets:
+  - researchflow-secrets (JWT_SECRET, ANTHROPIC_API_KEY)
+  - postgres-secret (username, password)
+
+For more information, see the documentation at:
+  https://github.com/ry86pkqf74-rgb/researchflow-production

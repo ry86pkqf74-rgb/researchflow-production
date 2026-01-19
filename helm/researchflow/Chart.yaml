@@ -1,0 +1,20 @@
+# Phase A - Task 9: Helm chart wrapping Kustomize overlays
+apiVersion: v2
+name: researchflow
+description: ResearchFlow Production - Clinical Research Platform
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+maintainers:
+  - name: ResearchFlow Team
+
+keywords:
+  - researchflow
+  - research
+  - clinical
+  - phi
+  - governance
+
+annotations:
+  category: Research Platform

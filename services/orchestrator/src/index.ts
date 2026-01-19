@@ -92,7 +92,7 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   logger.info('ResearchFlow Canvas Server starting', {
     environment: NODE_ENV,
     port: PORT,
@@ -103,13 +103,88 @@ app.listen(PORT, () => {
   });
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM signal received: closing HTTP server');
-  process.exit(0);
+// Phase A - Task 28: Enhanced graceful shutdown handler
+// Ensures clean shutdown without corrupting queues or losing in-flight requests
+let isShuttingDown = false;
+
+async function gracefulShutdown(signal: string): Promise<void> {
+  if (isShuttingDown) {
+    logger.warn(`Already shutting down, ignoring ${signal}`);
+    return;
+  }
+  isShuttingDown = true;
+
+  logger.info(`${signal} received: initiating graceful shutdown`);
+
+  // Set a hard timeout to force exit if graceful shutdown takes too long
+  const forceExitTimeout = setTimeout(() => {
+    logger.error('Graceful shutdown timed out, forcing exit');
+    process.exit(1);
+  }, 30000); // 30 second hard timeout
+
+  try {
+    // 1. Stop accepting new connections
+    server.close(async (err) => {
+      if (err) {
+        logger.error('Error closing HTTP server', { error: err.message });
+      } else {
+        logger.info('HTTP server closed');
+      }
+
+      try {
+        // 2. Close Redis/BullMQ connections (if available)
+        // Note: Import these dynamically to avoid circular dependencies
+        try {
+          const { closeQueues } = await import('./queues/index.js');
+          if (closeQueues) {
+            await closeQueues();
+            logger.info('Queue connections closed');
+          }
+        } catch (queueErr) {
+          // Queues may not be initialized
+          logger.debug('No queue connections to close');
+        }
+
+        // 3. Close database connections (if available)
+        try {
+          const { closeDatabaseConnection } = await import('./config/database.js');
+          if (closeDatabaseConnection) {
+            await closeDatabaseConnection();
+            logger.info('Database connection closed');
+          }
+        } catch (dbErr) {
+          // Database may not be initialized
+          logger.debug('No database connection to close');
+        }
+
+        // 4. Flush logs
+        logger.info('Shutdown complete');
+
+        clearTimeout(forceExitTimeout);
+        process.exit(0);
+      } catch (cleanupErr) {
+        logger.error('Error during shutdown cleanup', { error: (cleanupErr as Error).message });
+        clearTimeout(forceExitTimeout);
+        process.exit(1);
+      }
+    });
+  } catch (shutdownErr) {
+    logger.error('Error initiating shutdown', { error: (shutdownErr as Error).message });
+    clearTimeout(forceExitTimeout);
+    process.exit(1);
+  }
+}
+
+// Register signal handlers
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught exceptions during shutdown
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception', { error: err.message, stack: err.stack });
+  gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT signal received: closing HTTP server');
-  process.exit(0);
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled rejection', { reason: String(reason) });
 });

@@ -1,0 +1,221 @@
+# Phase A - Task 34: Manual promotion job staging→prod with approvals
+name: Promote Staging to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      staging_sha:
+        description: 'Staging SHA/tag to promote (leave empty for latest staging)'
+        required: false
+        type: string
+      skip_tests:
+        description: 'Skip pre-promotion tests (not recommended)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/researchflow
+
+jobs:
+  identify-staging:
+    name: Identify Staging Version
+    runs-on: ubuntu-latest
+    outputs:
+      staging_sha: ${{ steps.get-sha.outputs.sha }}
+      staging_tag: ${{ steps.get-sha.outputs.tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get staging SHA
+        id: get-sha
+        run: |
+          if [ -n "${{ github.event.inputs.staging_sha }}" ]; then
+            SHA="${{ github.event.inputs.staging_sha }}"
+          else
+            # Get latest SHA from staging branch/tag
+            SHA=$(git rev-parse origin/develop 2>/dev/null || git rev-parse HEAD)
+          fi
+          TAG="staging-${SHA:0:7}"
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Staging SHA: $SHA"
+          echo "Staging Tag: $TAG"
+
+  pre-promotion-tests:
+    name: Pre-Promotion Tests
+    needs: identify-staging
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.skip_tests != 'true' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.identify-staging.outputs.staging_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run governance tests
+        run: |
+          npm run test:rbac
+          npm run test:phi
+          npm run test:fail-closed
+          npm run test:mode-enforcement
+        env:
+          CI: true
+          GOVERNANCE_MODE: LIVE
+          NODE_OPTIONS: --max-old-space-size=4096
+
+      - name: Verify images exist
+        run: |
+          SHA="${{ needs.identify-staging.outputs.staging_sha }}"
+          TAG="${{ needs.identify-staging.outputs.staging_tag }}"
+
+          echo "Verifying images for tag: $TAG"
+          docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/orchestrator:$TAG || \
+            docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/orchestrator:${SHA:0:7} || \
+            echo "::warning::Orchestrator image not found"
+        env:
+          DOCKER_CLI_EXPERIMENTAL: enabled
+
+  approval:
+    name: Production Approval
+    needs: [identify-staging, pre-promotion-tests]
+    if: always() && (needs.pre-promotion-tests.result == 'success' || needs.pre-promotion-tests.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Approval granted
+        run: |
+          echo "Production deployment approved"
+          echo "Promoting staging SHA: ${{ needs.identify-staging.outputs.staging_sha }}"
+          echo "Staging Tag: ${{ needs.identify-staging.outputs.staging_tag }}"
+
+  retag-images:
+    name: Re-tag Images for Production
+    needs: [identify-staging, approval]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Re-tag images
+        run: |
+          STAGING_TAG="${{ needs.identify-staging.outputs.staging_tag }}"
+          SHA="${{ needs.identify-staging.outputs.staging_sha }}"
+          PROD_TAG="prod-$(date +%Y%m%d)-${SHA:0:7}"
+
+          echo "Re-tagging from $STAGING_TAG to $PROD_TAG"
+
+          # Pull and re-tag each image
+          for SERVICE in orchestrator worker web; do
+            # Try staging tag first, then SHA
+            SOURCE="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${SERVICE}:${STAGING_TAG}"
+            if ! docker pull "$SOURCE" 2>/dev/null; then
+              SOURCE="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${SERVICE}:${SHA:0:7}"
+              docker pull "$SOURCE" || continue
+            fi
+
+            docker tag "$SOURCE" "${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${SERVICE}:${PROD_TAG}"
+            docker tag "$SOURCE" "${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${SERVICE}:latest"
+            docker push "${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${SERVICE}:${PROD_TAG}"
+            docker push "${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${SERVICE}:latest"
+
+            echo "Tagged ${SERVICE}: $PROD_TAG and latest"
+          done
+
+    outputs:
+      prod_tag: ${{ steps.retag.outputs.prod_tag }}
+
+  deploy-production:
+    name: Deploy to Production
+    needs: [identify-staging, retag-images]
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.identify-staging.outputs.staging_sha }}
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+
+      - name: Deploy with Kustomize
+        run: |
+          kubectl apply -k infrastructure/kubernetes/overlays/production
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/orchestrator -n researchflow-production --timeout=600s
+          kubectl rollout status deployment/worker -n researchflow-production --timeout=600s
+          kubectl rollout status deployment/web -n researchflow-production --timeout=600s
+
+  smoke-tests:
+    name: Post-Deploy Smoke Tests
+    needs: deploy-production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Health checks
+        run: |
+          PROD_URL="${{ secrets.PRODUCTION_URL }}"
+
+          # Health check with retries
+          for i in {1..10}; do
+            if curl -sf "$PROD_URL/healthz" > /dev/null; then
+              echo "Health check passed on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed, waiting..."
+            sleep 15
+          done
+
+          echo "Health checks failed"
+          exit 1
+
+      - name: API smoke test
+        run: |
+          PROD_URL="${{ secrets.PRODUCTION_URL }}"
+          curl -f "$PROD_URL/api/governance/mode" || echo "::warning::Governance endpoint check failed"
+
+  audit-log:
+    name: Create Audit Log Entry
+    needs: [identify-staging, deploy-production, smoke-tests]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Log promotion
+        run: |
+          echo "=== PRODUCTION PROMOTION AUDIT ==="
+          echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Staging SHA: ${{ needs.identify-staging.outputs.staging_sha }}"
+          echo "Staging Tag: ${{ needs.identify-staging.outputs.staging_tag }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Workflow run: ${{ github.run_id }}"
+          echo "Deployment result: ${{ needs.deploy-production.result }}"
+          echo "Smoke tests result: ${{ needs.smoke-tests.result }}"
+          echo "================================"

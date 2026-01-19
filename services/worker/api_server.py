@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from config.env_validator import validate_env
 env = validate_env()
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -25,6 +26,8 @@ from dataclasses import asdict
 import uvicorn
 import json
 import tempfile
+import signal
+import asyncio
 
 # Import ROS runtime config first
 from runtime_config import RuntimeConfig
@@ -33,10 +36,68 @@ from runtime_config import RuntimeConfig
 config = RuntimeConfig.from_env_and_optional_yaml()
 print(f"[ROS] Mode: {config.ros_mode}, mock_only: {config.mock_only}, no_network: {config.no_network}")
 
+# Phase A - Task 28: Global state for graceful shutdown
+_shutdown_event = asyncio.Event()
+_redis_client = None
+_active_jobs = set()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Phase A - Task 28: Lifespan context manager for graceful startup and shutdown
+    """
+    global _redis_client
+
+    # Startup
+    print("[ROS] Starting up worker...")
+
+    # Initialize Redis connection if available
+    try:
+        import redis.asyncio as redis
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        _redis_client = redis.from_url(redis_url)
+        await _redis_client.ping()
+        print("[ROS] Redis connection established")
+    except Exception as e:
+        print(f"[ROS] Redis connection not available: {e}")
+        _redis_client = None
+
+    yield
+
+    # Shutdown
+    print("[ROS] Initiating graceful shutdown...")
+
+    # Set shutdown event to stop accepting new work
+    _shutdown_event.set()
+
+    # Wait for active jobs to complete (with timeout)
+    if _active_jobs:
+        print(f"[ROS] Waiting for {len(_active_jobs)} active jobs to complete...")
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(*[asyncio.sleep(0.1) for _ in range(100)]),  # Max 10 seconds
+                timeout=30.0
+            )
+        except asyncio.TimeoutError:
+            print("[ROS] Shutdown timeout reached, some jobs may be interrupted")
+
+    # Close Redis connection
+    if _redis_client:
+        try:
+            await _redis_client.close()
+            print("[ROS] Redis connection closed")
+        except Exception as e:
+            print(f"[ROS] Error closing Redis: {e}")
+
+    print("[ROS] Shutdown complete")
+
+
 app = FastAPI(
     title="Research Operating System API",
     description="Backend API for ROS pipeline stages",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS for frontend access

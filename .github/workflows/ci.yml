@@ -83,7 +83,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       - run: npm ci
-      - run: npm run test:unit
+      # Phase A - Task 19: Run tests with coverage
+      - run: npm run test:coverage
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
@@ -93,6 +94,25 @@ jobs:
           name: coverage-report
           path: coverage/
           retention-days: 7
+      # Phase A - Task 19: Upload to Codecov
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          fail_ci_if_error: false  # Don't fail CI if Codecov upload fails
+          verbose: true
+
+  # Phase A - Task 18: Containerized test runner
+  test-containerized:
+    name: Containerized Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build test container
+        run: docker build -f Dockerfile.vitest -t rf-vitest .
+      - name: Run tests in container
+        run: docker run --rm rf-vitest
 
   # Integration tests require DATABASE_URL - run separately when database is available
   # To enable: Add DATABASE_URL to GitHub repository secrets
@@ -112,9 +132,14 @@ jobs:
   #       run: npm run test:integration
 
   # CRITICAL: Governance tests enforce fail-closed security
+  # Phase A - Task 4: Matrix strategy for DEMO/LIVE modes
   governance:
-    name: Governance Tests (CRITICAL)
+    name: Governance Tests (${{ matrix.mode }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [DEMO, LIVE]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -127,26 +152,31 @@ jobs:
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
+          GOVERNANCE_MODE: ${{ matrix.mode }}
       - name: PHI Scanner Tests
         run: npm run test:phi
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
+          GOVERNANCE_MODE: ${{ matrix.mode }}
       - name: Fail-Closed Tests
         run: npm run test:fail-closed
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
+          GOVERNANCE_MODE: ${{ matrix.mode }}
       - name: Mode Enforcement Tests
         run: npm run test:mode-enforcement
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
+          GOVERNANCE_MODE: ${{ matrix.mode }}
       - name: App Mode Invariants Tests
         run: npm run test:invariants
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
+          GOVERNANCE_MODE: ${{ matrix.mode }}
 
   security:
     name: Security Audit

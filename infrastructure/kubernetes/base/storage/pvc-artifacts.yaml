@@ -1,0 +1,19 @@
+# Phase A - Task 8: Dedicated PVC for artifacts storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: researchflow-artifacts
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/part-of: researchflow
+spec:
+  accessModes:
+    - ReadWriteMany  # RWX for shared access between pods
+  resources:
+    requests:
+      storage: 50Gi
+  # NOTE: Replace with your cluster's RWX-capable StorageClass
+  # Examples: efs-sc (AWS EFS), filestore-sc (GCP Filestore), azurefile (Azure Files)
+  storageClassName: standard

@@ -1,0 +1,7 @@
+# Phase A - Task 8: Kustomization for storage resources
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - pvc-artifacts.yaml
+  - pvc-logs.yaml

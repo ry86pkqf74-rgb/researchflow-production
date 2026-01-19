@@ -1,0 +1,126 @@
+# Phase A - Task 22: CronJob for Postgres backups to S3-compatible storage
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: backup
+spec:
+  # Run daily at 3:00 AM UTC
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600  # 1 hour timeout
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: researchflow
+            app.kubernetes.io/component: backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              # Use official postgres image with aws-cli for S3 upload
+              image: postgres:16-alpine
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -euo pipefail
+
+                  # Install AWS CLI (minimal install)
+                  apk add --no-cache aws-cli
+
+                  # Generate timestamp
+                  TS="$(date +%Y%m%d_%H%M%S)"
+                  FILE="/tmp/pg_backup_${TS}.dump"
+                  CHECKSUM_FILE="/tmp/pg_backup_${TS}.sha256"
+
+                  echo "[$(date -Iseconds)] Starting backup..."
+
+                  # Create backup using pg_dump
+                  pg_dump -Fc -f "${FILE}"
+
+                  # Generate checksum for integrity verification
+                  sha256sum "${FILE}" > "${CHECKSUM_FILE}"
+
+                  echo "[$(date -Iseconds)] Backup created: $(du -h ${FILE} | cut -f1)"
+
+                  # Upload to S3 if bucket is configured
+                  if [ -n "${S3_BUCKET:-}" ]; then
+                    aws s3 cp "${FILE}" "s3://${S3_BUCKET}/postgres/backup_${TS}.dump" \
+                      --storage-class STANDARD_IA
+
+                    aws s3 cp "${CHECKSUM_FILE}" "s3://${S3_BUCKET}/postgres/backup_${TS}.sha256"
+
+                    echo "[$(date -Iseconds)] Backup uploaded to S3"
+
+                    # Clean up old backups (keep last 30 days)
+                    if [ "${CLEANUP_OLD_BACKUPS:-true}" = "true" ]; then
+                      aws s3 ls "s3://${S3_BUCKET}/postgres/" | \
+                        awk '{print $4}' | \
+                        grep -E '^backup_[0-9]+_[0-9]+\.dump$' | \
+                        head -n -30 | \
+                        xargs -I{} aws s3 rm "s3://${S3_BUCKET}/postgres/{}" || true
+                    fi
+                  else
+                    echo "[$(date -Iseconds)] WARNING: S3_BUCKET not set, backup saved locally only"
+                  fi
+
+                  echo "[$(date -Iseconds)] Backup completed successfully"
+              env:
+                - name: PGHOST
+                  value: postgres
+                - name: PGDATABASE
+                  value: researchflow
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: password
+              envFrom:
+                - secretRef:
+                    name: postgres-backup-s3
+                    optional: true
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "1Gi"
+              volumeMounts:
+                - name: backup-temp
+                  mountPath: /tmp
+          volumes:
+            - name: backup-temp
+              emptyDir:
+                sizeLimit: 10Gi
+---
+# Secret template for S3 backup credentials (values should NOT be committed)
+# Apply with actual values: kubectl create secret generic postgres-backup-s3 --from-literal=...
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-backup-s3
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: backup
+type: Opaque
+stringData:
+  # IMPORTANT: Replace these placeholder values before deploying
+  S3_BUCKET: "your-backup-bucket"
+  AWS_ACCESS_KEY_ID: "your-access-key"
+  AWS_SECRET_ACCESS_KEY: "your-secret-key"
+  AWS_DEFAULT_REGION: "us-east-1"

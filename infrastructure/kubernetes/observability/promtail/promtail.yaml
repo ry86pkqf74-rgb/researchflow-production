@@ -1,0 +1,130 @@
+# Phase A - Task 11: Promtail DaemonSet for log collection
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: promtail
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+
+    positions:
+      filename: /tmp/positions.yaml
+
+    clients:
+      - url: http://loki:3100/loki/api/v1/push
+
+    scrape_configs:
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - researchflow
+        pipeline_stages:
+          - docker: {}
+          # Phase A: Never log PHI values - only locations
+          - replace:
+              expression: '(\d{3}-\d{2}-\d{4})'
+              replace: '[SSN-REDACTED]'
+          - replace:
+              expression: '(\d{10})'
+              replace: '[PHONE-REDACTED]'
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            target_label: app
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            target_label: component
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            target_label: container
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: promtail
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: promtail
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: promtail
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: promtail
+    spec:
+      serviceAccountName: promtail
+      containers:
+        - name: promtail
+          image: grafana/promtail:2.9.0
+          args:
+            - '-config.file=/etc/promtail/promtail.yaml'
+          ports:
+            - containerPort: 9080
+              name: http
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/promtail
+            - name: varlog
+              mountPath: /var/log
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: promtail-config
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: promtail
+  namespace: researchflow
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: promtail
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: promtail
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: promtail
+subjects:
+  - kind: ServiceAccount
+    name: promtail
+    namespace: researchflow

@@ -1,0 +1,25 @@
+# Phase A - Task 5: Trivy ignore file for known/accepted vulnerabilities
+# IMPORTANT: All entries MUST have a justification comment
+# Review quarterly and remove resolved issues
+
+# =============================================================================
+# EXAMPLE ENTRIES (uncomment and modify as needed)
+# =============================================================================
+
+# CVE-YYYY-XXXXX  # Justification: <reason>
+# Example: Low risk, not in attack surface, waiting for upstream fix
+
+# =============================================================================
+# CURRENT EXCEPTIONS
+# =============================================================================
+
+# None currently - all vulnerabilities should be addressed
+
+# =============================================================================
+# REVIEW POLICY
+# =============================================================================
+# - Additions require security team review
+# - Each entry must have a justification
+# - Review this file quarterly
+# - Remove entries when vulnerabilities are fixed upstream
+# - Never ignore vulnerabilities without understanding the risk

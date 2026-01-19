@@ -1,0 +1,36 @@
+# syntax=docker/dockerfile:1.7
+# Phase A - Task 18: Containerized Vitest test runner
+# Ensures consistent test environment across all CI runners
+
+FROM node:20-slim
+
+WORKDIR /repo
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy package files first for better layer caching
+COPY package*.json ./
+COPY packages/core/package.json ./packages/core/
+COPY packages/phi-engine/package.json ./packages/phi-engine/
+COPY packages/ai-router/package.json ./packages/ai-router/
+COPY packages/manuscript-engine/package.json ./packages/manuscript-engine/
+COPY services/orchestrator/package.json ./services/orchestrator/
+COPY services/manuscript-service/package.json ./services/manuscript-service/
+
+# Install all dependencies (including devDependencies for testing)
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+# Copy all source code
+COPY . .
+
+# Set environment variables for testing
+ENV CI=true \
+    NODE_ENV=test \
+    NODE_OPTIONS="--max-old-space-size=4096"
+
+# Default command: run tests in band for deterministic results
+CMD ["npm", "run", "test:unit", "--", "--run"]

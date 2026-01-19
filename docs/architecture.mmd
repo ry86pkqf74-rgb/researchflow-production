@@ -1,0 +1,104 @@
+%% Phase A - Task 26: ResearchFlow Architecture Diagram
+%% Render this file with: npx @mermaid-js/mermaid-cli -i docs/architecture.mmd -o docs/architecture.png
+
+flowchart TB
+    subgraph Clients
+        WebUI[React Web UI]
+        API_Client[API Consumers]
+    end
+
+    subgraph Ingress
+        Nginx[Nginx Ingress/Proxy]
+    end
+
+    subgraph Core_Services[Core Services]
+        Orchestrator[Node.js Orchestrator<br/>Port 3001]
+        Worker[Python Worker<br/>Port 8000]
+        Manuscript[Manuscript Service<br/>Port 3002]
+    end
+
+    subgraph Data_Layer[Data Layer]
+        Postgres[(PostgreSQL<br/>Drizzle ORM)]
+        Redis[(Redis/BullMQ<br/>Job Queue)]
+    end
+
+    subgraph Storage[Persistent Storage]
+        Artifacts[(PVC: Artifacts<br/>/data/artifacts)]
+        Logs[(PVC: Logs<br/>/data/logs)]
+    end
+
+    subgraph AI_Layer[AI Layer]
+        AIRouter[AI Router]
+        OpenAI[OpenAI API]
+        Anthropic[Anthropic API]
+        Ollama[Ollama Local<br/>Fallback]
+    end
+
+    subgraph Observability[Observability]
+        Prometheus[Prometheus]
+        Grafana[Grafana]
+        Loki[Loki/Promtail]
+        Jaeger[Jaeger Tracing]
+    end
+
+    subgraph Security[Security & Governance]
+        PHI[PHI Engine<br/>Scanner]
+        RBAC[RBAC Middleware]
+        Audit[Audit Logger]
+    end
+
+    %% Client connections
+    WebUI --> Nginx
+    API_Client --> Nginx
+
+    %% Nginx routing
+    Nginx --> Orchestrator
+    Nginx --> WebUI
+
+    %% Orchestrator connections
+    Orchestrator --> Redis
+    Orchestrator --> Postgres
+    Orchestrator --> AIRouter
+    Orchestrator --> PHI
+    Orchestrator --> RBAC
+    Orchestrator --> Audit
+
+    %% AI Router connections
+    AIRouter --> OpenAI
+    AIRouter --> Anthropic
+    AIRouter --> Ollama
+
+    %% Worker connections
+    Redis --> Worker
+    Worker --> Artifacts
+    Worker --> Logs
+    Worker --> Postgres
+
+    %% Manuscript Service
+    Orchestrator --> Manuscript
+    Manuscript --> Redis
+
+    %% Observability connections
+    Orchestrator -.->|metrics| Prometheus
+    Worker -.->|metrics| Prometheus
+    Prometheus --> Grafana
+    Orchestrator -.->|logs| Loki
+    Worker -.->|logs| Loki
+    Loki --> Grafana
+    Orchestrator -.->|traces| Jaeger
+    Worker -.->|traces| Jaeger
+
+    %% Styling
+    classDef client fill:#e1f5fe,stroke:#01579b
+    classDef service fill:#e8f5e9,stroke:#2e7d32
+    classDef data fill:#fff3e0,stroke:#e65100
+    classDef ai fill:#f3e5f5,stroke:#7b1fa2
+    classDef obs fill:#fce4ec,stroke:#c2185b
+    classDef security fill:#ffebee,stroke:#c62828
+
+    class WebUI,API_Client client
+    class Orchestrator,Worker,Manuscript,Nginx service
+    class Postgres,Redis,Artifacts,Logs data
+    class AIRouter,OpenAI,Anthropic,Ollama ai
+    class Prometheus,Grafana,Loki,Jaeger obs
+    class PHI,RBAC,Audit security

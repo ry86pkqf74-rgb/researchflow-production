@@ -23,6 +23,34 @@ export default defineConfig({
       'tests/integration/manuscript-engine/**/*.test.ts',
     ],
     testTimeout: 10000,
+    // Phase A - Task 19: Coverage configuration with thresholds
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html', 'lcov'],
+      reportsDirectory: './coverage',
+      // Coverage thresholds - builds fail if below these values
+      thresholds: {
+        lines: 85,
+        functions: 85,
+        branches: 80,
+        statements: 85,
+      },
+      // Files to include in coverage
+      include: [
+        'packages/**/src/**/*.ts',
+        'services/orchestrator/src/**/*.ts',
+      ],
+      // Files to exclude from coverage
+      exclude: [
+        '**/*.test.ts',
+        '**/*.spec.ts',
+        '**/node_modules/**',
+        '**/dist/**',
+        '**/*.d.ts',
+        '**/types/**',
+        '**/fixtures/**',
+      ],
+    },
   },
   resolve: {
     alias: {
