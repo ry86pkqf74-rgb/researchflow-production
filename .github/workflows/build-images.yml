@@ -53,7 +53,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./services/orchestrator
+          context: .
           file: ./services/orchestrator/Dockerfile
           target: production
           platforms: linux/amd64,linux/arm64
@@ -100,7 +100,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./services/worker
+          context: .
           file: ./services/worker/Dockerfile
           target: production
           platforms: linux/amd64,linux/arm64
@@ -147,7 +147,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./services/web
+          context: .
           file: ./services/web/Dockerfile
           target: production
           platforms: linux/amd64,linux/arm64
