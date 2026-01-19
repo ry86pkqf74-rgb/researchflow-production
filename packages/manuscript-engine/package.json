@@ -14,22 +14,22 @@
     "./prompts": "./src/prompts/index.ts"
   },
   "dependencies": {
+    "@researchflow/ai-router": "*",
     "@researchflow/core": "*",
     "@researchflow/phi-engine": "*",
-    "@researchflow/ai-router": "*",
-    "zod": "^3.25.76",
-    "nanoid": "^5.0.0",
-    "docx": "^8.5.0",
-    "pdfkit": "^0.15.0",
+    "canvas": "^3.2.1",
     "chart.js": "^4.4.0",
-    "canvas": "^2.11.2"
+    "docx": "^8.5.0",
+    "nanoid": "^5.0.0",
+    "pdfkit": "^0.15.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "typescript": "5.6.3",
-    "vitest": "^2.1.9",
-    "@vitest/coverage-v8": "^2.1.9",
     "@types/node": "^20.14.0",
-    "@types/pdfkit": "^0.13.0"
+    "@types/pdfkit": "^0.13.0",
+    "@vitest/coverage-v8": "^4.0.17",
+    "typescript": "5.6.3",
+    "vitest": "^4.0.17"
   },
   "scripts": {
     "build": "tsc",
