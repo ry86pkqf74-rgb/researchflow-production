@@ -26,7 +26,7 @@ jobs:
     outputs:
       lint_passed: ${{ steps.lint.outcome == 'success' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -69,7 +69,7 @@ jobs:
     outputs:
       has_issues: ${{ steps.review.outputs.has_issues }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -209,7 +209,7 @@ jobs:
     needs: ai-review
     if: ${{ needs.ai-review.outputs.has_issues == 'true' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
