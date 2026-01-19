@@ -42,12 +42,17 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
-    "serve": "^14.2.0",
-    "concurrently": "^8.2.0"
+    "concurrently": "^8.2.0",
+    "serve": "^14.2.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.45.0",
+    "@types/archiver": "^7.0.0",
+    "@types/connect-pg-simple": "^7.0.3",
+    "@types/express-session": "^1.18.2",
+    "@types/multer": "^2.0.0",
     "@types/node": "^20.14.0",
+    "@types/passport": "^1.0.17",
     "@typescript-eslint/eslint-plugin": "^7.13.0",
     "@typescript-eslint/parser": "^7.13.0",
     "@vitest/coverage-v8": "^1.6.0",

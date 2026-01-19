@@ -223,7 +223,7 @@ export class ZoteroService {
       throw new Error(`Zotero API error: ${response.status}`);
     }
 
-    const result = await response.json();
+    const result = await response.json() as { successful: ZoteroItem[] };
     return this.parseZoteroItem(result.successful[0]);
   }
 
@@ -260,7 +260,7 @@ export class ZoteroService {
     return `${this.baseUrl}/${libraryType}s/${library}${path}`;
   }
 
-  private getHeaders(): HeadersInit {
+  private getHeaders(): Record<string, string> {
     return {
       'Zotero-API-Key': this.config!.apiKey,
       'Content-Type': 'application/json',

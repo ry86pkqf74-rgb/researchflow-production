@@ -58,7 +58,7 @@ export class DataMapperService {
           sentence += ` (p = ${this.formatPValue(test.pValue)})`;
         }
         if (test.confidenceInterval) {
-          sentence += `, 95% CI [${test.confidenceInterval.map(v => this.formatNumber(v)).join(', ')}]`;
+          sentence += `, 95% CI [${(test.confidenceInterval as [number, number]).map(v => this.formatNumber(v)).join(', ')}]`;
         }
         parts.push(sentence + '.');
       }

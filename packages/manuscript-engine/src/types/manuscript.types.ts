@@ -5,8 +5,24 @@
 
 import { z } from 'zod';
 
-// IMRaD Section Types
-export type IMRaDSection = 'abstract' | 'introduction' | 'methods' | 'results' | 'discussion' | 'references';
+// IMRaD Section Types - Extended to include all manuscript sections
+export type IMRaDSection =
+  | 'abstract'
+  | 'introduction'
+  | 'methods'
+  | 'results'
+  | 'discussion'
+  | 'references'
+  | 'title'
+  | 'keywords'
+  | 'acknowledgments'
+  | 'appendices'
+  | 'supplementary'
+  | 'case_presentation'
+  | 'what_is_already_known'
+  | 'what_this_study_adds'
+  | 'panel'
+  | 'conclusion';
 
 export type ManuscriptStatus = 'draft' | 'review' | 'approved' | 'submitted' | 'published';
 
@@ -69,8 +85,10 @@ export interface Manuscript {
   id: string;
   title: string;
   status: ManuscriptStatus;
-  templateType: TemplateType;
-  currentVersionId: string;
+  templateType?: TemplateType;
+  currentVersionId?: string;
+  currentVersion?: string;  // Alias for currentVersionId
+  versions?: ManuscriptVersion[];
   authors: Author[];
   abstract?: string;
   keywords: string[];
@@ -87,18 +105,21 @@ export interface Author {
   orcid?: string;
   corresponding: boolean;
   order: number;
+  roles?: string[];  // CRediT author contribution roles
 }
 
 export interface ManuscriptMetadata {
   journalTarget?: string;
   wordLimits?: Record<IMRaDSection, number>;
-  style: CitationStyle;
-  conflicts: string[];
-  funding: string[];
+  style?: CitationStyle;
+  conflicts?: string | string[];
+  funding?: string | string[];
   ethics?: {
     approved: boolean;
     irbNumber?: string;
-    statement: string;
+    irb?: string;  // Alias for irbNumber
+    statement?: string;
+    approvalDate?: Date;
   };
 }
 

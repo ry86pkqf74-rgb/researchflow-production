@@ -81,10 +81,23 @@ export { ClaimHighlighterService } from './src/services/claim-highlighter.servic
 
 export * from './src/templates/table-templates';
 export * from './src/templates/phrase-library';
-export * from './src/prompts/abstract-generator.prompt';
 
-// Section-specific prompts
-export * from './src/prompts/section-prompts/abstract.prompt';
+// Export abstract-generator.prompt (legacy prompts)
+export {
+  ABSTRACT_GENERATOR_PROMPT,
+  STRUCTURED_ABSTRACT_SECTIONS,
+  buildAbstractPrompt as buildLegacyAbstractPrompt,
+  ABSTRACT_QUALITY_CHECKS,
+} from './src/prompts/abstract-generator.prompt';
+
+// Section-specific prompts (use these for new code)
+export {
+  buildAbstractPrompt,
+  buildUnstructuredAbstractPrompt,
+  ABSTRACT_TEMPLATES,
+  validateAbstractLength,
+  getAbstractKeywords,
+} from './src/prompts/section-prompts/abstract.prompt';
 export * from './src/prompts/section-prompts/introduction.prompt';
 export * from './src/prompts/section-prompts/methods.prompt';
 export * from './src/prompts/section-prompts/results.prompt';

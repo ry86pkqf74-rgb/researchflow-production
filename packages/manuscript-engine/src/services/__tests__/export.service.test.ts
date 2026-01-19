@@ -43,7 +43,8 @@ describe('ExportService', () => {
     versions: [],
     createdAt: new Date(),
     updatedAt: new Date(),
-    status: 'draft'
+    status: 'draft',
+    metadata: {}
   };
 
   describe('getInstance', () => {

@@ -5,14 +5,31 @@
 
 import { z } from 'zod';
 
+// Re-export from manuscript.types for backward compatibility
+export { IMRaDSection } from './manuscript.types';
+
+// Word count limits type
+export interface WordCountLimits {
+  abstract?: { min?: number; max: number };
+  introduction?: { min?: number; max: number };
+  methods?: { min?: number; max: number };
+  results?: { min?: number; max: number };
+  discussion?: { min?: number; max: number };
+  references?: { min?: number; max: number };
+  total?: { min?: number; max: number };
+  [key: string]: { min?: number; max: number } | undefined;  // Allow other section names
+}
+
 // Template Placeholder
 export interface TemplatePlaceholder {
   id: string;
   label: string;
-  type: 'text' | 'data' | 'citation' | 'figure' | 'table';
+  type?: 'text' | 'data' | 'citation' | 'figure' | 'table';
   required: boolean;
   defaultValue?: string;
   helpText?: string;
+  description?: string;
+  dataBinding?: string;  // For data-bound placeholders
 }
 
 // IMRaD Template

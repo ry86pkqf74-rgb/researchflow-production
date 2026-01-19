@@ -28,6 +28,24 @@ export interface SemanticSearchParams {
   openAccessOnly?: boolean;
 }
 
+// API Response types
+interface SearchResponse {
+  total: number;
+  data: SemanticScholarPaper[];
+}
+
+interface CitationsResponse {
+  data: { citingPaper: SemanticScholarPaper }[];
+}
+
+interface ReferencesResponse {
+  data: { citedPaper: SemanticScholarPaper }[];
+}
+
+interface RecommendationsResponse {
+  recommendedPapers: SemanticScholarPaper[];
+}
+
 export class SemanticScholarService {
   private readonly baseUrl = 'https://api.semanticscholar.org/graph/v1';
   private readonly apiKey?: string;
@@ -61,13 +79,13 @@ export class SemanticScholarService {
     }
 
     const response = await this.fetchWithAuth(url.toString());
-    const data = await response.json();
+    const data = await response.json() as SearchResponse;
 
     return {
       query: params.query,
       source: 'semantic_scholar',
       totalResults: data.total || 0,
-      results: (data.data || []).map((paper: SemanticScholarPaper) => ({
+      results: (data.data || []).map((paper) => ({
         externalId: paper.paperId,
         title: paper.title,
         authors: paper.authors.map(a => a.name),
@@ -94,7 +112,7 @@ export class SemanticScholarService {
 
     try {
       const response = await this.fetchWithAuth(url);
-      return await response.json();
+      return await response.json() as SemanticScholarPaper;
     } catch {
       return null;
     }
@@ -123,8 +141,8 @@ export class SemanticScholarService {
 
     try {
       const response = await this.fetchWithAuth(url);
-      const data = await response.json();
-      return (data.data || []).map((item: { citingPaper: SemanticScholarPaper }) => item.citingPaper);
+      const data = await response.json() as CitationsResponse;
+      return (data.data || []).map((item) => item.citingPaper);
     } catch {
       return [];
     }
@@ -139,8 +157,8 @@ export class SemanticScholarService {
 
     try {
       const response = await this.fetchWithAuth(url);
-      const data = await response.json();
-      return (data.data || []).map((item: { citedPaper: SemanticScholarPaper }) => item.citedPaper);
+      const data = await response.json() as ReferencesResponse;
+      return (data.data || []).map((item) => item.citedPaper);
     } catch {
       return [];
     }
@@ -163,7 +181,7 @@ export class SemanticScholarService {
 
     try {
       const response = await this.fetchWithAuth(url);
-      const data = await response.json();
+      const data = await response.json() as RecommendationsResponse;
       return data.recommendedPapers || [];
     } catch {
       return [];
@@ -189,7 +207,7 @@ export class SemanticScholarService {
         body: JSON.stringify({ ids: paperIds })
       });
 
-      return await response.json();
+      return await response.json() as SemanticScholarPaper[];
     } catch {
       return [];
     }

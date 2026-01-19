@@ -662,6 +662,8 @@ describe('FinalPhiScanService', () => {
 
   describe('Context Extraction', () => {
     it('should provide context around detections', async () => {
+      // GOVERNANCE: Context field was removed to prevent PHI exposure
+      // Instead, we provide location indices for secure tracking
       const contaminated = {
         ...cleanManuscript,
         methods: 'The patient, Mr. John Smith, was enrolled in the study and provided informed consent.'
@@ -674,9 +676,10 @@ describe('FinalPhiScanService', () => {
       );
 
       const nameDetection = result.phiDetections.find(d => d.type === 'name');
-      expect(nameDetection?.context).toBeDefined();
-      expect(nameDetection?.context.length).toBeGreaterThan(0);
-      expect(nameDetection?.context).toContain('...');
+      // Check that we have location info instead of context (security improvement)
+      expect(nameDetection?.startIndex).toBeDefined();
+      expect(nameDetection?.endIndex).toBeDefined();
+      expect(nameDetection?.detectionId).toBeDefined();
     });
 
     it('should include start and end indices', async () => {
