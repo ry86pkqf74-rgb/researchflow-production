@@ -127,7 +127,7 @@ export interface StatisticalSummary {
     pValue: number;
     statistic: number;
     confidenceInterval?: [number, number];
-    effect Size?: number;
+    effectSize?: number;
   };
   categorical?: {
     counts: Record<string, number>;

@@ -12,7 +12,7 @@ export interface StudyQuality {
   blinding: boolean;
   completeness: number; // 0-100%
   biasRisk: 'low' | 'moderate' | 'high';
-  cochrane Score?: number;
+  cochraneScore?: number;
 }
 
 export interface EffectSize {
