@@ -62,7 +62,7 @@ nodeenv==1.10.0
 numpy==1.26.4
 packageurl-python==0.17.6
 packaging==25.0
-pandas==2.2.0
+pandas==2.3.3
 pandera==0.18.0
 passlib==1.7.4
 patsy==1.0.2
