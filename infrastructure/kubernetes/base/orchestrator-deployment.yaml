@@ -41,18 +41,37 @@ spec:
             limits:
               cpu: "2000m"
               memory: "2Gi"
+          # Phase A - Task 31: Enhanced health probes
           livenessProbe:
             httpGet:
-              path: /health
+              path: /healthz
               port: 3001
+              scheme: HTTP
             initialDelaySeconds: 10
-            periodSeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /health/ready
+              path: /readyz
               port: 3001
+              scheme: HTTP
             initialDelaySeconds: 5
-            periodSeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 2
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 3001
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 12  # 60 seconds to start
           volumeMounts:
             - name: shared-data
               mountPath: /data

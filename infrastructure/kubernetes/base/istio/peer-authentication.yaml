@@ -1,0 +1,35 @@
+# Peer Authentication - Enforce mTLS
+# Phase A - Task 10: Istio Service Mesh
+#
+# This configures STRICT mutual TLS for all service-to-service communication
+# in the researchflow namespace, ensuring all traffic is encrypted and authenticated.
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: istio
+spec:
+  # STRICT mode: Only accept mTLS connections
+  # PERMISSIVE mode: Accept both mTLS and plaintext (for migration)
+  # DISABLE mode: Accept only plaintext (not recommended)
+  mtls:
+    mode: STRICT
+
+---
+# Service-specific authentication (if needed for external services)
+# Uncomment to allow plaintext traffic to specific services
+# apiVersion: security.istio.io/v1beta1
+# kind: PeerAuthentication
+# metadata:
+#   name: web-permissive
+#   namespace: researchflow
+# spec:
+#   selector:
+#     matchLabels:
+#       app.kubernetes.io/component: web
+#   mtls:
+#     mode: PERMISSIVE

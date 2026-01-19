@@ -1,0 +1,164 @@
+# Dependabot configuration for ResearchFlow
+# Automated dependency updates for security and maintenance
+
+version: 2
+updates:
+  # Root workspace npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "researchflow-team"
+    labels:
+      - "dependencies"
+      - "automerge"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+
+  # Orchestrator service
+  - package-ecosystem: "npm"
+    directory: "/services/orchestrator"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "orchestrator"
+    commit-message:
+      prefix: "chore(orchestrator)"
+
+  # Web service
+  - package-ecosystem: "npm"
+    directory: "/services/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "web"
+    commit-message:
+      prefix: "chore(web)"
+
+  # Worker service (Python)
+  - package-ecosystem: "pip"
+    directory: "/services/worker"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "worker"
+      - "python"
+    commit-message:
+      prefix: "chore(worker)"
+
+  # Orchestrator Dockerfile
+  - package-ecosystem: "docker"
+    directory: "/services/orchestrator"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "orchestrator"
+    commit-message:
+      prefix: "chore(docker)"
+
+  # Worker Dockerfile
+  - package-ecosystem: "docker"
+    directory: "/services/worker"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "worker"
+    commit-message:
+      prefix: "chore(docker)"
+
+  # Web Dockerfile
+  - package-ecosystem: "docker"
+    directory: "/services/web"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "web"
+    commit-message:
+      prefix: "chore(docker)"
+
+  # GitHub Actions workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"
+
+  # Core package
+  - package-ecosystem: "npm"
+    directory: "/packages/core"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "core"
+    commit-message:
+      prefix: "chore(core)"
+
+  # PHI Engine package
+  - package-ecosystem: "npm"
+    directory: "/packages/phi-engine"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "phi-engine"
+    commit-message:
+      prefix: "chore(phi-engine)"
+
+  # AI Router package
+  - package-ecosystem: "npm"
+    directory: "/packages/ai-router"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ai-router"
+    commit-message:
+      prefix: "chore(ai-router)"
+
+  # Manuscript Engine package
+  - package-ecosystem: "npm"
+    directory: "/packages/manuscript-engine"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "manuscript-engine"
+    commit-message:
+      prefix: "chore(manuscript)"

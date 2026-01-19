@@ -11,6 +11,7 @@ resources:
   - worker-deployment.yaml
   - web-deployment.yaml
   - ingress.yaml
+  - pruning-cronjob.yaml
 
 commonLabels:
   app.kubernetes.io/part-of: researchflow

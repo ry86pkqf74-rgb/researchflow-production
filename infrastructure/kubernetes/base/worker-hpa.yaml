@@ -1,0 +1,229 @@
+---
+# Horizontal Pod Autoscaler for Worker Service
+#
+# Scales worker pods based on:
+# - CPU utilization
+# - Memory utilization
+# - Custom metrics (job queue depth)
+#
+# Prerequisites:
+# - Metrics Server installed
+# - Prometheus Adapter for custom metrics
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: worker-hpa
+  namespace: researchflow
+  labels:
+    app: worker
+    component: autoscaling
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  minReplicas: 2
+  maxReplicas: 10
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+        - type: Percent
+          value: 25
+          periodSeconds: 120
+      selectPolicy: Min
+  metrics:
+    # CPU-based scaling
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    # Memory-based scaling
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+    # Custom metric: Redis job queue depth
+    # Requires Prometheus Adapter configured with custom metrics
+    - type: External
+      external:
+        metric:
+          name: redis_queue_depth
+          selector:
+            matchLabels:
+              queue: "researchflow-jobs"
+        target:
+          type: AverageValue
+          averageValue: "20"
+
+---
+# PodDisruptionBudget for Worker
+#
+# Ensures minimum availability during node maintenance
+# and voluntary disruptions
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: worker-pdb
+  namespace: researchflow
+  labels:
+    app: worker
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: worker
+
+---
+# VerticalPodAutoscaler for Worker (optional)
+#
+# Automatically adjusts CPU and memory requests
+# based on observed usage patterns
+#
+# Requires VPA installed in cluster
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: worker-vpa
+  namespace: researchflow
+  labels:
+    app: worker
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: worker
+        minAllowed:
+          cpu: "200m"
+          memory: "256Mi"
+        maxAllowed:
+          cpu: "4"
+          memory: "8Gi"
+        controlledResources:
+          - cpu
+          - memory
+        controlledValues: RequestsAndLimits
+
+---
+# PrometheusRule for Worker Autoscaling Alerts
+#
+# Alerting rules for autoscaling events
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: worker-autoscaling-alerts
+  namespace: researchflow
+  labels:
+    app: worker
+    prometheus: main
+spec:
+  groups:
+    - name: worker-autoscaling
+      rules:
+        # Alert when HPA is at max replicas
+        - alert: WorkerHPAAtMaxReplicas
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{
+              namespace="researchflow",
+              horizontalpodautoscaler="worker-hpa"
+            } >= kube_horizontalpodautoscaler_spec_max_replicas{
+              namespace="researchflow",
+              horizontalpodautoscaler="worker-hpa"
+            }
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Worker HPA at maximum replicas"
+            description: "Worker HPA has been at maximum replicas for more than 10 minutes. Consider increasing max replicas."
+
+        # Alert when HPA is scaling frequently
+        - alert: WorkerHPAFlapping
+          expr: |
+            changes(kube_horizontalpodautoscaler_status_current_replicas{
+              namespace="researchflow",
+              horizontalpodautoscaler="worker-hpa"
+            }[30m]) > 5
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Worker HPA is flapping"
+            description: "Worker HPA has scaled more than 5 times in the last 30 minutes. Check for instability."
+
+        # Alert on high queue depth
+        - alert: WorkerQueueBacklog
+          expr: |
+            redis_queue_depth{queue="researchflow-jobs"} > 100
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Worker job queue backlog"
+            description: "Job queue depth is over 100 for more than 5 minutes. Workers may need scaling."
+
+        # Alert on worker pod restarts
+        - alert: WorkerPodRestarts
+          expr: |
+            increase(kube_pod_container_status_restarts_total{
+              namespace="researchflow",
+              pod=~"worker-.*"
+            }[1h]) > 3
+          for: 1m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Worker pod restarting frequently"
+            description: "Worker pod {{ $labels.pod }} has restarted more than 3 times in the last hour."
+
+---
+# ServiceMonitor for Worker Metrics
+#
+# Configures Prometheus to scrape worker metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: worker-monitor
+  namespace: researchflow
+  labels:
+    app: worker
+spec:
+  selector:
+    matchLabels:
+      app: worker
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - researchflow

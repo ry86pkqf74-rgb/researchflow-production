@@ -1,0 +1,193 @@
+# Auto-Pruning CronJob for Artifacts and Logs
+# Phase A - Task 45: Auto-Pruning CronJob
+#
+# This CronJob runs daily to:
+# 1. Delete artifacts older than retention period
+# 2. Create tombstones for pruned manifests
+# 3. Clean up old log files
+# 4. Compress old artifacts (optional)
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: artifact-pruner
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: pruner
+spec:
+  # Run daily at 2 AM UTC
+  schedule: "0 2 * * *"
+
+  # Don't allow concurrent runs
+  concurrencyPolicy: Forbid
+
+  # Keep last 3 successful jobs for debugging
+  successfulJobsHistoryLimit: 3
+
+  # Keep last 3 failed jobs for debugging
+  failedJobsHistoryLimit: 3
+
+  # Deadline for job completion (30 minutes)
+  startingDeadlineSeconds: 1800
+
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: researchflow
+        app.kubernetes.io/component: pruner
+    spec:
+      # Don't restart on failure - let the next scheduled run handle it
+      backoffLimit: 2
+
+      # Job must complete within 25 minutes
+      activeDeadlineSeconds: 1500
+
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: researchflow
+            app.kubernetes.io/component: pruner
+        spec:
+          restartPolicy: OnFailure
+
+          # Security context
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+
+          containers:
+          - name: pruner
+            image: alpine:3.19
+            imagePullPolicy: IfNotPresent
+
+            command: ["/bin/sh"]
+            args:
+              - -c
+              - |
+                set -e
+
+                echo "================================================"
+                echo "ResearchFlow Artifact & Log Pruner"
+                echo "================================================"
+                echo "Start time: $(date -Iseconds)"
+                echo ""
+
+                # Configuration
+                RETENTION_DAYS=${RETENTION_DAYS:-90}
+                LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+                ARTIFACTS_DIR=/data/artifacts
+                MANIFESTS_DIR=/data/manifests
+                LOGS_DIR=/data/logs
+
+                echo "Configuration:"
+                echo "  Artifact retention: $RETENTION_DAYS days"
+                echo "  Log retention: $LOG_RETENTION_DAYS days"
+                echo "  Artifacts dir: $ARTIFACTS_DIR"
+                echo "  Manifests dir: $MANIFESTS_DIR"
+                echo "  Logs dir: $LOGS_DIR"
+                echo ""
+
+                # Function to count and size
+                count_and_size() {
+                    local dir=$1
+                    local count=$(find "$dir" -type f 2>/dev/null | wc -l || echo "0")
+                    local size=$(du -sh "$dir" 2>/dev/null | cut -f1 || echo "0")
+                    echo "  Files: $count, Size: $size"
+                }
+
+                # Before pruning stats
+                echo "Before pruning:"
+                echo "Artifacts:"
+                count_and_size "$ARTIFACTS_DIR"
+                echo "Manifests:"
+                count_and_size "$MANIFESTS_DIR"
+                echo "Logs:"
+                count_and_size "$LOGS_DIR"
+                echo ""
+
+                # Prune old artifacts
+                echo "Pruning artifacts older than $RETENTION_DAYS days..."
+                PRUNED_ARTIFACTS=0
+                if [ -d "$ARTIFACTS_DIR" ]; then
+                    PRUNED_ARTIFACTS=$(find "$ARTIFACTS_DIR" -type f -mtime +"$RETENTION_DAYS" -delete -print 2>/dev/null | wc -l || echo "0")
+                    echo "  Pruned $PRUNED_ARTIFACTS artifact files"
+                fi
+
+                # Prune manifests and create tombstones
+                echo "Pruning manifests older than $RETENTION_DAYS days..."
+                PRUNED_MANIFESTS=0
+                if [ -d "$MANIFESTS_DIR" ]; then
+                    find "$MANIFESTS_DIR" -type f -mtime +"$RETENTION_DAYS" -name "*.json" 2>/dev/null | while read manifest; do
+                        TOMBSTONE="${manifest}.tombstone"
+
+                        # Create tombstone if doesn't exist
+                        if [ ! -f "$TOMBSTONE" ]; then
+                            echo "{\"pruned_at\":\"$(date -Iseconds)\",\"reason\":\"retention_policy\",\"retention_days\":$RETENTION_DAYS}" > "$TOMBSTONE"
+                            echo "  Created tombstone: $(basename "$TOMBSTONE")"
+                        fi
+
+                        # Delete manifest
+                        rm -f "$manifest"
+                        PRUNED_MANIFESTS=$((PRUNED_MANIFESTS + 1))
+                    done
+                    echo "  Pruned $PRUNED_MANIFESTS manifest files"
+                fi
+
+                # Prune old logs
+                echo "Pruning logs older than $LOG_RETENTION_DAYS days..."
+                PRUNED_LOGS=0
+                if [ -d "$LOGS_DIR" ]; then
+                    PRUNED_LOGS=$(find "$LOGS_DIR" -type f -mtime +"$LOG_RETENTION_DAYS" -delete -print 2>/dev/null | wc -l || echo "0")
+                    echo "  Pruned $PRUNED_LOGS log files"
+                fi
+
+                # Clean empty directories
+                echo "Cleaning empty directories..."
+                find "$ARTIFACTS_DIR" -type d -empty -delete 2>/dev/null || true
+                find "$MANIFESTS_DIR" -type d -empty -delete 2>/dev/null || true
+                find "$LOGS_DIR" -type d -empty -delete 2>/dev/null || true
+
+                # After pruning stats
+                echo ""
+                echo "After pruning:"
+                echo "Artifacts:"
+                count_and_size "$ARTIFACTS_DIR"
+                echo "Manifests:"
+                count_and_size "$MANIFESTS_DIR"
+                echo "Logs:"
+                count_and_size "$LOGS_DIR"
+                echo ""
+
+                # Summary
+                echo "================================================"
+                echo "Pruning Summary:"
+                echo "  Artifacts pruned: $PRUNED_ARTIFACTS"
+                echo "  Manifests pruned: $PRUNED_MANIFESTS"
+                echo "  Logs pruned: $PRUNED_LOGS"
+                echo "  End time: $(date -Iseconds)"
+                echo "================================================"
+
+            env:
+              - name: RETENTION_DAYS
+                value: "90"
+              - name: LOG_RETENTION_DAYS
+                value: "30"
+
+            resources:
+              requests:
+                cpu: "100m"
+                memory: "128Mi"
+              limits:
+                cpu: "500m"
+                memory: "256Mi"
+
+            volumeMounts:
+              - name: shared-data
+                mountPath: /data
+
+          volumes:
+            - name: shared-data
+              persistentVolumeClaim:
+                claimName: researchflow-data

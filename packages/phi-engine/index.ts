@@ -28,11 +28,24 @@ export {
 
 // Logger adapters
 export { createScrubbedLogger } from './src/adapters/pino-adapter';
-export { 
-  installConsoleScrubber, 
+export {
+  installConsoleScrubber,
   removeConsoleScrubber,
-  isConsoleScrubberInstalled 
+  isConsoleScrubberInstalled
 } from './src/adapters/console-adapter';
+
+// Medical NER (Phase A - Task 47)
+export {
+  extractMedicalEntities,
+  detectMedicalPHI,
+  analyzeMedicalText,
+  scrubMedicalPHI
+} from './src/medical-ner';
+export type {
+  MedicalEntity,
+  MedicalPHIPattern,
+  MedicalNERResult
+} from './src/medical-ner';
 
 // Version
 export const PHI_ENGINE_VERSION = "1.0.0";

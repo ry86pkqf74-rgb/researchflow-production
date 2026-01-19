@@ -1,0 +1,186 @@
+# Virtual Services - Routing Rules
+# Phase A - Task 10: Istio Service Mesh
+#
+# Defines HTTP routing, timeouts, and retry policies for ResearchFlow services.
+
+# Orchestrator Virtual Service
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: orchestrator
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: orchestrator
+spec:
+  hosts:
+  - orchestrator
+  - orchestrator.researchflow.svc.cluster.local
+
+  http:
+  - name: "orchestrator-routes"
+    match:
+    - uri:
+        prefix: /api
+    - uri:
+        prefix: /healthz
+    - uri:
+        prefix: /readyz
+    - uri:
+        prefix: /health
+
+    route:
+    - destination:
+        host: orchestrator.researchflow.svc.cluster.local
+        port:
+          number: 3001
+
+    # Timeout for API requests
+    timeout: 30s
+
+    # Retry policy
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,reset,connect-failure,refused-stream,retriable-status-codes
+      retryRemoteLocalities: true
+
+    # CORS policy (if needed for external access)
+    corsPolicy:
+      allowOrigins:
+      - exact: "*"
+      allowMethods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+      - OPTIONS
+      allowHeaders:
+      - authorization
+      - content-type
+      - x-request-id
+      maxAge: 86400s
+
+    # Fault injection for testing (disabled by default)
+    # fault:
+    #   delay:
+    #     percentage:
+    #       value: 0.1
+    #     fixedDelay: 5s
+    #   abort:
+    #     percentage:
+    #       value: 0.01
+    #     httpStatus: 500
+
+---
+# Worker Virtual Service
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: worker
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: worker
+spec:
+  hosts:
+  - worker
+  - worker.researchflow.svc.cluster.local
+
+  http:
+  - name: "health-checks"
+    match:
+    - uri:
+        prefix: /healthz
+    - uri:
+        prefix: /readyz
+    - uri:
+        prefix: /health
+
+    route:
+    - destination:
+        host: worker.researchflow.svc.cluster.local
+        port:
+          number: 8000
+
+    timeout: 5s
+    retries:
+      attempts: 2
+      perTryTimeout: 2s
+
+  - name: "worker-jobs"
+    match:
+    - uri:
+        prefix: /api
+
+    route:
+    - destination:
+        host: worker.researchflow.svc.cluster.local
+        port:
+          number: 8000
+
+    # Longer timeout for ML/processing jobs
+    timeout: 300s  # 5 minutes
+
+    # Limited retries for jobs (they may be expensive)
+    retries:
+      attempts: 1
+      perTryTimeout: 300s
+      retryOn: connect-failure,refused-stream
+
+---
+# Web Virtual Service
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: web
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: web
+spec:
+  hosts:
+  - web
+  - web.researchflow.svc.cluster.local
+
+  http:
+  - name: "static-content"
+    match:
+    - uri:
+        regex: "^/assets/.*"
+    - uri:
+        regex: ".*\\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf)$"
+
+    route:
+    - destination:
+        host: web.researchflow.svc.cluster.local
+        port:
+          number: 80
+
+    timeout: 10s
+
+    # Aggressive caching for static assets
+    headers:
+      response:
+        set:
+          cache-control: "public, max-age=31536000, immutable"
+
+  - name: "spa-routes"
+    match:
+    - uri:
+        prefix: /
+
+    route:
+    - destination:
+        host: web.researchflow.svc.cluster.local
+        port:
+          number: 80
+
+    timeout: 10s
+
+    # Retry for web requests
+    retries:
+      attempts: 3
+      perTryTimeout: 3s
+      retryOn: 5xx,reset,connect-failure,refused-stream

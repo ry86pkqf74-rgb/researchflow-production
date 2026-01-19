@@ -1,0 +1,79 @@
+# ============================================
+# ResearchFlow Worker - Distroless Production Build
+# Phase A - Task 19: Distroless Base Images + Non-Root
+# ============================================
+#
+# Security Features:
+# - Distroless base (no shell, minimal attack surface)
+# - Non-root user
+# - Multi-stage build
+# - Multi-arch support (AMD64/ARM64)
+
+# ============================================
+# Stage 1: Base with Build Dependencies
+# ============================================
+FROM python:3.11-slim AS base
+
+# Install system dependencies for building Python packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    git \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ============================================
+# Stage 2: Dependencies
+# ============================================
+FROM base AS deps
+
+# Copy requirements
+COPY services/worker/requirements.txt pyproject.toml ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# ============================================
+# Stage 3: Application
+# ============================================
+FROM base AS app
+
+# Copy installed packages from deps stage
+COPY --from=deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=deps /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY services/worker/ .
+
+# ============================================
+# Stage 4: Distroless Production Runtime
+# ============================================
+FROM gcr.io/distroless/python3-debian12:nonroot
+
+# Set working directory
+WORKDIR /app
+
+# Copy Python packages from app stage
+COPY --from=app --chown=nonroot:nonroot /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+
+# Copy application code
+COPY --from=app --chown=nonroot:nonroot /app /app
+
+# Set Python path
+ENV PYTHONPATH=/app/src:/app
+ENV PYTHONUNBUFFERED=1
+
+# Expose port
+EXPOSE 8000
+
+# User is already nonroot (UID 65532) in distroless image
+
+# Distroless images don't support HEALTHCHECK (no shell)
+# Health checks MUST be configured at the Kubernetes level using HTTP probes
+
+# Start the application
+# Note: Distroless Python images include python3 as the entrypoint
+CMD ["api_server.py"]

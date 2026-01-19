@@ -5,6 +5,7 @@
  * Includes CORS, JSON parsing, authentication, RBAC, and error handling.
  *
  * Priority: P0 - CRITICAL (Phase 2 Integration)
+ * Phase A - Task 15: Environment validation added
  */
 
 import express from 'express';
@@ -13,19 +14,24 @@ import dotenv from 'dotenv';
 import governanceRoutes from './routes/governance.js';
 import datasetRoutes from './routes/datasets.js';
 import conferenceRoutes from './routes/conference.js';
+import { healthRouter } from './routes/health.js';
 import { mockAuthMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { validateEnv } from './config/env-validator.js';
 
 // Load environment variables
 dotenv.config();
 
+// Validate environment variables (exits on failure)
+const env = validateEnv();
+
 const app = express();
-const PORT = process.env.PORT || 3001;
-const NODE_ENV = process.env.NODE_ENV || 'development';
+const PORT = env.PORT;
+const NODE_ENV = env.NODE_ENV;
 
 // Middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: env.CLIENT_URL,
   credentials: true
 }));
 
@@ -40,18 +46,11 @@ if (NODE_ENV === 'development') {
   });
 }
 
+// Health check routes (no auth required)
+app.use('/', healthRouter);
+
 // Mock authentication middleware (sets req.user for RBAC)
 app.use(mockAuthMiddleware);
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    environment: NODE_ENV,
-    governanceMode: process.env.GOVERNANCE_MODE || 'DEMO'
-  });
-});
 
 // API Routes
 app.use('/api/governance', governanceRoutes);

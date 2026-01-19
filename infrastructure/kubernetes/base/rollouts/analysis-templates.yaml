@@ -1,0 +1,310 @@
+# Analysis Templates for Argo Rollouts
+# Phase A - Task 34 & 49: Automated Analysis for Deployments
+#
+# Defines metrics and success criteria for automated deployment decisions
+
+# Success Rate Analysis
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    analysis-type: success-rate
+spec:
+  args:
+  - name: service-name
+    value: orchestrator
+  - name: namespace
+    value: researchflow
+
+  metrics:
+  - name: success-rate
+    interval: 1m
+    count: 5
+    successCondition: result >= 0.95  # 95% success rate required
+    failureLimit: 2  # Allow 2 failures before aborting
+
+    provider:
+      prometheus:
+        address: http://prometheus.istio-system.svc.cluster.local:9090
+        query: |
+          sum(rate(
+            istio_requests_total{
+              destination_service_name="{{args.service-name}}",
+              destination_service_namespace="{{args.namespace}}",
+              response_code!~"5.."
+            }[5m]
+          ))
+          /
+          sum(rate(
+            istio_requests_total{
+              destination_service_name="{{args.service-name}}",
+              destination_service_namespace="{{args.namespace}}"
+            }[5m]
+          ))
+
+---
+# Latency P95 Analysis
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: latency-p95
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    analysis-type: latency
+spec:
+  args:
+  - name: service-name
+    value: orchestrator
+  - name: namespace
+    value: researchflow
+
+  metrics:
+  - name: latency-p95
+    interval: 1m
+    count: 5
+    successCondition: result <= 500  # Max 500ms P95 latency
+    failureLimit: 2
+
+    provider:
+      prometheus:
+        address: http://prometheus.istio-system.svc.cluster.local:9090
+        query: |
+          histogram_quantile(0.95,
+            sum(rate(
+              istio_request_duration_milliseconds_bucket{
+                destination_service_name="{{args.service-name}}",
+                destination_service_namespace="{{args.namespace}}"
+              }[5m]
+            )) by (le)
+          )
+
+---
+# Error Rate Analysis
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: error-rate
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    analysis-type: error-rate
+spec:
+  args:
+  - name: service-name
+    value: orchestrator
+  - name: namespace
+    value: researchflow
+
+  metrics:
+  - name: error-rate
+    interval: 1m
+    count: 5
+    successCondition: result <= 0.05  # Max 5% error rate
+    failureLimit: 2
+
+    provider:
+      prometheus:
+        address: http://prometheus.istio-system.svc.cluster.local:9090
+        query: |
+          sum(rate(
+            istio_requests_total{
+              destination_service_name="{{args.service-name}}",
+              destination_service_namespace="{{args.namespace}}",
+              response_code=~"5.."
+            }[5m]
+          ))
+          /
+          sum(rate(
+            istio_requests_total{
+              destination_service_name="{{args.service-name}}",
+              destination_service_namespace="{{args.namespace}}"
+            }[5m]
+          ))
+
+---
+# Memory Usage Analysis
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: memory-usage
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    analysis-type: resources
+spec:
+  args:
+  - name: pod-hash
+  - name: namespace
+    value: researchflow
+
+  metrics:
+  - name: memory-usage
+    interval: 1m
+    count: 5
+    successCondition: result <= 1600000000  # Max 1.6GB (80% of 2GB limit)
+    failureLimit: 3
+
+    provider:
+      prometheus:
+        address: http://prometheus.istio-system.svc.cluster.local:9090
+        query: |
+          avg(
+            container_memory_working_set_bytes{
+              namespace="{{args.namespace}}",
+              pod=~".*{{args.pod-hash}}.*"
+            }
+          )
+
+---
+# Combined Analysis (Multiple Metrics)
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: comprehensive-analysis
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    analysis-type: comprehensive
+spec:
+  args:
+  - name: service-name
+    value: orchestrator
+  - name: namespace
+    value: researchflow
+  - name: canary-hash
+
+  metrics:
+  # Success rate must be >= 95%
+  - name: success-rate
+    interval: 1m
+    count: 5
+    successCondition: result >= 0.95
+    failureLimit: 1
+
+    provider:
+      prometheus:
+        address: http://prometheus.istio-system.svc.cluster.local:9090
+        query: |
+          sum(rate(
+            istio_requests_total{
+              destination_service_name="{{args.service-name}}",
+              response_code!~"5.."
+            }[5m]
+          ))
+          /
+          sum(rate(
+            istio_requests_total{
+              destination_service_name="{{args.service-name}}"
+            }[5m]
+          ))
+
+  # P95 latency must be <= 500ms
+  - name: latency
+    interval: 1m
+    count: 5
+    successCondition: result <= 500
+    failureLimit: 2
+
+    provider:
+      prometheus:
+        address: http://prometheus.istio-system.svc.cluster.local:9090
+        query: |
+          histogram_quantile(0.95,
+            sum(rate(
+              istio_request_duration_milliseconds_bucket{
+                destination_service_name="{{args.service-name}}"
+              }[5m]
+            )) by (le)
+          )
+
+  # CPU usage must be <= 80% of limit
+  - name: cpu-usage
+    interval: 1m
+    count: 3
+    successCondition: result <= 0.80
+    failureLimit: 2
+
+    provider:
+      prometheus:
+        address: http://prometheus.istio-system.svc.cluster.local:9090
+        query: |
+          avg(
+            rate(
+              container_cpu_usage_seconds_total{
+                namespace="{{args.namespace}}",
+                pod=~".*{{args.canary-hash}}.*"
+              }[5m]
+            )
+          )
+          /
+          avg(
+            container_spec_cpu_quota{
+              namespace="{{args.namespace}}",
+              pod=~".*{{args.canary-hash}}.*"
+            }
+            /
+            container_spec_cpu_period{
+              namespace="{{args.namespace}}",
+              pod=~".*{{args.canary-hash}}.*"
+            }
+          )
+
+---
+# Web Vitals Analysis (for frontend)
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: web-vitals
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    analysis-type: frontend
+spec:
+  args:
+  - name: service-name
+    value: web
+
+  metrics:
+  # First Contentful Paint < 2.5s
+  - name: fcp
+    interval: 2m
+    count: 3
+    successCondition: result <= 2500
+    failureLimit: 1
+
+    provider:
+      prometheus:
+        address: http://prometheus.istio-system.svc.cluster.local:9090
+        query: |
+          histogram_quantile(0.75,
+            sum(rate(
+              http_request_duration_milliseconds_bucket{
+                service="{{args.service-name}}",
+                route="/"
+              }[10m]
+            )) by (le)
+          )
+
+  # Static asset load time < 1s
+  - name: static-asset-load
+    interval: 2m
+    count: 3
+    successCondition: result <= 1000
+    failureLimit: 1
+
+    provider:
+      prometheus:
+        address: http://prometheus.istio-system.svc.cluster.local:9090
+        query: |
+          histogram_quantile(0.95,
+            sum(rate(
+              http_request_duration_milliseconds_bucket{
+                service="{{args.service-name}}",
+                route=~"/assets/.*"
+              }[10m]
+            )) by (le)
+          )

@@ -1,0 +1,75 @@
+# OPA Policies ConfigMap
+# Phase A - Task 41: OPA Policies for Orchestrator
+#
+# Contains Rego policies for authorization
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opa-policies
+  namespace: researchflow
+  labels:
+    app: opa
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: opa
+data:
+  authz.rego: |
+    # Authorization Policy for ResearchFlow
+    # See: infrastructure/kubernetes/base/opa/policies/authz.rego for full policy
+
+    package envoy.authz
+
+    import input.attributes.request.http as http_request
+
+    default allow = false
+
+    # Allow health checks
+    allow {
+        http_request.path == "/healthz"
+    }
+
+    allow {
+        http_request.path == "/readyz"
+    }
+
+    allow {
+        startswith(http_request.path, "/health")
+    }
+
+    # Require authentication
+    allow {
+        is_authenticated
+        has_permission
+    }
+
+    is_authenticated {
+        auth_header := http_request.headers.authorization
+        startswith(auth_header, "Bearer ")
+        token := trim_prefix(auth_header, "Bearer ")
+        jwt := io.jwt.decode(token)
+        jwt[1].exp > time.now_ns() / 1000000000
+    }
+
+    has_permission {
+        # Viewer: GET requests
+        http_request.method == "GET"
+        user_has_role("viewer")
+    }
+
+    has_permission {
+        # Researcher: POST/PUT
+        http_request.method == "POST"
+        user_has_role("researcher")
+    }
+
+    has_permission {
+        # Admin: all access
+        user_has_role("admin")
+    }
+
+    user_has_role(role) {
+        auth_header := http_request.headers.authorization
+        token := trim_prefix(auth_header, "Bearer ")
+        jwt := io.jwt.decode(token)
+        jwt[1].roles[_] == role
+    }

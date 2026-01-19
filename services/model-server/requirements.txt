@@ -1,0 +1,14 @@
+# Model Server Dependencies
+# Phase A - Task 7: Host Hugging Face Models Locally
+
+# Deep Learning
+torch==2.2.0
+transformers==4.37.2
+
+# Web Framework
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+pydantic==2.6.1
+
+# Utilities
+python-multipart==0.0.9

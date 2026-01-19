@@ -1,0 +1,92 @@
+# ============================================
+# ResearchFlow Orchestrator - Distroless Production Build
+# Phase A - Task 19: Distroless Base Images + Non-Root
+# ============================================
+# Build context: repository root (.)
+#
+# Security Features:
+# - Distroless base (no shell, minimal attack surface)
+# - Non-root user
+# - Multi-stage build
+# - Multi-arch support (AMD64/ARM64)
+
+# ============================================
+# Stage 1: Dependencies
+# ============================================
+FROM node:20-alpine AS deps
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache python3 make g++ git
+
+# Copy package files
+COPY services/orchestrator/package.json ./
+
+# Copy workspace packages
+COPY packages/core/package.json ./packages/core/
+COPY packages/core/types ./packages/core/types
+COPY packages/core/index.ts ./packages/core/
+COPY packages/core/src ./packages/core/src
+COPY packages/core/policy ./packages/core/policy
+
+COPY packages/phi-engine/package.json ./packages/phi-engine/
+COPY packages/phi-engine/index.ts ./packages/phi-engine/
+COPY packages/phi-engine/src ./packages/phi-engine/src
+
+COPY packages/ai-router/package.json ./packages/ai-router/
+COPY packages/ai-router/index.ts ./packages/ai-router/
+COPY packages/ai-router/src ./packages/ai-router/src
+
+# Install production dependencies only
+RUN npm ci --only=production && npm cache clean --force
+
+# ============================================
+# Stage 2: Build
+# ============================================
+FROM node:20-alpine AS build
+WORKDIR /app
+
+# Copy dependencies
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages ./packages
+
+# Copy source code
+COPY services/orchestrator/ ./
+
+# Build TypeScript
+RUN npm run build
+
+# ============================================
+# Stage 3: Distroless Production Runtime
+# ============================================
+FROM gcr.io/distroless/nodejs20-debian12:nonroot
+
+# Set working directory
+WORKDIR /app
+
+# Copy built application and dependencies
+# Note: distroless uses nonroot user (UID 65532) by default
+COPY --from=build --chown=nonroot:nonroot /app/dist ./dist
+COPY --from=build --chown=nonroot:nonroot /app/node_modules ./node_modules
+COPY --from=build --chown=nonroot:nonroot /app/package.json ./package.json
+
+# Create data directories (must be done in previous stage since distroless has no shell)
+# These will be mounted as volumes in K8s
+# COPY --from=build --chown=nonroot:nonroot /app/data /data
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3001
+
+# Expose port
+EXPOSE 3001
+
+# User is already nonroot (UID 65532) in distroless image
+# No need for explicit USER directive
+
+# Distroless images don't support HEALTHCHECK (no shell)
+# Health checks MUST be configured at the Kubernetes level using HTTP probes
+
+# Start the application
+# In distroless, CMD must be a direct executable, not a shell command
+CMD ["dist/index.js"]

@@ -2,6 +2,8 @@
 ROS Backend API Server
 Exposes Research Operating System functions via FastAPI endpoints
 Runs in LIVE mode with full functionality enabled
+
+Phase A - Task 15: Environment validation added
 """
 import os
 import sys
@@ -9,6 +11,10 @@ from pathlib import Path
 
 # Add ros-backend/src to Python path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
+
+# Validate environment variables first (exits on failure)
+from config.env_validator import validate_env
+env = validate_env()
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +47,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Health check routes (Phase A - Task 31)
+from routes.health import router as health_router
+app.include_router(health_router, tags=["health"])
 
 # ============ Data Models ============
 

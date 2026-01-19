@@ -1,0 +1,119 @@
+# Destination Rules - Traffic Policies
+# Phase A - Task 10: Istio Service Mesh
+#
+# Defines traffic policies for connection pooling, circuit breaking,
+# and load balancing for ResearchFlow services.
+
+# Orchestrator Destination Rule
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: orchestrator
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: orchestrator
+spec:
+  host: orchestrator.researchflow.svc.cluster.local
+
+  trafficPolicy:
+    # Load balancing
+    loadBalancer:
+      simple: LEAST_REQUEST
+
+    # Connection pooling
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 30s
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 1
+        idleTimeout: 900s
+
+    # Circuit breaker / Outlier detection
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+
+    # TLS settings (required for mTLS)
+    tls:
+      mode: ISTIO_MUTUAL
+
+---
+# Worker Destination Rule
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: worker
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: worker
+spec:
+  host: worker.researchflow.svc.cluster.local
+
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_REQUEST  # Better for long-running jobs
+
+    connectionPool:
+      tcp:
+        maxConnections: 200  # Higher for worker pool
+        connectTimeout: 60s  # Longer for ML workloads
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 200
+        maxRequestsPerConnection: 1
+        idleTimeout: 1800s  # 30 min for long jobs
+
+    outlierDetection:
+      consecutiveErrors: 3
+      interval: 60s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 30  # Keep more workers available
+      minHealthPercent: 70
+
+    tls:
+      mode: ISTIO_MUTUAL
+
+---
+# Web Destination Rule
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: web
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: web
+spec:
+  host: web.researchflow.svc.cluster.local
+
+  trafficPolicy:
+    loadBalancer:
+      simple: ROUND_ROBIN  # Static content distribution
+
+    connectionPool:
+      tcp:
+        maxConnections: 1000
+        connectTimeout: 10s
+      http:
+        http1MaxPendingRequests: 500
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 10
+        idleTimeout: 300s
+
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+
+    tls:
+      mode: ISTIO_MUTUAL

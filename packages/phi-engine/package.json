@@ -11,11 +11,13 @@
     "./patterns": "./src/patterns.ts",
     "./log-scrubber": "./src/log-scrubber.ts",
     "./types": "./src/types.ts",
+    "./medical-ner": "./src/medical-ner.ts",
     "./adapters/legacy-adapter": "./src/adapters/legacy-adapter.ts",
     "./adapters/field-adapter": "./src/adapters/field-adapter.ts"
   },
   "dependencies": {
-    "@researchflow/core": "*"
+    "@researchflow/core": "*",
+    "axios": "^1.6.7"
   },
   "devDependencies": {
     "typescript": "5.6.3",

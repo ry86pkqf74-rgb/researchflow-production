@@ -5,12 +5,17 @@
 # Base stage
 FROM python:3.11-slim AS base
 
-# Install system dependencies
+# Install system dependencies (including ML/NLP deps for PR3)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     git \
     libpq-dev \
+    # PR3: OCR and document processing
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    poppler-utils \
+    imagemagick \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -20,6 +25,9 @@ FROM base AS deps
 COPY requirements.txt pyproject.toml ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
+
+# PR3: Download spaCy model at build time (deterministic version)
+RUN python -m spacy download en_core_web_sm-3.7.1 --direct
 
 # Development stage
 FROM base AS development
@@ -39,10 +47,15 @@ CMD ["python", "api_server.py"]
 # Production stage
 FROM python:3.11-slim AS production
 
-# Install minimal runtime dependencies
+# Install minimal runtime dependencies (including ML/NLP runtime deps for PR3)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
+    # PR3: OCR and document processing (runtime only)
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    poppler-utils \
+    imagemagick \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -66,7 +79,7 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+# Note: HEALTHCHECK removed in favor of Kubernetes liveness/readiness probes
+# See infrastructure/kubernetes/base/worker-deployment.yaml for probe configuration
 
 CMD ["python", "api_server.py"]

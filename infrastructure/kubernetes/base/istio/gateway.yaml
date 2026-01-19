@@ -1,0 +1,102 @@
+# Gateway - External Access
+# Phase A - Task 10: Istio Service Mesh
+#
+# Configures Istio Gateway for external traffic ingress to ResearchFlow.
+# This replaces or supplements the standard Kubernetes Ingress.
+
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: researchflow-gateway
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: gateway
+spec:
+  # Use istio-ingressgateway (installed with Istio)
+  selector:
+    istio: ingressgateway
+
+  servers:
+  # HTTP (redirect to HTTPS)
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+    # Uncomment to redirect HTTP to HTTPS
+    # tls:
+    #   httpsRedirect: true
+
+  # HTTPS
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - "researchflow.example.com"  # Update with your domain
+    - "*.researchflow.example.com"
+    tls:
+      mode: SIMPLE
+      credentialName: researchflow-tls-cert  # TLS secret name
+
+---
+# Virtual Service for Gateway Routes
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: researchflow-gateway-routes
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: gateway
+spec:
+  hosts:
+  - "researchflow.example.com"  # Update with your domain
+  - "*"
+
+  gateways:
+  - researchflow-gateway
+
+  http:
+  # API routes to orchestrator
+  - match:
+    - uri:
+        prefix: /api
+    - uri:
+        prefix: /graphql
+    route:
+    - destination:
+        host: orchestrator.researchflow.svc.cluster.local
+        port:
+          number: 3001
+
+  # Static frontend to web service
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: web.researchflow.svc.cluster.local
+        port:
+          number: 80
+
+---
+# Service Entry for External Services (if needed)
+# Uncomment to allow egress to specific external services
+# apiVersion: networking.istio.io/v1beta1
+# kind: ServiceEntry
+# metadata:
+#   name: external-apis
+#   namespace: researchflow
+# spec:
+#   hosts:
+#   - api.openai.com
+#   - api.anthropic.com
+#   ports:
+#   - number: 443
+#     name: https
+#     protocol: HTTPS
+#   location: MESH_EXTERNAL
+#   resolution: DNS

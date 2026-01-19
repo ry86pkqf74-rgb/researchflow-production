@@ -1,0 +1,246 @@
+# Canary Deployment for Orchestrator with Istio Traffic Splitting
+# Phase A - Task 49: Canary Releases with Istio
+#
+# Gradually shifts traffic from stable to canary with automated analysis and rollback
+
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: orchestrator-canary
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: orchestrator
+    deployment-strategy: canary
+spec:
+  replicas: 5
+  revisionHistoryLimit: 5
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: researchflow
+      app.kubernetes.io/component: orchestrator
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: researchflow
+        app.kubernetes.io/component: orchestrator
+    spec:
+      serviceAccountName: orchestrator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      containers:
+      - name: orchestrator
+        image: researchflow/orchestrator:latest
+        imagePullPolicy: Always
+
+        ports:
+        - name: http
+          containerPort: 3001
+          protocol: TCP
+
+        envFrom:
+        - configMapRef:
+            name: researchflow-config
+        - secretRef:
+            name: researchflow-secrets
+
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3001"
+
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "2000m"
+            memory: "2Gi"
+
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 3001
+          initialDelaySeconds: 10
+          periodSeconds: 10
+
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 3001
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: 3001
+          periodSeconds: 5
+          failureThreshold: 12
+
+        volumeMounts:
+        - name: shared-data
+          mountPath: /data
+
+      volumes:
+      - name: shared-data
+        persistentVolumeClaim:
+          claimName: researchflow-data
+
+  strategy:
+    canary:
+      # Integrate with Istio for traffic management
+      trafficRouting:
+        istio:
+          virtualService:
+            name: orchestrator      # VirtualService to modify
+            routes:
+            - primary              # Route name to update
+          destinationRule:
+            name: orchestrator      # DestinationRule with subsets
+            canarySubsetName: canary
+            stableSubsetName: stable
+
+      # Progressive rollout steps
+      steps:
+      # Step 1: 10% canary traffic
+      - setWeight: 10
+      - pause: {duration: 5m}
+      - analysis:
+          templates:
+          - templateName: success-rate
+          args:
+          - name: service-name
+            value: orchestrator
+          - name: canary-hash
+            valueFrom:
+              podTemplateHashValue: Latest
+
+      # Step 2: 25% canary traffic
+      - setWeight: 25
+      - pause: {duration: 5m}
+      - analysis:
+          templates:
+          - templateName: success-rate
+          - templateName: latency-p95
+
+      # Step 3: 50% canary traffic
+      - setWeight: 50
+      - pause: {duration: 10m}
+      - analysis:
+          templates:
+          - templateName: success-rate
+          - templateName: latency-p95
+
+      # Step 4: 75% canary traffic
+      - setWeight: 75
+      - pause: {duration: 5m}
+      - analysis:
+          templates:
+          - templateName: success-rate
+          - templateName: latency-p95
+
+      # Step 5: Full rollout
+      # (no need to set 100%, happens automatically)
+
+      # Analysis during entire rollout
+      analysis:
+        templates:
+        - templateName: success-rate
+        - templateName: error-rate
+        args:
+        - name: service-name
+          value: orchestrator
+        - name: namespace
+          value: researchflow
+
+---
+# DestinationRule with Canary Subsets
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: orchestrator-canary-dr
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    deployment-strategy: canary
+spec:
+  host: orchestrator.researchflow.svc.cluster.local
+
+  subsets:
+  # Stable version
+  - name: stable
+    labels:
+      app.kubernetes.io/name: researchflow
+      app.kubernetes.io/component: orchestrator
+      # Argo Rollouts adds this label for stable pods
+      rollouts-pod-template-hash: stable
+
+  # Canary version
+  - name: canary
+    labels:
+      app.kubernetes.io/name: researchflow
+      app.kubernetes.io/component: orchestrator
+      # Argo Rollouts adds this label for canary pods
+      rollouts-pod-template-hash: canary
+
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_REQUEST
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+    tls:
+      mode: ISTIO_MUTUAL
+
+---
+# VirtualService for Canary Traffic Splitting
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: orchestrator-canary-vs
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    deployment-strategy: canary
+spec:
+  hosts:
+  - orchestrator
+  - orchestrator.researchflow.svc.cluster.local
+
+  http:
+  - name: primary  # This route is managed by Argo Rollouts
+    match:
+    - uri:
+        prefix: /api
+    - uri:
+        prefix: /health
+
+    route:
+    - destination:
+        host: orchestrator.researchflow.svc.cluster.local
+        subset: stable
+      weight: 100  # Argo Rollouts updates these weights
+    - destination:
+        host: orchestrator.researchflow.svc.cluster.local
+        subset: canary
+      weight: 0    # Starts at 0, increases during rollout
+
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,reset,connect-failure

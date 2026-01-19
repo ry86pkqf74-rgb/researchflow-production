@@ -34,9 +34,24 @@ services:
       - ARTIFACT_PATH=/data/artifacts
       - LOG_PATH=/data/logs
       - GOVERNANCE_MODE=DEMO
+      # ML/NLP Service URLs (PR3)
+      - TIKA_URL=http://tika:9998
+      - CLAMAV_HOST=clamav
+      - CLAMAV_PORT=3310
+      - MODEL_SERVER_URL=http://model-server:8000
+      - WEAVIATE_URL=http://weaviate:8080
+      # Feature Flags (PR3)
+      - ENABLE_OCR=true
+      - ENABLE_NLP=true
+      - ENABLE_VIRUS_SCAN=true
+      - ENABLE_VECTOR_INDEXING=true
     depends_on:
       - postgres
       - redis
+      - tika
+      - clamav
+      - model-server
+      - weaviate
     volumes:
       - shared-data:/data
       - ./services/worker:/app
@@ -87,12 +102,99 @@ services:
       timeout: 5s
       retries: 5
 
+  # PR3: ML/NLP Services
+  tika:
+    image: apache/tika:latest-full
+    ports:
+      - "9998:9998"
+    environment:
+      - TIKA_CHILD_JAVA_OPTS=-JXms256m -JXmx2g
+    networks:
+      - researchflow
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9998/tika"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  clamav:
+    image: clamav/clamav:latest
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav-data:/var/lib/clamav
+    networks:
+      - researchflow
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/clamdcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  model-server:
+    build:
+      context: ./services/model-server
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    networks:
+      - researchflow
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  weaviate:
+    image: semitechnologies/weaviate:1.24.0
+    ports:
+      - "8080:8080"
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'text2vec-transformers'
+      ENABLE_MODULES: 'text2vec-transformers'
+      TRANSFORMERS_INFERENCE_API: 'http://t2v-transformers:8080'
+    volumes:
+      - weaviate-data:/var/lib/weaviate
+    networks:
+      - researchflow
+    depends_on:
+      - t2v-transformers
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/v1/.well-known/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  t2v-transformers:
+    image: semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2
+    environment:
+      ENABLE_CUDA: '0'
+    networks:
+      - researchflow
+
 volumes:
   shared-data:
     driver: local
   postgres-data:
     driver: local
   redis-data:
+    driver: local
+  clamav-data:
+    driver: local
+  weaviate-data:
     driver: local
 
 networks:

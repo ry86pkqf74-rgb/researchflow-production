@@ -1,0 +1,133 @@
+# Authorization Policy - OPA Integration
+# Phase A - Task 10: Istio Service Mesh
+#
+# Integrates Istio with Open Policy Agent (OPA) for external authorization
+# on API endpoints. All requests to /api/* and /graphql are validated by OPA.
+
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: ext-authz-opa
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: authz
+spec:
+  # Apply to orchestrator service
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: orchestrator
+
+  # Use custom authorization provider (OPA)
+  action: CUSTOM
+
+  provider:
+    # This must match the provider name in Istio mesh config
+    # See: istioctl install --set meshConfig.extensionProviders
+    name: "opa-envoy-plugin"
+
+  rules:
+  # Require OPA authorization for API endpoints
+  - to:
+    - operation:
+        paths:
+        - /api/*
+        - /graphql
+
+---
+# Allow health checks without authorization
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-health-checks
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: authz
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: orchestrator
+
+  action: ALLOW
+
+  rules:
+  - to:
+    - operation:
+        paths:
+        - /healthz
+        - /readyz
+        - /health
+        - /health/detailed
+
+---
+# Deny all by default for orchestrator (except health and authorized API)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all-default
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: authz
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: orchestrator
+
+  # Empty spec = deny all (unless overridden by other policies)
+  # This is commented out initially for gradual rollout
+  # Uncomment after verifying allow-health-checks and ext-authz-opa work
+  # {}
+
+---
+# Worker authorization - Internal service communication
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: worker-internal-only
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: authz
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: worker
+
+  action: ALLOW
+
+  rules:
+  # Allow from orchestrator
+  - from:
+    - source:
+        principals:
+        - "cluster.local/ns/researchflow/sa/orchestrator"
+
+  # Allow health checks from anywhere (for K8s probes)
+  - to:
+    - operation:
+        paths:
+        - /healthz
+        - /readyz
+        - /health
+
+---
+# Web service - Allow all (public frontend)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: web-allow-all
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: authz
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: web
+
+  action: ALLOW
+
+  rules:
+  - {}  # Allow all traffic to web frontend

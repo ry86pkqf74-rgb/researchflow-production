@@ -1,0 +1,137 @@
+# Open Policy Agent (OPA) Deployment
+# Phase A - Task 41: OPA Policies for Orchestrator
+#
+# Deploys OPA as a sidecar or standalone service for policy enforcement.
+# Integrates with Istio for external authorization.
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: opa
+  namespace: researchflow
+  labels:
+    app: opa
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opa
+  namespace: researchflow
+  labels:
+    app: opa
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: opa
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: opa
+  template:
+    metadata:
+      labels:
+        app: opa
+        app.kubernetes.io/name: researchflow
+        app.kubernetes.io/component: opa
+    spec:
+      serviceAccountName: opa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      containers:
+      - name: opa
+        image: openpolicyagent/opa:0.60.0-envoy
+        imagePullPolicy: IfNotPresent
+
+        args:
+        - "run"
+        - "--server"
+        - "--addr=0.0.0.0:8181"
+        - "--diagnostic-addr=0.0.0.0:8282"
+        - "--set=plugins.envoy_ext_authz_grpc.addr=:9191"
+        - "--set=plugins.envoy_ext_authz_grpc.path=envoy/authz/allow"
+        - "--set=decision_logs.console=true"
+        - "--set=status.console=true"
+        - "--set=bundles.researchflow.service=bundle"
+        - "--set=bundles.researchflow.resource=/bundles/bundle.tar.gz"
+        - "--ignore=.*"
+        - "/policies"
+
+        ports:
+        - name: http
+          containerPort: 8181
+          protocol: TCP
+        - name: grpc
+          containerPort: 9191
+          protocol: TCP
+        - name: diagnostic
+          containerPort: 8282
+          protocol: TCP
+
+        livenessProbe:
+          httpGet:
+            path: /health?plugins
+            port: 8282
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /health?plugins
+            port: 8282
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+
+        volumeMounts:
+        - name: policies
+          mountPath: /policies
+          readOnly: true
+
+      volumes:
+      - name: policies
+        configMap:
+          name: opa-policies
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opa
+  namespace: researchflow
+  labels:
+    app: opa
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: opa
+spec:
+  type: ClusterIP
+  selector:
+    app: opa
+  ports:
+  - name: http
+    port: 8181
+    targetPort: 8181
+    protocol: TCP
+  - name: grpc
+    port: 9191
+    targetPort: 9191
+    protocol: TCP
+  - name: diagnostic
+    port: 8282
+    targetPort: 8282
+    protocol: TCP

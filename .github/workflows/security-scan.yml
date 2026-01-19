@@ -1,0 +1,239 @@
+name: Security Scanning
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  packages: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/researchflow
+
+jobs:
+  trivy-filesystem:
+    name: Trivy Filesystem Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'  # Don't fail initially, just report
+          ignore-unfixed: true
+
+      - name: Upload Trivy results to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-fs-results.sarif'
+          category: 'filesystem'
+
+      - name: Run Trivy filesystem scan (table format)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'  # Fail on HIGH/CRITICAL
+          ignore-unfixed: false
+
+  trivy-config:
+    name: Trivy Config Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy config scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-config-results.sarif'
+          exit-code: '0'
+
+      - name: Upload Trivy config results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-config-results.sarif'
+          category: 'config'
+
+  trivy-orchestrator:
+    name: Trivy Scan - Orchestrator Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Orchestrator image
+        run: |
+          docker build \
+            --target production \
+            -t researchflow-orchestrator:scan \
+            -f services/orchestrator/Dockerfile \
+            services/orchestrator
+
+      - name: Run Trivy scan on Orchestrator
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'researchflow-orchestrator:scan'
+          format: 'sarif'
+          output: 'trivy-orchestrator-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+      - name: Upload Orchestrator scan results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-orchestrator-results.sarif'
+          category: 'orchestrator-image'
+
+      - name: Run Trivy scan (fail on issues)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'researchflow-orchestrator:scan'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+          ignore-unfixed: true
+
+  trivy-worker:
+    name: Trivy Scan - Worker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Worker image
+        run: |
+          docker build \
+            --target production \
+            -t researchflow-worker:scan \
+            -f services/worker/Dockerfile \
+            services/worker
+
+      - name: Run Trivy scan on Worker
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'researchflow-worker:scan'
+          format: 'sarif'
+          output: 'trivy-worker-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+      - name: Upload Worker scan results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-worker-results.sarif'
+          category: 'worker-image'
+
+      - name: Run Trivy scan (fail on issues)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'researchflow-worker:scan'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+          ignore-unfixed: true
+
+  trivy-web:
+    name: Trivy Scan - Web Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Web image
+        run: |
+          docker build \
+            --target production \
+            -t researchflow-web:scan \
+            -f services/web/Dockerfile \
+            services/web
+
+      - name: Run Trivy scan on Web
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'researchflow-web:scan'
+          format: 'sarif'
+          output: 'trivy-web-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+      - name: Upload Web scan results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-web-results.sarif'
+          category: 'web-image'
+
+      - name: Run Trivy scan (fail on issues)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'researchflow-web:scan'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+          ignore-unfixed: true
+
+  security-summary:
+    name: Security Summary
+    needs: [trivy-filesystem, trivy-config, trivy-orchestrator, trivy-worker, trivy-web]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check security scan results
+        run: |
+          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Scan Type | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Filesystem | ${{ needs.trivy-filesystem.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Config | ${{ needs.trivy-config.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Orchestrator Image | ${{ needs.trivy-orchestrator.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Worker Image | ${{ needs.trivy-worker.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Web Image | ${{ needs.trivy-web.result }} |" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.trivy-filesystem.result }}" == "failure" || \
+                "${{ needs.trivy-orchestrator.result }}" == "failure" || \
+                "${{ needs.trivy-worker.result }}" == "failure" || \
+                "${{ needs.trivy-web.result }}" == "failure" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Security vulnerabilities detected!** Review the scan results above." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **All security scans passed!**" >> $GITHUB_STEP_SUMMARY
+          fi

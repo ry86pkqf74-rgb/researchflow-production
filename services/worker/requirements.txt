@@ -75,6 +75,7 @@ plotly==6.5.1
 pluggy==1.6.0
 pre_commit==4.5.1
 protobuf==6.33.2
+psutil==6.1.1
 py-serializable==2.1.0
 pyarrow==22.0.0
 pyasn1==0.6.1
@@ -133,3 +134,9 @@ virtualenv==20.36.1
 watchfiles==1.1.1
 websockets==15.0.1
 wrapt==2.0.1
+
+# PR3: ML/NLP Pipeline Dependencies
+pytesseract==0.3.13  # Task 1: OCR
+pdf2image==1.17.0  # Task 1: PDF to image conversion
+spacy==3.7.6  # Task 2: NLP entity extraction
+weaviate-client==4.5.1  # Task 32: Vector store
