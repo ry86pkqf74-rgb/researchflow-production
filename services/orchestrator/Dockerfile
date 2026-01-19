@@ -4,7 +4,7 @@
 # Build context: repository root (.)
 
 # Base stage
-FROM node:20-alpine AS base
+FROM node:25-alpine AS base
 WORKDIR /app
 
 # Install build dependencies
@@ -78,7 +78,7 @@ RUN rm -f vite.ts && rm -rf replit_integrations
 RUN npm run build 2>&1 | tee /tmp/build.log || (cat /tmp/build.log && exit 1)
 
 # Production stage
-FROM node:20-alpine AS production
+FROM node:25-alpine AS production
 WORKDIR /app
 
 # Create non-root user
