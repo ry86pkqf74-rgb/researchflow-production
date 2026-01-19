@@ -58,6 +58,37 @@ services:
     networks:
       - researchflow
 
+  manuscript-service:
+    build:
+      context: .
+      dockerfile: services/manuscript-service/Dockerfile
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+      - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
+      - REDIS_URL=redis://redis:6379
+      - CORS_ORIGIN=http://localhost:5173
+      - SERVICE_TOKEN=${SERVICE_TOKEN:-dev-service-token}
+      - AI_ROUTER_URL=http://orchestrator:3001/api/ai
+      - GOVERNANCE_MODE=DEMO
+    depends_on:
+      - postgres
+      - redis
+      - orchestrator
+    volumes:
+      - shared-data:/data
+      - ./services/manuscript-service:/app
+      - /app/node_modules
+    networks:
+      - researchflow
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   web:
     build:
       context: .
@@ -66,6 +97,7 @@ services:
       - "5173:80"
     depends_on:
       - orchestrator
+      - manuscript-service
     networks:
       - researchflow
 

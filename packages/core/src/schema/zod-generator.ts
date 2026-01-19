@@ -335,7 +335,7 @@ export function createValidator<T = any>(
   return (data: unknown): T => {
     const result = validateWithSchema(schema, data);
 
-    if (!result.success) {
+    if (!result.success && 'errors' in result) {
       const errorMsg = result.errors
         .map(err => `${err.path}: ${err.message}`)
         .join('\n');
@@ -431,7 +431,7 @@ if (require.main === module) {
   if (result.success) {
     console.log('✓ Validation passed');
     console.log('Validated data:', result.data);
-  } else {
+  } else if ('errors' in result) {
     console.log('✗ Validation failed');
     console.log('Errors:', result.errors);
   }
@@ -445,7 +445,7 @@ if (require.main === module) {
   };
 
   const invalidResult = validateWithSchema(zodSchema, invalidData);
-  if (!invalidResult.success) {
+  if (!invalidResult.success && 'errors' in invalidResult) {
     console.log('\nExpected validation errors:');
     invalidResult.errors.forEach(err => {
       console.log(`- ${err.path}: ${err.message}`);

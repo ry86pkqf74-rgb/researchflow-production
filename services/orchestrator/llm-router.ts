@@ -1,4 +1,3 @@
-import OpenAI from "openai";
 import { z, ZodSchema } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
@@ -13,12 +12,13 @@ import {
   ValidationResult
 } from "@researchflow/core/types/handoff-pack.schema";
 import { scan, redact } from "@researchflow/phi-engine";
+import { getModelRouter } from "@researchflow/ai-router";
+import type { AITaskType } from "@researchflow/ai-router";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  dangerouslyAllowBrowser: process.env.NODE_ENV === 'test',
-});
+// Initialize ai-router (replaces direct OpenAI client)
+// Phase B: All LLM calls routed through ai-router for centralized routing,
+// cost optimization, PHI scanning, and tier escalation
+const aiRouter = getModelRouter();
 
 interface TokenUsage {
   input: number;
@@ -107,33 +107,53 @@ ${schemaDescription}
 Previous validation errors (if any):
 ${lastValidationResult?.errors.map(e => `- ${e.path}: ${e.message}`).join("\n") || "None"}`;
 
-      const response = await openai.chat.completions.create({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: task }
-        ],
-        response_format: { type: "json_object" },
+      // Phase B: Route through ai-router instead of direct OpenAI client
+      // Maps stage IDs to ai-router task types for appropriate model selection
+      const taskType = mapStageToTaskType(context.stageId);
+
+      const routerResponse = await aiRouter.route({
+        prompt: task,
+        systemPrompt,
+        taskType,
+        responseFormat: 'json',
         temperature,
-        max_tokens: maxTokens
+        maxTokens,
+        metadata: {
+          stageId: context.stageId,
+          stageName: context.stageName,
+          researchId: context.researchId,
+        },
       });
 
-      const content = response.choices[0]?.message?.content || "{}";
-      const usage = response.usage;
-      
+      // Check if routing failed (PHI detected or all tiers failed)
+      if (!routerResponse.qualityGate.passed && routerResponse.content === '') {
+        throw new Error(
+          routerResponse.qualityGate.checks
+            .filter(c => !c.passed)
+            .map(c => c.reason)
+            .join('; ') || 'AI routing failed'
+        );
+      }
+
+      const content = routerResponse.content || "{}";
+
       const tokenUsage: TokenUsage = {
-        input: usage?.prompt_tokens || 0,
-        output: usage?.completion_tokens || 0,
-        total: usage?.total_tokens || 0
+        input: routerResponse.usage.inputTokens,
+        output: routerResponse.usage.outputTokens,
+        total: routerResponse.usage.totalTokens
       };
+
+      // Use the model that was actually used (may have escalated)
+      const actualModel = routerResponse.routing.model;
 
       const parsedContent = JSON.parse(content);
       const validationResult = validateAgainstSchema(parsedContent, schema);
 
       if (validationResult.isValid) {
         const responseHash = computeHash(content);
-        const latencyMs = Date.now() - startTime;
-        const cost = calculateCost(model, tokenUsage);
+        const latencyMs = routerResponse.metrics.latencyMs;
+        // Use cost from ai-router (already calculated with tier-specific pricing)
+        const cost = routerResponse.usage.estimatedCostUsd;
 
         const pack: HandoffPack = {
           version: "1.0.0",
@@ -145,8 +165,8 @@ ${lastValidationResult?.errors.map(e => `- ${e.path}: ${e.message}`).join("\n") 
             researchId: context.researchId,
             sessionId: uuidv4(),
             generatedAt: new Date().toISOString(),
-            modelId: model,
-            modelVersion: getModelVersion(model),
+            modelId: actualModel,
+            modelVersion: getModelVersion(actualModel),
             promptHash,
             responseHash,
             tokenUsage,
@@ -169,7 +189,7 @@ ${lastValidationResult?.errors.map(e => `- ${e.path}: ${e.message}`).join("\n") 
           systemPrompt,
           variables: context.additionalContext || {},
           timestamp: new Date().toISOString(),
-          modelUsed: model,
+          modelUsed: actualModel,
           tokenCount: tokenUsage,
           cost,
           responseHash
@@ -243,9 +263,43 @@ function getModelVersion(model: string): string {
   const versions: Record<string, string> = {
     "gpt-4o": "2024-08-06",
     "gpt-4o-mini": "2024-07-18",
-    "gpt-4-turbo": "2024-04-09"
+    "gpt-4-turbo": "2024-04-09",
+    // Anthropic models
+    "claude-3-5-sonnet-20241022": "2024-10-22",
+    "claude-3-5-haiku-20241022": "2024-10-22",
+    "claude-3-opus-20240229": "2024-02-29",
   };
   return versions[model] || "unknown";
+}
+
+/**
+ * Map workflow stage IDs to ai-router task types
+ * Phase B: Enables appropriate model tier selection based on task complexity
+ *
+ * Task types map to tiers:
+ * - NANO: classify, extract_metadata, policy_check, phi_scan, format_validate
+ * - MINI: summarize, draft_section, template_fill, abstract_generate
+ * - FRONTIER: protocol_reasoning, complex_synthesis, final_manuscript_pass
+ */
+function mapStageToTaskType(stageId: string): AITaskType {
+  const stageMapping: Record<string, AITaskType> = {
+    // Simple tasks -> NANO tier
+    "1": "classify",              // Topic Declaration - classification
+    "9": "summarize",             // Summary Statistics -> MINI tier
+
+    // Medium complexity -> MINI tier
+    "2": "summarize",             // Literature Search - summarization
+    "4": "extract_metadata",      // Data Extraction -> NANO tier
+    "10": "draft_section",        // Gap Analysis - section drafting
+
+    // Complex tasks -> FRONTIER tier
+    "3": "protocol_reasoning",    // IRB Proposal - needs careful reasoning
+    "11": "final_manuscript_pass", // Manuscript Draft - complex writing
+    "12": "complex_synthesis",    // Journal Recommendation - synthesis
+    "13": "protocol_reasoning",   // Statistical Plan - needs precision
+  };
+
+  return stageMapping[stageId] || "draft_section";
 }
 
 export interface PromptLog {

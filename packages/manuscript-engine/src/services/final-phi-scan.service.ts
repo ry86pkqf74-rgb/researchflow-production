@@ -18,11 +18,14 @@ export interface PhiDetection {
   section: string;
   type: string;
   pattern: string;
-  context: string;
+  // GOVERNANCE: context field REMOVED - never expose PHI values
+  // Only return location indices, not actual content
   startIndex: number;
   endIndex: number;
   severity: 'critical' | 'high' | 'medium';
   recommendation: string;
+  // Stable identifier for tracking without exposing PHI
+  detectionId: string;
 }
 
 export class FinalPhiScanService {
@@ -72,7 +75,8 @@ export class FinalPhiScanService {
       scanTimestamp: new Date(),
       totalScanned,
       phiDetections: detections,
-      quarantinedItems: detections.filter(d => d.severity === 'critical').map(d => d.context),
+      // GOVERNANCE: quarantinedItems now contains stable IDs, not PHI values
+      quarantinedItems: detections.filter(d => d.severity === 'critical').map(d => d.detectionId),
       attestationRequired,
       auditHash
     };
@@ -123,15 +127,18 @@ export class FinalPhiScanService {
     for (const { type, pattern, severity } of patterns) {
       let match;
       while ((match = pattern.exec(text)) !== null) {
+        // GOVERNANCE: Generate stable detection ID without exposing PHI
+        const detectionId = this.generateDetectionId(section, type, match.index, match.index + match[0].length);
         detections.push({
           section,
           type,
           pattern: pattern.source,
-          context: this.getContext(text, match.index, 50),
+          // REMOVED: context field - never expose PHI values
           startIndex: match.index,
           endIndex: match.index + match[0].length,
           severity,
-          recommendation: this.getRecommendation(type)
+          recommendation: this.getRecommendation(type),
+          detectionId
         });
       }
     }
@@ -139,11 +146,16 @@ export class FinalPhiScanService {
     return detections;
   }
 
-  private getContext(text: string, index: number, windowSize: number): string {
-    const start = Math.max(0, index - windowSize);
-    const end = Math.min(text.length, index + windowSize);
-    return '...' + text.substring(start, end) + '...';
+  /**
+   * GOVERNANCE: Generate stable detection ID without exposing PHI values
+   * Format: {section}:{type}:{startIndex}:{endIndex}
+   */
+  private generateDetectionId(section: string, type: string, startIndex: number, endIndex: number): string {
+    return `${section}:${type}:${startIndex}:${endIndex}`;
   }
+
+  // REMOVED: getContext method - was exposing PHI values
+  // private getContext(text: string, index: number, windowSize: number): string { ... }
 
   private getRecommendation(type: string): string {
     const recommendations: Record<string, string> = {

@@ -865,6 +865,91 @@ async def export_conference_materials(input_data: ConferenceExportInput):
     )
 
 
+# ============ PDF Parse Endpoints (Phase B - Task 69) ============
+
+class PDFParseInput(BaseModel):
+    file_path: str
+    scan_for_phi: bool = True
+
+class PDFSectionOutput(BaseModel):
+    name: str
+    start_page: int
+    end_page: int
+    char_count: int
+    has_tables: bool
+    has_figures: bool
+
+class PDFParseOutput(BaseModel):
+    success: bool
+    file_path: str
+    page_count: int
+    word_count: int
+    char_count: int
+    sections: List[PDFSectionOutput]
+    metadata: Dict[str, Any]
+    phi_scan_passed: bool
+    phi_finding_count: int
+    error: Optional[str] = None
+
+@app.post("/api/ros/manuscript/parse-pdf", response_model=PDFParseOutput)
+async def parse_pdf_document(input_data: PDFParseInput):
+    """
+    Parse a PDF document for manuscript processing
+
+    Phase B - Task 69: PDF parse job type for manuscript service
+
+    GOVERNANCE NOTES:
+    - Never returns raw text content to API responses
+    - Only returns metadata, structure, and statistics
+    - PHI scan is mandatory by default (can be disabled for trusted internal use)
+    - Extracted text is stored internally only for AI processing
+    """
+    try:
+        from manuscript.pdf_parser import get_pdf_parser, PDFParseError
+
+        parser = get_pdf_parser()
+        result = parser.parse(
+            file_path=input_data.file_path,
+            scan_for_phi=input_data.scan_for_phi
+        )
+
+        return PDFParseOutput(
+            success=result.success,
+            file_path=result.file_path,
+            page_count=result.page_count,
+            word_count=result.word_count,
+            char_count=result.char_count,
+            sections=[
+                PDFSectionOutput(
+                    name=s.name,
+                    start_page=s.start_page,
+                    end_page=s.end_page,
+                    char_count=s.char_count,
+                    has_tables=s.has_tables,
+                    has_figures=s.has_figures
+                ) for s in result.sections
+            ],
+            metadata=result.metadata,
+            phi_scan_passed=result.phi_scan_passed,
+            phi_finding_count=result.phi_finding_count,
+            error=result.error
+        )
+
+    except Exception as e:
+        return PDFParseOutput(
+            success=False,
+            file_path=input_data.file_path,
+            page_count=0,
+            word_count=0,
+            char_count=0,
+            sections=[],
+            metadata={},
+            phi_scan_passed=False,
+            phi_finding_count=0,
+            error=str(e)
+        )
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("ROS_API_PORT", 8000))
     print(f"[ROS] Starting API server on port {port}")

@@ -62,7 +62,7 @@ describe('PR4: Schema & Manifest System', () => {
       const result = validateWithSchema(zodSchema, invalidData);
 
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (!result.success && 'errors' in result) {
         expect(result.errors.length).toBeGreaterThan(0);
       }
     });

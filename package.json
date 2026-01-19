@@ -6,6 +6,7 @@
   "workspaces": [
     "packages/*",
     "services/orchestrator",
+    "services/manuscript-service",
     "services/web"
   ],
   "scripts": {

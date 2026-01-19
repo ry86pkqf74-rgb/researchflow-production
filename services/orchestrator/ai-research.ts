@@ -1,10 +1,9 @@
-import OpenAI from "openai";
+import { getModelRouter } from "@researchflow/ai-router";
+import type { AITaskType } from "@researchflow/ai-router";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  dangerouslyAllowBrowser: process.env.NODE_ENV === 'test',
-});
+// Phase B: Route ALL LLM calls through ai-router for centralized routing,
+// cost optimization, PHI scanning, and tier escalation
+const aiRouter = getModelRouter();
 
 export interface ResearchBrief {
   studyObjectives: string[];
@@ -101,15 +100,20 @@ Generate a comprehensive research brief in JSON format with these exact fields:
 
 Return only valid JSON, no markdown.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" },
-    max_tokens: 2000,
+  // Phase B: Route through ai-router for summarization task (MINI tier)
+  const response = await aiRouter.route({
+    taskType: 'summarize',
+    prompt,
+    responseFormat: 'json',
+    maxTokens: 2000,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  if (!response.qualityGate.passed && !response.content) {
+    throw new Error('Failed to generate research brief: ' +
+      response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
+  }
+
+  return response.parsed as ResearchBrief || JSON.parse(response.content);
 }
 
 export async function generateEvidenceGapMap(
@@ -133,15 +137,20 @@ Generate a comprehensive evidence gap map in JSON format with these exact fields
 For sources, use realistic journal name patterns like "JAMA 2023", "Lancet 2022".
 Return only valid JSON, no markdown.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" },
-    max_tokens: 2500,
+  // Phase B: Route through ai-router for complex synthesis task (FRONTIER tier)
+  const response = await aiRouter.route({
+    taskType: 'complex_synthesis',
+    prompt,
+    responseFormat: 'json',
+    maxTokens: 2500,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  if (!response.qualityGate.passed && !response.content) {
+    throw new Error('Failed to generate evidence gap map: ' +
+      response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
+  }
+
+  return response.parsed as EvidenceGapMap || JSON.parse(response.content);
 }
 
 export async function generateDataContribution(
@@ -171,15 +180,20 @@ Generate contribution analysis in JSON format with these exact fields:
 
 Return only valid JSON, no markdown.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" },
-    max_tokens: 2000,
+  // Phase B: Route through ai-router for summarization task (MINI tier)
+  const response = await aiRouter.route({
+    taskType: 'summarize',
+    prompt,
+    responseFormat: 'json',
+    maxTokens: 2000,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  if (!response.qualityGate.passed && !response.content) {
+    throw new Error('Failed to generate data contribution: ' +
+      response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
+  }
+
+  return response.parsed as DataContribution || JSON.parse(response.content);
 }
 
 export async function generateStudyCards(
@@ -225,15 +239,20 @@ For targetJournals:
 
 Return only valid JSON array, no markdown.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" },
-    max_tokens: 8000,
+  // Phase B: Route through ai-router for complex synthesis task (FRONTIER tier)
+  const response = await aiRouter.route({
+    taskType: 'complex_synthesis',
+    prompt,
+    responseFormat: 'json',
+    maxTokens: 8000,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
-  const parsed = JSON.parse(content);
+  if (!response.qualityGate.passed && !response.content) {
+    throw new Error('Failed to generate study cards: ' +
+      response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
+  }
+
+  const parsed = response.parsed || JSON.parse(response.content);
   return Array.isArray(parsed) ? parsed : parsed.proposals || parsed.studyCards || [];
 }
 
@@ -301,15 +320,20 @@ Generate a realistic literature search result in JSON format with these exact fi
 Make the papers realistic with proper academic formatting. Include mix of recent papers and seminal older works.
 Return only valid JSON, no markdown.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" },
-    max_tokens: 6000,
+  // Phase B: Route through ai-router for complex synthesis task (FRONTIER tier)
+  const response = await aiRouter.route({
+    taskType: 'complex_synthesis',
+    prompt,
+    responseFormat: 'json',
+    maxTokens: 6000,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  if (!response.qualityGate.passed && !response.content) {
+    throw new Error('Failed to generate literature search: ' +
+      response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
+  }
+
+  return response.parsed as LiteratureSearchResult || JSON.parse(response.content);
 }
 
 export interface ExtractionVariable {
@@ -368,15 +392,20 @@ Generate a planned extraction document in JSON format with these exact fields:
 Make the extraction plan realistic and aligned with clinical research best practices.
 Return only valid JSON, no markdown.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" },
-    max_tokens: 6000,
+  // Phase B: Route through ai-router for complex synthesis task (FRONTIER tier)
+  const response = await aiRouter.route({
+    taskType: 'complex_synthesis',
+    prompt,
+    responseFormat: 'json',
+    maxTokens: 6000,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  if (!response.qualityGate.passed && !response.content) {
+    throw new Error('Failed to generate planned extraction: ' +
+      response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
+  }
+
+  return response.parsed as PlannedExtractionResult || JSON.parse(response.content);
 }
 
 export async function generateDecisionMatrix(studyCards: StudyCard[]): Promise<DecisionMatrix> {
@@ -400,15 +429,20 @@ Generate a decision matrix in JSON format with:
 
 Base scores on the feasibility and method complexity. Return only valid JSON.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" },
-    max_tokens: 2000,
+  // Phase B: Route through ai-router for summarization task (MINI tier)
+  const response = await aiRouter.route({
+    taskType: 'summarize',
+    prompt,
+    responseFormat: 'json',
+    maxTokens: 2000,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  if (!response.qualityGate.passed && !response.content) {
+    throw new Error('Failed to generate decision matrix: ' +
+      response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
+  }
+
+  return response.parsed as DecisionMatrix || JSON.parse(response.content);
 }
 
 export interface JournalRecommendation {
@@ -486,15 +520,20 @@ Generate a list of 5-7 recommended journals in JSON format. Each journal should 
 Order journals by fitScore (highest first). Include a mix of high-impact, mid-tier, and specialty journals.
 Return only valid JSON as an array of journal objects.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" },
-    max_tokens: 4000,
+  // Phase B: Route through ai-router for complex synthesis task (FRONTIER tier)
+  const response = await aiRouter.route({
+    taskType: 'complex_synthesis',
+    prompt,
+    responseFormat: 'json',
+    maxTokens: 4000,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
-  const parsed = JSON.parse(content);
+  if (!response.qualityGate.passed && !response.content) {
+    throw new Error('Failed to generate journal recommendations: ' +
+      response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
+  }
+
+  const parsed = response.parsed || JSON.parse(response.content);
   return parsed.journals || parsed;
 }
 
@@ -535,15 +574,20 @@ Generate submission requirements in JSON format with these exact fields:
 Make requirements realistic and consistent with major medical/scientific journals.
 Return only valid JSON.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" },
-    max_tokens: 5000,
+  // Phase B: Route through ai-router for summarization task (MINI tier)
+  const response = await aiRouter.route({
+    taskType: 'summarize',
+    prompt,
+    responseFormat: 'json',
+    maxTokens: 5000,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  if (!response.qualityGate.passed && !response.content) {
+    throw new Error('Failed to generate submission requirements: ' +
+      response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
+  }
+
+  return response.parsed as JournalSubmissionRequirements || JSON.parse(response.content);
 }
 
 export async function generateSubmissionDocuments(
@@ -587,13 +631,18 @@ Generate the following submission documents in JSON format:
 Make all documents professional and publication-ready.
 Return only valid JSON.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" },
-    max_tokens: 4000,
+  // Phase B: Route through ai-router for final manuscript pass task (FRONTIER tier)
+  const response = await aiRouter.route({
+    taskType: 'final_manuscript_pass',
+    prompt,
+    responseFormat: 'json',
+    maxTokens: 4000,
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  if (!response.qualityGate.passed && !response.content) {
+    throw new Error('Failed to generate submission documents: ' +
+      response.qualityGate.checks.filter(c => !c.passed).map(c => c.reason).join('; '));
+  }
+
+  return response.parsed as any || JSON.parse(response.content);
 }

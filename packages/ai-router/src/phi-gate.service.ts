@@ -5,8 +5,7 @@
  * Ensures no PHI passes through AI operations undetected.
  */
 
-import { PHI_PATTERNS } from '@researchflow/phi-engine/patterns';
-import { scrubLog, containsPhi, getPhiStats } from '@researchflow/phi-engine/log-scrubber';
+import { PHI_PATTERNS, scrubLog, containsPhi, getPhiStats } from '@researchflow/phi-engine';
 import type { AIPhiScanResult } from './types';
 
 /**

@@ -15,8 +15,11 @@ export interface PlagiarismCheckRequest {
 export interface PlagiarismMatch {
   sourceId: string; // PMID, DOI, or internal manuscript ID
   sourceTitle: string;
-  matchedText: string; // The overlapping text
+  // GOVERNANCE: matchedText REMOVED - never expose user manuscript content
+  // Only return location indices for highlighting
   matchedTextLocation: { start: number; end: number };
+  matchedTextLength: number; // Length of matched segment (for UI highlighting)
+  matchedTextHash: string; // Hash for deduplication without exposing content
   similarityScore: number; // 0-1 (1 = identical)
   ngramSize: number; // Size of n-gram that matched (e.g., 5-gram)
   matchType: 'exact' | 'near_exact' | 'paraphrase';
@@ -69,12 +72,15 @@ export class PlagiarismCheckService {
         const matchedSegments = this.findMatchingSegments(request.textToCheck, source.text);
 
         for (const segment of matchedSegments) {
-          if (segment.text.length >= this.MIN_MATCH_LENGTH) {
+          if (segment.length >= this.MIN_MATCH_LENGTH) {
+            // GOVERNANCE: Never expose matched text content
             matches.push({
               sourceId: source.id,
               sourceTitle: source.title,
-              matchedText: segment.text,
+              // matchedText REMOVED - only use location and hash
               matchedTextLocation: segment.location,
+              matchedTextLength: segment.length,
+              matchedTextHash: segment.hash,
               similarityScore: similarity,
               ngramSize: this.NGRAM_SIZE,
               matchType: similarity > 0.90 ? 'exact' : similarity > 0.70 ? 'near_exact' : 'paraphrase',
@@ -173,12 +179,13 @@ export class PlagiarismCheckService {
 
   /**
    * Find matching segments between two texts (for highlighting)
+   * GOVERNANCE: Returns only location, length, and hash - never the text content
    */
   private findMatchingSegments(
     text1: string,
     text2: string
-  ): Array<{ text: string; location: { start: number; end: number } }> {
-    const segments: Array<{ text: string; location: { start: number; end: number } }> = [];
+  ): Array<{ location: { start: number; end: number }; length: number; hash: string }> {
+    const segments: Array<{ location: { start: number; end: number }; length: number; hash: string }> = [];
 
     // Use sliding window to find matching substrings
     const minLength = this.MIN_MATCH_LENGTH;
@@ -190,9 +197,13 @@ export class PlagiarismCheckService {
 
         if (segment.length >= minLength && text2.includes(segment)) {
           const start = text1.indexOf(segment);
+          // GOVERNANCE: Hash the segment instead of returning it
+          const hash = createHash('md5').update(segment).digest('hex').substring(0, 12);
           segments.push({
-            text: segment,
+            // text field REMOVED - never expose matched content
             location: { start, end: start + segment.length },
+            length: segment.length,
+            hash,
           });
           i += len - 1; // Skip ahead
           break;

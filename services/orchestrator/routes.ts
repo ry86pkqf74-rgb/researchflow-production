@@ -67,6 +67,7 @@ import governanceRouter from "./src/routes/governance";
 import sapRouter from "./src/routes/sap";
 import researchBriefRouter from "./src/routes/research-brief";
 import exportBundleRouter from "./src/routes/export-bundle";
+import manuscriptGatewayRouter from "./src/routes/manuscript-gateway";
 import { scan as scanPhi } from "@researchflow/phi-engine";
 
 // ROS Backend API URL (Python FastAPI server)
@@ -859,6 +860,10 @@ export async function registerRoutes(
 
   // Mount Export Bundle routes (reproducibility bundle export with approval workflow)
   app.use("/api/ros/export", exportBundleRouter);
+
+  // Mount Manuscript Gateway routes (proxies to manuscript-service microservice)
+  // Phase B: Manuscript Productionization Integration
+  app.use("/api/manuscripts", manuscriptGatewayRouter);
 
   // Mode information endpoint - publicly accessible
   app.get("/api/mode", (_req, res) => {

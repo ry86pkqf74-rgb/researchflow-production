@@ -312,3 +312,6 @@ export const SectionPromptContextSchema = z.object({
   objective: z.string().optional(),
   existingContent: z.string().optional(),
 });
+
+// Re-export all types from the types/ directory for backward compatibility
+export * from './types/index';
