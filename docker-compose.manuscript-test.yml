@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  manuscript-engine-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.manuscript-engine
+    volumes:
+      # Mount manuscript-engine source for live updates
+      - ./packages/manuscript-engine/src:/workspace/packages/manuscript-engine/src:ro
+      # Preserve node_modules in container
+      - manuscript-node-modules:/workspace/node_modules
+    environment:
+      - NODE_ENV=test
+      - CI=true
+    working_dir: /workspace/packages/manuscript-engine
+    command: npm test
+
+  manuscript-engine-watch:
+    build:
+      context: .
+      dockerfile: Dockerfile.manuscript-engine
+    volumes:
+      - ./packages/manuscript-engine/src:/workspace/packages/manuscript-engine/src:ro
+      - manuscript-node-modules:/workspace/node_modules
+    environment:
+      - NODE_ENV=development
+    working_dir: /workspace/packages/manuscript-engine
+    command: npm test -- --watch
+    stdin_open: true
+    tty: true
+
+  manuscript-engine-coverage:
+    build:
+      context: .
+      dockerfile: Dockerfile.manuscript-engine
+    volumes:
+      - ./packages/manuscript-engine/src:/workspace/packages/manuscript-engine/src:ro
+      - ./packages/manuscript-engine/coverage:/workspace/packages/manuscript-engine/coverage
+      - manuscript-node-modules:/workspace/node_modules
+    environment:
+      - NODE_ENV=test
+    working_dir: /workspace/packages/manuscript-engine
+    command: npm run test:coverage
+
+  manuscript-engine-shell:
+    build:
+      context: .
+      dockerfile: Dockerfile.manuscript-engine
+    volumes:
+      - ./packages/manuscript-engine/src:/workspace/packages/manuscript-engine/src
+      - manuscript-node-modules:/workspace/node_modules
+    environment:
+      - NODE_ENV=development
+    working_dir: /workspace/packages/manuscript-engine
+    command: /bin/sh
+    stdin_open: true
+    tty: true
+
+volumes:
+  manuscript-node-modules:
+    driver: local

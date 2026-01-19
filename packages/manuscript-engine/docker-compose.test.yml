@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  manuscript-engine-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      # Mount source code for live updates
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      # Preserve node_modules in container
+      - manuscript-node-modules:/app/node_modules
+    environment:
+      - NODE_ENV=test
+      - CI=true
+    command: npm test
+    working_dir: /app
+    stdin_open: true
+    tty: true
+
+  manuscript-engine-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - manuscript-node-modules:/app/node_modules
+    environment:
+      - NODE_ENV=development
+    command: npm test -- --watch
+    working_dir: /app
+    stdin_open: true
+    tty: true
+
+  manuscript-engine-coverage:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./coverage:/app/coverage
+      - manuscript-node-modules:/app/node_modules
+    environment:
+      - NODE_ENV=test
+    command: npm run test:coverage
+    working_dir: /app
+
+volumes:
+  manuscript-node-modules:
+    driver: local

@@ -1,0 +1,38 @@
+# Development Dockerfile for manuscript-engine (from monorepo root)
+FROM node:20-alpine
+
+WORKDIR /workspace
+
+# Install dependencies for native modules
+RUN apk add --no-cache \
+    git \
+    python3 \
+    make \
+    g++ \
+    bash
+
+# Copy root package files
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Copy workspace packages
+COPY packages/ ./packages/
+
+# Install all dependencies (including workspace packages)
+RUN npm install
+
+# Build dependencies in correct order
+RUN npm run build -w packages/core
+RUN npm run build -w packages/phi-engine
+RUN npm run build -w packages/ai-router
+RUN npm run build -w packages/manuscript-engine
+
+# Set working directory to manuscript-engine
+WORKDIR /workspace/packages/manuscript-engine
+
+# Set environment variables
+ENV NODE_ENV=test
+ENV CI=true
+
+# Default command runs tests
+CMD ["npm", "test"]

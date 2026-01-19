@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "autoApprove": true,
+    "allowedTools": [
+      "Bash",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "Task",
+      "TodoWrite"
+    ],
+    "allowedCommands": [
+      "npm test",
+      "npm run test:coverage",
+      "npm run build",
+      "git status",
+      "git diff",
+      "git add",
+      "git commit",
+      "git push",
+      "docker-compose"
+    ]
+  },
+  "testRunner": {
+    "command": "npm test",
+    "watchMode": "npm test -- --watch",
+    "coverageCommand": "npm run test:coverage"
+  },
+  "docker": {
+    "enabled": true,
+    "composeFile": "docker-compose.test.yml",
+    "defaultService": "manuscript-engine-test"
+  }
+}
