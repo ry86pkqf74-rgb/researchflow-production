@@ -108,6 +108,10 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
     rollupOptions: {
+      // Exclude test files from build
+      external: (id) => {
+        return /\.test\.[jt]sx?$/.test(id) || /\.spec\.[jt]sx?$/.test(id);
+      },
       output: {
         manualChunks: {
           // Optimize chunk splitting
