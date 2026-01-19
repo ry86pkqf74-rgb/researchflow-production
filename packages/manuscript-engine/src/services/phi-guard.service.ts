@@ -108,6 +108,11 @@ export class PhiGuardService {
 
       return result;
     } catch (error) {
+      // Don't wrap PHIDetectedError - rethrow as-is
+      if (error instanceof PHIDetectedError) {
+        throw error;
+      }
+
       // FAIL-CLOSED: If scan fails, block the operation
       if (this.failClosed) {
         throw new PHIScanFailureError(
