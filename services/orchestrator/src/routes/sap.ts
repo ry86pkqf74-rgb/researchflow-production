@@ -343,7 +343,7 @@ router.post('/:id/approve', async (req: Request, res: Response) => {
         approvedBy: userId,
         approvedAt: new Date(),
         updatedAt: new Date()
-      })
+      } as any)
       .where(eq(statisticalPlans.id, id));
 
     const approved = await db.query.statisticalPlans.findFirst({
@@ -432,7 +432,7 @@ router.post('/:id/generate-methods', blockAIInDemo, async (req: Request, res: Re
       sha256Hash: contentHash,
       createdBy: req.user?.id || 'system',
       currentVersionId: null
-    });
+    } as any);
 
     res.json({
       success: true,

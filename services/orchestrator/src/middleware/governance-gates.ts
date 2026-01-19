@@ -63,7 +63,7 @@ export function governanceGate(options: GovernanceGateOptions) {
             detectedBy: req.user?.id || null,
             phiType: phiResult.identifiers.map(i => i.type).join(', '),
             status: 'OPEN'
-          });
+          } as any);
 
           return res.status(403).json({
             error: 'PHI_DETECTED',
@@ -96,7 +96,7 @@ export function governanceGate(options: GovernanceGateOptions) {
         },
         sessionId: req.headers['x-session-id'] as string,
         ipAddress: req.ip
-      }).returning();
+      } as any).returning();
 
       return res.status(202).json({
         message: 'Request pending approval',
@@ -218,7 +218,7 @@ export function requireApprovalForLargeData(threshold = 100000) {
           requestedByRole: userRole,
           reason: `Dataset with ${estimatedRows} rows exceeds threshold of ${threshold}`,
           metadata: { estimatedRows: Number(estimatedRows), threshold }
-        }).returning();
+        } as any).returning();
 
         await logAction({
           eventType: 'GOVERNANCE',

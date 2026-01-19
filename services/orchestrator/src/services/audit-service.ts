@@ -51,7 +51,7 @@ export async function logAction(entry: AuditLogEntry): Promise<void> {
     previousHash,
     entryHash,
     details: entry.details ? entry.details : undefined
-  });
+  } as any);
 }
 
 /**

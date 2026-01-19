@@ -98,7 +98,7 @@ router.post(
       generationLatencyMs: latencyMs,
       status: 'draft',
       createdBy: userId,
-    });
+    } as any);
 
     // Create artifact for reproducibility
     const briefContent = JSON.stringify(brief, null, 2);
@@ -115,7 +115,7 @@ router.post(
       sha256Hash: brief.metadata.artifactHash,
       createdBy: userId,
       currentVersionId: null,
-    });
+    } as any);
 
     res.json({
       success: true,
@@ -324,7 +324,7 @@ router.post(
         approvedBy: userId,
         approvedAt: new Date(),
         updatedAt: new Date(),
-      })
+      } as any)
       .where(eq(researchBriefs.id, id));
 
     res.json({
@@ -378,7 +378,7 @@ router.post(
       .set({
         status: 'reviewed',
         updatedAt: new Date(),
-      })
+      } as any)
       .where(eq(researchBriefs.id, id));
 
     res.json({

@@ -87,7 +87,7 @@ export async function createAuditEntry(
       previousHash,
       entryHash,
       createdAt,
-    })
+    } as any)
     .returning();
 
   return result[0];

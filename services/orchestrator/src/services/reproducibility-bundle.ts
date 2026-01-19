@@ -349,7 +349,7 @@ export async function createBundleRequest(request: BundleRequest): Promise<Bundl
           },
         },
         sessionId: request.sessionId,
-      })
+      } as any)
       .returning();
 
     // Create audit entry for the request
@@ -365,7 +365,7 @@ export async function createBundleRequest(request: BundleRequest): Promise<Bundl
         phiDetected: phiScanSummary.requiresOverride,
         riskLevel: phiScanSummary.riskLevel,
       },
-    });
+    } as any);
 
     if (phiScanSummary.requiresOverride) {
       return {
@@ -441,7 +441,7 @@ export async function approveBundleRequest(
         completedAt: new Date(),
         expiresAt,
         reason,
-      })
+      } as any)
       .where(eq(schema.approvalGates.id, requestId));
 
     // Create audit entry
@@ -451,7 +451,7 @@ export async function approveBundleRequest(
       performedById: userId,
       performedByRole: role,
       details: { reason, expiresAt: expiresAt.toISOString() },
-    });
+    } as any);
 
     return { success: true, expiresAt: expiresAt.toISOString() };
   } catch (error) {
@@ -497,7 +497,7 @@ export async function denyBundleRequest(
         reviewedAt: new Date(),
         completedAt: new Date(),
         rejectionReason: reason,
-      })
+      } as any)
       .where(eq(schema.approvalGates.id, requestId));
 
     // Create audit entry
@@ -507,7 +507,7 @@ export async function denyBundleRequest(
       performedById: userId,
       performedByRole: role,
       details: { reason },
-    });
+    } as any);
 
     return { success: true };
   } catch (error) {
@@ -576,7 +576,7 @@ export async function requestPHIOverride(
         isOverride: true,
         overrideJustification: justification,
         metadata,
-      })
+      } as any)
       .where(eq(schema.approvalGates.id, requestId));
 
     // Create audit entry
@@ -591,7 +591,7 @@ export async function requestPHIOverride(
         conditions: conditions || defaultConditions,
         expiresAt: overrideExpiresAt.toISOString(),
       },
-    });
+    } as any);
 
     return {
       success: true,

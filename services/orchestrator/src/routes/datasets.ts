@@ -259,7 +259,7 @@ router.post(
           requestedByRole: (req as any).user?.role || 'VIEWER',
           reason: `Dataset with ${estimatedRows} rows exceeds threshold of ${threshold}`,
           metadata: { estimatedRows, threshold, name, classification }
-        }).returning();
+        } as any).returning();
 
         await createAuditEntry({
           eventType: 'GOVERNANCE',

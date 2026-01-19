@@ -55,7 +55,7 @@ export async function createTopic(data: {
       versionHash,
       createdBy: data.createdBy,
       status: "DRAFT",
-    })
+    } as any)
     .returning();
 
   const topic = result[0];
@@ -132,7 +132,7 @@ export async function updateTopic(
     .set({
       status: "SUPERSEDED",
       updatedAt: new Date(),
-    })
+    } as any)
     .where(eq(topics.id, id));
 
   const result = await db
@@ -148,7 +148,7 @@ export async function updateTopic(
       previousVersionId: currentTopic.id,
       createdBy: userId,
       status: "DRAFT",
-    })
+    } as any)
     .returning();
 
   const newTopic = result[0];
@@ -209,7 +209,7 @@ export async function lockTopic(id: string, userId: string): Promise<Topic> {
       lockedAt: now,
       lockedBy: userId,
       updatedAt: now,
-    })
+    } as any)
     .where(eq(topics.id, id))
     .returning();
 

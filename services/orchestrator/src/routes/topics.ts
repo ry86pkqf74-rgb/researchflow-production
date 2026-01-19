@@ -260,7 +260,7 @@ router.post(
         entryMode: "pico",
         picoElements,
         updatedAt: new Date(),
-      })
+      } as any)
       .where(eq(topics.id, id));
 
     // Fetch updated topic
