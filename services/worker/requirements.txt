@@ -47,7 +47,7 @@ jsonschema==4.25.1
 jsonschema-specifications==2025.9.1
 kiwisolver==1.4.9
 license-expression==30.4.4
-lifelines==0.27.8
+lifelines==0.30.0
 markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 marshmallow==4.2.0
