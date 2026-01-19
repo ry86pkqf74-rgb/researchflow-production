@@ -15,7 +15,7 @@
     "./prompt-cache": "./src/prompt-cache.service.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
+    "@anthropic-ai/sdk": "^0.71.2",
     "@researchflow/core": "*",
     "@researchflow/phi-engine": "*",
     "openai": "^4.76.0"
