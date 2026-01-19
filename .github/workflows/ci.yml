@@ -25,8 +25,8 @@ jobs:
           FOUND=$(grep -r "console\.\(log\|error\|warn\|info\)" \
             --include="*.ts" \
             services/orchestrator/src/ \
-            --exclude="**/logger/**" \
-            --exclude="**/sentry.service.ts" \
+            | grep -v "/logger/" \
+            | grep -v "sentry.service.ts" \
             | wc -l)
           if [ "$FOUND" -gt 0 ]; then
             echo "::error::Found $FOUND console.log calls in orchestrator/src"
@@ -34,8 +34,8 @@ jobs:
             grep -r "console\.\(log\|error\|warn\|info\)" \
               --include="*.ts" \
               services/orchestrator/src/ \
-              --exclude="**/logger/**" \
-              --exclude="**/sentry.service.ts" \
+              | grep -v "/logger/" \
+              | grep -v "sentry.service.ts" \
               -n || true
             exit 1
           fi
