@@ -70,3 +70,5 @@ export * from './transition-suggester.service';
 // Phase 5: Export & Compliance Services
 export * from './export.service';
 export * from './compliance-checker.service';
+export * from './peer-review.service';
+export * from './final-phi-scan.service';
