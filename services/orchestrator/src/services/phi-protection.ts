@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto';
 
 export interface PhiDetectionResult {
   detected: boolean;
@@ -13,7 +13,10 @@ export interface PhiDetectionResult {
 
 export interface PhiIdentifier {
   type: string;
-  value: string;
+  /** SHA256 hash of matched value (first 12 chars) - never store raw PHI */
+  valueHash: string;
+  /** Length of the original matched value */
+  valueLength: number;
   position: { start: number; end: number };
   confidence: 'LOW' | 'MEDIUM' | 'HIGH';
   hipaaCategory: number; // 1-18
@@ -58,6 +61,14 @@ const PHI_PATTERNS = {
 };
 
 /**
+ * Compute SHA256 hash of matched text, returning first 12 hex chars.
+ * This allows deduplication without exposing raw PHI.
+ */
+function hashValue(text: string): string {
+  return createHash('sha256').update(text).digest('hex').slice(0, 12);
+}
+
+/**
  * Scan text for PHI identifiers
  */
 export function scanForPhi(text: string): PhiDetectionResult {
@@ -68,10 +79,16 @@ export function scanForPhi(text: string): PhiDetectionResult {
     const matches = text.matchAll(pattern);
 
     for (const match of matches) {
+      const matchedValue = match[0];
+      const valueLength = matchedValue.length;
+      // Hash immediately, discard raw value
+      const valueHash = hashValue(matchedValue);
+
       identifiers.push({
         type,
-        value: match[0],
-        position: { start: match.index!, end: match.index! + match[0].length },
+        valueHash,
+        valueLength,
+        position: { start: match.index!, end: match.index! + valueLength },
         confidence: getConfidence(type),
         hipaaCategory: getHipaaCategory(type)
       });

@@ -28,7 +28,10 @@ export interface PHIPattern {
   id: string;
   category: PHICategory;
   pattern: string;
-  matchedText: string;
+  /** SHA256 hash of matched text (first 12 chars) - never store raw PHI */
+  matchHash: string;
+  /** Length of the original matched text */
+  matchLength: number;
   position: { start: number; end: number };
   confidence: number;
   suggestedAction: 'redact' | 'review' | 'remove';
@@ -92,13 +95,21 @@ function mapPhiTypeToCategory(type: PatternDefinition['type']): PHICategory {
   return typeMap[type] || 'other';
 }
 
-function calculateConfidence(baseConfidence: number, matchedText: string): number {
+/**
+ * Compute SHA256 hash of matched text, returning first 12 hex chars.
+ * This allows deduplication without exposing raw PHI.
+ */
+function hashMatchedText(text: string): string {
+  return crypto.createHash('sha256').update(text).digest('hex').slice(0, 12);
+}
+
+function calculateConfidence(baseConfidence: number, matchLength: number, hasDigits: boolean, hasLetters: boolean): number {
   let confidence = baseConfidence;
 
-  if (matchedText.length > 5) confidence += 0.1;
-  if (matchedText.length > 10) confidence += 0.05;
+  if (matchLength > 5) confidence += 0.1;
+  if (matchLength > 10) confidence += 0.05;
 
-  if (/\d/.test(matchedText) && /[A-Za-z]/.test(matchedText)) {
+  if (hasDigits && hasLetters) {
     confidence += 0.05;
   }
 
@@ -143,16 +154,25 @@ export function scanForPHI(content: string, context: ScanContext): PHIScanResult
 
     let match;
     while ((match = regex.exec(content)) !== null) {
+      const matchText = match[0];
+      const matchLength = matchText.length;
+      const hasDigits = /\d/.test(matchText);
+      const hasLetters = /[A-Za-z]/.test(matchText);
+
+      // Compute hash immediately, then the raw match is not stored
+      const matchHash = hashMatchedText(matchText);
+
       const category = mapPhiTypeToCategory(patternDef.type);
-      const confidence = calculateConfidence(patternDef.baseConfidence, match[0]);
+      const confidence = calculateConfidence(patternDef.baseConfidence, matchLength, hasDigits, hasLetters);
 
       detected.push({
         id: crypto.randomUUID(),
         category,
         pattern: patternDef.description,
-        // Redact matched text to prevent PHI leakage in scan results
-        matchedText: '[REDACTED]',
-        position: { start: match.index, end: match.index + match[0].length },
+        // Store hash + length only - never raw PHI
+        matchHash,
+        matchLength,
+        position: { start: match.index, end: match.index + matchLength },
         confidence: Math.round(confidence * 100) / 100,
         suggestedAction: determineSuggestedAction(category, confidence),
         hipaaIdentifier: patternDef.hipaaCategory
