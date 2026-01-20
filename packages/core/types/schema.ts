@@ -1871,21 +1871,28 @@ export const insertCommentSchema = createInsertSchema(comments).omit({
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 
+// Claim Status Types
+export const CLAIM_STATUSES = ['draft', 'verified', 'disputed', 'retracted'] as const;
+export type ClaimStatus = (typeof CLAIM_STATUSES)[number];
+
 // Claims Table
 export const claims = pgTable("claims", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   researchId: varchar("research_id").notNull(),
   manuscriptArtifactId: varchar("manuscript_artifact_id").notNull().references(() => artifacts.id, { onDelete: "cascade" }),
-  manuscriptVersionId: varchar("manuscript_version_id").references(() => artifactVersions.id, { onDelete: "set null" }),
+  versionId: varchar("version_id").references(() => artifactVersions.id, { onDelete: "set null" }),
   section: varchar("section", { length: 50 }),
   claimText: text("claim_text").notNull(),
-  anchorType: varchar("anchor_type", { length: 50 }).default('text_selection'),
-  anchorData: jsonb("anchor_data").notNull().default({}),
-  createdBy: varchar("created_by").notNull().references(() => users.id),
+  claimTextHash: varchar("claim_text_hash", { length: 64 }),
+  anchor: jsonb("anchor").notNull().default({}),
+  status: varchar("status", { length: 20 }).default('draft'),
+  createdBy: varchar("created_by").notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   phiScanStatus: varchar("phi_scan_status", { length: 20 }).default('PENDING'),
   phiFindings: jsonb("phi_findings").notNull().default([]),
   metadata: jsonb("metadata").notNull().default({}),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const insertClaimSchema = createInsertSchema(claims).omit({
@@ -1901,20 +1908,28 @@ export const EVIDENCE_TYPES = ['citation', 'artifact', 'pdf_highlight', 'url'] a
 export type EvidenceType = (typeof EVIDENCE_TYPES)[number];
 
 // Claim Evidence Links Table
+// Evidence Types for Claims
+export const CLAIM_EVIDENCE_TYPES = ['citation', 'data_artifact', 'figure', 'table', 'external_url'] as const;
+export type ClaimEvidenceType = (typeof CLAIM_EVIDENCE_TYPES)[number];
+
 export const claimEvidenceLinks = pgTable("claim_evidence_links", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   claimId: varchar("claim_id").notNull().references(() => claims.id, { onDelete: "cascade" }),
   evidenceType: varchar("evidence_type", { length: 30 }).notNull(),
-  evidenceRef: varchar("evidence_ref").notNull(),
-  evidenceLocator: jsonb("evidence_locator").notNull().default({}),
-  createdBy: varchar("created_by").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  evidenceArtifactId: varchar("evidence_artifact_id").references(() => artifacts.id, { onDelete: "set null" }),
+  citationId: varchar("citation_id"),
+  externalUrl: text("external_url"),
+  locator: jsonb("locator").notNull().default({}),
+  linkedBy: varchar("linked_by").notNull(),
+  linkedAt: timestamp("linked_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  notes: text("notes"),
   metadata: jsonb("metadata").notNull().default({}),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const insertClaimEvidenceLinkSchema = createInsertSchema(claimEvidenceLinks).omit({
   id: true,
-  createdAt: true,
+  linkedAt: true,
 });
 
 export type ClaimEvidenceLink = typeof claimEvidenceLinks.$inferSelect;

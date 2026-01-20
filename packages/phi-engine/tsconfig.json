@@ -4,7 +4,8 @@
     "outDir": "./dist",
     "rootDir": ".",
     "composite": true,
-    "noEmit": false
+    "noEmit": false,
+    "declaration": true
   },
   "include": ["./**/*.ts"],
   "exclude": ["node_modules", "dist"]
