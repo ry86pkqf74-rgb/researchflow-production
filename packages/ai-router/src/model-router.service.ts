@@ -26,6 +26,28 @@ import { QualityGateService } from './quality-gate.service';
 import { PhiGateService } from './phi-gate.service';
 
 /**
+ * Check if AI calls are allowed based on governance mode.
+ * Returns { allowed: true } or { allowed: false, reason: string }
+ */
+function checkModeGating(): { allowed: true } | { allowed: false; reason: string } {
+  const rosMode = process.env.ROS_MODE?.toUpperCase();
+  const governanceMode = process.env.GOVERNANCE_MODE?.toUpperCase();
+  const noNetwork = process.env.NO_NETWORK === 'true';
+
+  // STANDBY mode blocks all AI calls
+  if (rosMode === 'STANDBY' || governanceMode === 'STANDBY') {
+    return { allowed: false, reason: 'System is in STANDBY mode - AI calls blocked' };
+  }
+
+  // NO_NETWORK blocks all external calls
+  if (noNetwork) {
+    return { allowed: false, reason: 'NO_NETWORK mode enabled - external AI calls blocked' };
+  }
+
+  return { allowed: true };
+}
+
+/**
  * Model Router Service
  *
  * Routes AI requests to the appropriate model tier based on task type,
@@ -77,6 +99,17 @@ export class ModelRouterService {
     let escalationCount = 0;
     let escalationReason: string | undefined;
     let lastError: Error | undefined;
+
+    // Mode gating check - block AI calls in STANDBY or NO_NETWORK mode
+    const modeCheck = checkModeGating();
+    if (!modeCheck.allowed) {
+      return this.createBlockedResponse(
+        request,
+        initialTier,
+        startTime,
+        modeCheck.reason
+      );
+    }
 
     // PHI scan input
     const inputPhiResult = this.phiGate.scanContent(request.prompt);

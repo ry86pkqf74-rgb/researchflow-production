@@ -234,6 +234,14 @@ app.get("/api/health/ready", async (_req, res) => {
   }
 });
 
+// Metrics endpoint - telemetry and runtime mode (no secrets)
+import { getTelemetry } from "./src/utils/telemetry";
+
+app.get("/api/metrics", (_req, res) => {
+  const telemetry = getTelemetry();
+  res.json(telemetry.getMetrics());
+});
+
 // Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();

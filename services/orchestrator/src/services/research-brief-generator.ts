@@ -28,6 +28,7 @@ import {
   detectEffectiveEntryMode,
   hasValidPICOElements,
 } from './topic-converter';
+import { checkAICallAllowed, getTelemetry } from '../utils/telemetry';
 
 const PROMPT_VERSION = '2.0.0';
 
@@ -72,14 +73,16 @@ export async function generateEnhancedResearchBrief(
   options: GenerateBriefOptions = {}
 ): Promise<GenerateBriefResult> {
   const startTime = Date.now();
+  const telemetry = getTelemetry();
   const includeRefinements = options.includeRefinements ?? true;
   const autoConvertToPICO = options.autoConvertToPICO ?? true;
 
-  // Check governance mode
+  // Check governance mode using centralized gating
   if (!options.skipGovernanceCheck) {
-    const mode = getGovernanceMode();
-    if (mode === 'STANDBY') {
-      throw new Error('AI generation blocked: System is in STANDBY mode');
+    const callCheck = checkAICallAllowed();
+    if (!callCheck.allowed) {
+      telemetry.recordBlockedCall(callCheck.reason, 'anthropic');
+      throw new Error(`AI generation blocked: ${callCheck.reason.replace(/_/g, ' ')}`);
     }
   }
 

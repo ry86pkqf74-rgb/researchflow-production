@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import type { AIRouterRequest, ModelTier } from '@researchflow/ai-router';
 import { getModelRouter } from '@researchflow/ai-router';
 import { getGovernanceMode } from '../middleware/governanceMode';
+import { checkAICallAllowed, getTelemetry } from '../utils/telemetry';
 
 /**
  * Batch job status
@@ -98,11 +99,16 @@ export class BatchProcessorService {
     requests: BatchRequest[],
     config: BatchJobConfig = {}
   ): Promise<BatchJob> {
-    // Check governance mode
-    const mode = getGovernanceMode();
-    if (mode === 'STANDBY') {
-      throw new Error('Batch processing blocked: System is in STANDBY mode');
+    const telemetry = getTelemetry();
+
+    // Check governance mode using centralized gating
+    const callCheck = checkAICallAllowed();
+    if (!callCheck.allowed) {
+      telemetry.recordBlockedCall(callCheck.reason, (config.provider || 'anthropic') as any);
+      throw new Error(`Batch processing blocked: ${callCheck.reason.replace(/_/g, ' ')}`);
     }
+
+    const mode = getGovernanceMode();
 
     const jobId = `batch_${crypto.randomBytes(12).toString('hex')}`;
 
@@ -141,13 +147,15 @@ export class BatchProcessorService {
       throw new Error(`Cannot submit job with status: ${job.status}`);
     }
 
-    // Check governance mode again
-    const mode = getGovernanceMode();
-    if (mode === 'STANDBY') {
+    // Check governance mode again using centralized gating
+    const telemetry = getTelemetry();
+    const callCheck = checkAICallAllowed();
+    if (!callCheck.allowed) {
       job.status = 'CANCELLED';
-      job.errorMessage = 'Batch processing blocked: System is in STANDBY mode';
+      job.errorMessage = `Batch processing blocked: ${callCheck.reason.replace(/_/g, ' ')}`;
       job.updatedAt = new Date();
       batchJobs.set(jobId, job);
+      telemetry.recordBlockedCall(callCheck.reason, job.provider as any);
       throw new Error(job.errorMessage);
     }
 

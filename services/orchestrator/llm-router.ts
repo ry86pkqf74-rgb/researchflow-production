@@ -13,6 +13,7 @@ import {
   ValidationResult
 } from "@researchflow/core/types/handoff-pack.schema";
 import { scan, redact } from "@researchflow/phi-engine";
+import { checkAICallAllowed, getTelemetry, AICallBlockedError } from "./src/utils/telemetry";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -80,6 +81,28 @@ export async function generateStructured<T>(
   options: GenerationOptions = {}
 ): Promise<StructuredGenerationResponse> {
   const startTime = Date.now();
+  const telemetry = getTelemetry();
+
+  // Check if AI calls are allowed (mode gating)
+  const callCheck = checkAICallAllowed();
+  if (!callCheck.allowed) {
+    telemetry.recordBlockedCall(callCheck.reason, 'openai');
+    return {
+      success: false,
+      error: {
+        code: "MODE_BLOCKED",
+        message: `AI generation blocked: ${callCheck.reason.replace(/_/g, ' ')}`,
+        details: [{
+          path: "mode",
+          message: `System is in ${process.env.ROS_MODE || process.env.GOVERNANCE_MODE || 'restricted'} mode`,
+          code: callCheck.reason
+        }]
+      },
+      retryCount: 0,
+      totalLatencyMs: Date.now() - startTime
+    };
+  }
+
   const {
     model = "gpt-4o",
     temperature = 0.7,
@@ -107,6 +130,7 @@ ${schemaDescription}
 Previous validation errors (if any):
 ${lastValidationResult?.errors.map(e => `- ${e.path}: ${e.message}`).join("\n") || "None"}`;
 
+      // Record telemetry for the API call attempt
       const response = await openai.chat.completions.create({
         model,
         messages: [
@@ -176,6 +200,9 @@ ${lastValidationResult?.errors.map(e => `- ${e.path}: ${e.message}`).join("\n") 
         };
         logPrompt(context.researchId, promptLog);
 
+        // Record successful API call
+        telemetry.recordExternalCall('openai', 'success');
+
         return {
           success: true,
           pack,
@@ -185,14 +212,16 @@ ${lastValidationResult?.errors.map(e => `- ${e.path}: ${e.message}`).join("\n") 
       }
 
       lastValidationResult = validationResult;
-      
+
       if (!retryOnValidationFailure) {
         break;
       }
-      
+
       retryCount++;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+      // Record failed API call
+      telemetry.recordExternalCall('openai', 'failure');
       retryCount++;
     }
   }
