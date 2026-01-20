@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  MAX_CHANGED_LINES: 1500
+  MAX_CHANGED_LINES: 2500
 
 jobs:
   check-pr-size:
@@ -16,7 +16,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check for large-pr-approved label
+        id: check-label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            const approved = labels.includes('large-pr-approved');
+            core.setOutput('approved', approved);
+            if (approved) {
+              console.log('PR has large-pr-approved label, skipping size check');
+            }
+
       - name: Check PR Size
+        if: steps.check-label.outputs.approved != 'true'
         run: |
           BASE_SHA=${{ github.event.pull_request.base.sha }}
           HEAD_SHA=${{ github.event.pull_request.head.sha }}
@@ -32,9 +45,47 @@ jobs:
           echo "Threshold: $MAX_CHANGED_LINES"
 
           if [ "$TOTAL" -gt "$MAX_CHANGED_LINES" ]; then
-            echo "::error::PR too large ($TOTAL lines changed). Please split into smaller PRs."
-            echo "Tip: Use feature flags, extract refactors, or stack PRs."
+            echo "::error::PR too large ($TOTAL lines changed). Maximum is $MAX_CHANGED_LINES."
+            echo ""
+            echo "To proceed, either:"
+            echo "  1. Split into smaller PRs (recommended)"
+            echo "  2. Add 'large-pr-approved' label with justification"
             exit 1
           fi
 
           echo "✅ PR size is acceptable ($TOTAL lines)"
+
+      - name: Post instructional comment on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `## PR Size Warning ⚠️
+
+            This PR exceeds the ${process.env.MAX_CHANGED_LINES} line threshold.
+
+            **Why this matters:**
+            - Large PRs are harder to review thoroughly
+            - They increase rollback risk
+            - They often contain unrelated changes
+
+            **To proceed, choose one:**
+
+            1. **Split the PR** (recommended)
+               - Extract refactors into separate PRs
+               - Use feature flags for incremental changes
+               - Stack PRs with clear dependencies
+
+            2. **Request approval**
+               - Add the \`large-pr-approved\` label
+               - Include justification in PR description
+               - Ensure extra review attention
+
+            *This check helps maintain code quality and review efficiency.*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
