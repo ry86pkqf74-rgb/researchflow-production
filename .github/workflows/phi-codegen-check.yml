@@ -1,0 +1,54 @@
+name: PHI Codegen Check
+
+on:
+  pull_request:
+    paths:
+      - 'shared/phi/**'
+      - 'packages/phi-engine/src/patterns.generated.ts'
+      - 'services/worker/src/validation/phi_patterns_generated.py'
+      - 'scripts/governance/generate_phi_patterns.py'
+
+jobs:
+  check-generated-files:
+    name: Verify PHI patterns match canonical spec
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check generated files match spec
+        run: |
+          python scripts/governance/generate_phi_patterns.py --check
+
+      - name: Post failure comment
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## PHI Pattern Drift Detected ⚠️
+
+The generated PHI pattern files differ from the canonical spec.
+
+**To fix:**
+\`\`\`bash
+python scripts/governance/generate_phi_patterns.py
+git add packages/phi-engine/src/patterns.generated.ts
+git add services/worker/src/validation/phi_patterns_generated.py
+git commit -m "chore(phi): regenerate patterns from canonical spec"
+\`\`\`
+
+**Why this matters:**
+- PHI patterns must be consistent between Node and Python
+- The canonical spec (\`shared/phi/phi_patterns.v1.json\`) is the single source of truth
+- Generated files ensure consistency across languages`
+            })

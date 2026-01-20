@@ -1,0 +1,224 @@
+{
+  "$schema": "./phi_patterns.schema.json",
+  "version": "1.0.0",
+  "description": "Canonical PHI pattern definitions for ResearchFlow. Single source of truth for all PHI detection across Node and Python services.",
+  "hipaaReference": "HIPAA 164.514(b)(2) - Safe Harbor De-identification",
+  "patterns": [
+    {
+      "id": "SSN_STRICT",
+      "category": "SSN",
+      "tier": ["HIGH_CONFIDENCE", "OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b\\d{3}[-\\s]?\\d{2}[-\\s]?\\d{4}\\b",
+        "flags": "g"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(E)",
+      "baseConfidence": 0.80,
+      "description": "Social Security Number (with or without separators)"
+    },
+    {
+      "id": "EMAIL",
+      "category": "EMAIL",
+      "tier": ["HIGH_CONFIDENCE", "OUTPUT_GUARD"],
+      "regex": {
+        "source": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}",
+        "flags": "gi"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(D)",
+      "baseConfidence": 0.85,
+      "description": "Email Address"
+    },
+    {
+      "id": "PHONE",
+      "category": "PHONE",
+      "tier": ["HIGH_CONFIDENCE", "OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b(?:\\+1[-.]?)?\\(?\\d{3}\\)?[-.]?\\d{3}[-.]?\\d{4}\\b",
+        "flags": "g"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(C)",
+      "baseConfidence": 0.75,
+      "description": "US Phone Number"
+    },
+    {
+      "id": "MRN",
+      "category": "MRN",
+      "tier": ["HIGH_CONFIDENCE", "OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b(?:MRN|MR#|Medical Record|Patient ID)[:\\s#]*[A-Z0-9]{6,12}\\b",
+        "flags": "gi"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(F)",
+      "baseConfidence": 0.85,
+      "description": "Medical Record Number"
+    },
+    {
+      "id": "NAME_WITH_TITLE",
+      "category": "NAME",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b(?:Dr\\.|Mr\\.|Mrs\\.|Ms\\.)\\s+[A-Z][a-z]+(?:\\s+[A-Z][a-z]+){1,2}\\b",
+        "flags": "g"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(A)",
+      "baseConfidence": 0.75,
+      "description": "Name with Title (Dr., Mr., Mrs., Ms.)"
+    },
+    {
+      "id": "PATIENT_NAME",
+      "category": "NAME",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b(?:Patient|Subject)[:\\s]+[A-Z][a-z]+(?:\\s+[A-Z][a-z]+){1,2}\\b",
+        "flags": "g"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(A)",
+      "baseConfidence": 0.80,
+      "description": "Patient/Subject Name"
+    },
+    {
+      "id": "ZIP_CODE",
+      "category": "ZIP_CODE",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b\\d{5}(?:-\\d{4})?\\b",
+        "flags": "g"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(B)",
+      "baseConfidence": 0.70,
+      "description": "ZIP Code (5 or 9 digit)"
+    },
+    {
+      "id": "ADDRESS",
+      "category": "ADDRESS",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b\\d{1,5}\\s+(?:[A-Za-z]+\\s+){1,4}(?:Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Drive|Dr|Lane|Ln|Court|Ct|Way|Place|Pl)\\b",
+        "flags": "gi"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(B)",
+      "baseConfidence": 0.75,
+      "description": "Street Address"
+    },
+    {
+      "id": "DATE_MDY",
+      "category": "DOB",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b(?:0?[1-9]|1[0-2])[-/](?:0?[1-9]|[12]\\d|3[01])[-/](?:19|20)\\d{2}\\b",
+        "flags": "g"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(B)",
+      "baseConfidence": 0.70,
+      "description": "Date (MM/DD/YYYY or MM-DD-YYYY)"
+    },
+    {
+      "id": "DATE_WRITTEN",
+      "category": "DOB",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},?\\s+(?:19|20)\\d{2}\\b",
+        "flags": "gi"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(B)",
+      "baseConfidence": 0.75,
+      "description": "Date (Month Day, Year)"
+    },
+    {
+      "id": "DATE_ISO",
+      "category": "DOB",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b(?:19|20)\\d{2}[-/](?:0?[1-9]|1[0-2])[-/](?:0?[1-9]|[12]\\d|3[01])\\b",
+        "flags": "g"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(B)",
+      "baseConfidence": 0.75,
+      "description": "Date (YYYY-MM-DD ISO format)"
+    },
+    {
+      "id": "HEALTH_PLAN",
+      "category": "HEALTH_PLAN",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b(?:Member|Policy|Plan)[\\s#:]*[A-Z0-9]{6,15}\\b",
+        "flags": "gi"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(G)",
+      "baseConfidence": 0.75,
+      "description": "Health Plan Beneficiary Number"
+    },
+    {
+      "id": "ACCOUNT",
+      "category": "ACCOUNT",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b(?:Account|Acct)[:\\s#]*\\d{8,16}\\b",
+        "flags": "gi"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(H)",
+      "baseConfidence": 0.70,
+      "description": "Account Number"
+    },
+    {
+      "id": "LICENSE",
+      "category": "LICENSE",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b(?:License|DL|Driver's License)[:\\s#]*[A-Z0-9]{6,12}\\b",
+        "flags": "gi"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(K)",
+      "baseConfidence": 0.75,
+      "description": "License Number"
+    },
+    {
+      "id": "DEVICE_ID",
+      "category": "DEVICE_ID",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b(?:Device|Serial|IMEI)[:\\s#]*[A-Z0-9]{10,20}\\b",
+        "flags": "gi"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(L)",
+      "baseConfidence": 0.70,
+      "description": "Device Identifier"
+    },
+    {
+      "id": "URL",
+      "category": "URL",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "https?://(?:www\\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_+.~#?&/=]*)",
+        "flags": "gi"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(M)",
+      "baseConfidence": 0.85,
+      "description": "Web URL"
+    },
+    {
+      "id": "IP_ADDRESS",
+      "category": "IP_ADDRESS",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\b",
+        "flags": "g"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(N)",
+      "baseConfidence": 0.85,
+      "description": "IPv4 Address"
+    },
+    {
+      "id": "AGE_OVER_89",
+      "category": "AGE_OVER_89",
+      "tier": ["OUTPUT_GUARD"],
+      "regex": {
+        "source": "\\b(?:age|aged?)[:\\s]+(?:9\\d|[1-9]\\d{2,})\\b",
+        "flags": "gi"
+      },
+      "hipaaCategory": "164.514(b)(2)(i)(C)",
+      "baseConfidence": 0.70,
+      "description": "Age over 89 years"
+    }
+  ]
+}
