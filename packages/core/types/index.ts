@@ -52,3 +52,6 @@ export * from './quality';
 
 // Export organization types for Phase E multi-tenancy
 export * from './organization';
+
+// Export workflow types for Phase G custom workflow builder
+export * from "./workflow";

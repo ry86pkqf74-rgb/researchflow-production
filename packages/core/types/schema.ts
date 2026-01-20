@@ -1661,3 +1661,122 @@ export const insertTutorialAssetSchema = createInsertSchema(tutorialAssets).omit
 
 export type TutorialAsset = typeof tutorialAssets.$inferSelect;
 export type InsertTutorialAsset = z.infer<typeof insertTutorialAssetSchema>;
+// ============================================================
+// PHASE G: CUSTOM WORKFLOW BUILDER TABLES (Migration 0007)
+// ============================================================
+
+// =====================
+// WORKFLOW STATUSES
+// =====================
+export const WORKFLOW_STATUSES_G = ["draft", "published", "archived"] as const;
+export type WorkflowStatusG = (typeof WORKFLOW_STATUSES_G)[number];
+
+export const RUN_STATUSES = ["running", "paused", "completed", "failed"] as const;
+export type RunStatus = (typeof RUN_STATUSES)[number];
+
+// =====================
+// WORKFLOWS TABLE
+// =====================
+export const workflows = pgTable("workflows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id", { length: 255 }).references(() => organizations.id, { onDelete: "set null" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  status: varchar("status", { length: 50 }).notNull().default("draft"),
+  createdBy: varchar("created_by", { length: 255 }).references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertWorkflowSchema = createInsertSchema(workflows).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type WorkflowRecord = typeof workflows.$inferSelect;
+export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
+
+// =====================
+// WORKFLOW VERSIONS TABLE
+// =====================
+export const workflowVersions = pgTable("workflow_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workflowId: varchar("workflow_id", { length: 255 }).notNull().references(() => workflows.id, { onDelete: "cascade" }),
+  version: integer("version").notNull(),
+  definition: jsonb("definition").notNull(),
+  changelog: text("changelog"),
+  createdBy: varchar("created_by", { length: 255 }).references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertWorkflowVersionSchema = createInsertSchema(workflowVersions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type WorkflowVersionRecord = typeof workflowVersions.$inferSelect;
+export type InsertWorkflowVersion = z.infer<typeof insertWorkflowVersionSchema>;
+
+// =====================
+// WORKFLOW TEMPLATES TABLE
+// =====================
+export const workflowTemplates = pgTable("workflow_templates", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  definition: jsonb("definition").notNull(),
+  category: varchar("category", { length: 100 }).default("general"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertWorkflowTemplateSchema = createInsertSchema(workflowTemplates).omit({
+  createdAt: true,
+});
+
+export type WorkflowTemplateRecord = typeof workflowTemplates.$inferSelect;
+export type InsertWorkflowTemplate = z.infer<typeof insertWorkflowTemplateSchema>;
+
+// =====================
+// WORKFLOW POLICIES TABLE
+// =====================
+export const workflowPolicies = pgTable("workflow_policies", {
+  workflowId: varchar("workflow_id", { length: 255 }).primaryKey().references(() => workflows.id, { onDelete: "cascade" }),
+  policy: jsonb("policy").notNull().default({}),
+  updatedBy: varchar("updated_by", { length: 255 }).references(() => users.id),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertWorkflowPolicySchema = createInsertSchema(workflowPolicies).omit({
+  updatedAt: true,
+});
+
+export type WorkflowPolicyRecord = typeof workflowPolicies.$inferSelect;
+export type InsertWorkflowPolicy = z.infer<typeof insertWorkflowPolicySchema>;
+
+// =====================
+// WORKFLOW RUN CHECKPOINTS TABLE
+// =====================
+export const workflowRunCheckpoints = pgTable("workflow_run_checkpoints", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  runId: varchar("run_id", { length: 255 }).notNull(),
+  workflowId: varchar("workflow_id", { length: 255 }).notNull().references(() => workflows.id, { onDelete: "cascade" }),
+  workflowVersion: integer("workflow_version").notNull(),
+  currentNodeId: varchar("current_node_id", { length: 255 }).notNull(),
+  completedNodes: jsonb("completed_nodes").notNull().default([]),
+  nodeOutputs: jsonb("node_outputs").notNull().default({}),
+  status: varchar("status", { length: 50 }).notNull().default("running"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertWorkflowRunCheckpointSchema = createInsertSchema(workflowRunCheckpoints).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type WorkflowRunCheckpointRecord = typeof workflowRunCheckpoints.$inferSelect;
+export type InsertWorkflowRunCheckpoint = z.infer<typeof insertWorkflowRunCheckpointSchema>;
