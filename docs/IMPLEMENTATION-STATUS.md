@@ -87,6 +87,27 @@ The RALPH (Research Automation and Literature Processing Helper) Manuscript Writ
 - 50+ medical phrase templates
 - Complete integration test suite
 
+### ✅ PHASE H: Ecosystem & Extensibility (11 services - DEPLOYED 2026-01-20)
+
+**API & Documentation (Tasks 136, 140):**
+23. **OpenApiService** - Dynamic OpenAPI 3.0 spec generation
+24. **CommunityService** - Community links and contribution guides
+
+**Extensibility (Tasks 137, 141):**
+25. **PluginMarketplaceService** - Third-party plugin management
+26. **AiProviderService** - Custom AI model hooks (multi-provider)
+
+**Ecosystem Integrations (Tasks 139, 143, 144):**
+27. **OverleafService** - LaTeX export for Overleaf
+28. **GitSyncService** - Git repository synchronization
+29. **DataImportService** - Multi-source data import with PHI detection
+
+**Developer Tools (Tasks 138, 145, 149, 150):**
+30. **ApiKeyRotationService** - API key lifecycle management
+31. **TutorialSandboxService** - Interactive code execution
+32. **ScientificNotationService** - Notation localization
+33. **FutureProofingService** - Upgrade checklists and deprecation management
+
 ### 📋 DESIGNED & READY (38+ services in agent outputs)
 
 **Phase 2: Literature Integration (15+ services)**

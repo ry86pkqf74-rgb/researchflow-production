@@ -26,6 +26,14 @@ import customFieldsRoutes from './routes/custom-fields';
 import searchRoutes from './routes/search';
 import semanticSearchRoutes from './routes/semanticSearch';
 import tutorialsRoutes from './routes/tutorials';
+// Phase H Routes (Tasks 136-150)
+import helpRoutes from './routes/help';
+import pluginsRoutes from './routes/plugins';
+import aiProvidersRoutes from './routes/aiProviders';
+import ecosystemIntegrationsRoutes from './routes/ecosystemIntegrations';
+import apiKeysRoutes from './routes/apiKeys';
+import tutorialSandboxRoutes from './routes/tutorialSandbox';
+import futureProofingRoutes from './routes/futureProofing';
 import { mockAuthMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { CollaborationWebSocketServer } from './collaboration/websocket-server';
@@ -96,6 +104,15 @@ app.use('/api/embeddings', semanticSearchRoutes);  // Embedding generation endpo
 // Note: These routes have their own body parsing for signature verification
 app.use('/api/webhooks', webhooksRoutes);
 
+// Phase H Routes (Tasks 136-150)
+app.use('/api/help', helpRoutes);  // Task 136: Interactive API docs + Task 140: Community links
+app.use('/api/plugins', pluginsRoutes);  // Task 137: Plugin marketplace
+app.use('/api/ai', aiProvidersRoutes);  // Task 141: Custom AI model hooks
+app.use('/api/integrations', ecosystemIntegrationsRoutes);  // Tasks 139, 143, 144: Overleaf, Git, Import
+app.use('/api/profile/api-keys', apiKeysRoutes);  // Task 138: API key rotation
+app.use('/api/tutorials/sandbox', tutorialSandboxRoutes);  // Task 145: Tutorial code sandboxes
+app.use('/api/admin/upgrades', futureProofingRoutes);  // Task 150: Future-proofing checklists
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
@@ -150,6 +167,18 @@ httpServer.listen(PORT, () => {
   console.log('  ✓ Feature Flags & A/B Experiments');
   console.log('  ✓ Custom Fields (Org-level schemas)');
   console.log('  ✓ Frontend Hooks (useFeatureFlag, useExperiment)');
+  console.log('='.repeat(60));
+  console.log('Phase H Features: ECOSYSTEM');
+  console.log('  ✓ Interactive API Documentation (Swagger/OpenAPI)');
+  console.log('  ✓ Plugin Marketplace');
+  console.log('  ✓ Custom AI Model Hooks');
+  console.log('  ✓ Overleaf Integration');
+  console.log('  ✓ Git Sync Integration');
+  console.log('  ✓ Data Import Wizards');
+  console.log('  ✓ Tutorial Code Sandboxes');
+  console.log('  ✓ API Key Rotation');
+  console.log('  ✓ Scientific Notation Localization');
+  console.log('  ✓ Future-Proofing Checklists');
   console.log('='.repeat(60));
 });
 
