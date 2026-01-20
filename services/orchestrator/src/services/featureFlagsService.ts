@@ -212,6 +212,45 @@ export class FeatureFlagsService {
       return null;
     }
   }
+
+  /**
+   * Get feature flags available for a subscription tier (Task 102)
+   *
+   * Returns a map of feature flag keys to boolean values, filtered
+   * by the organization's subscription tier.
+   *
+   * @param tier - Subscription tier (FREE, PRO, TEAM, ENTERPRISE)
+   * @returns Record<string, boolean> - Map of flag keys to enabled status
+   */
+  async getFlagsForTier(tier: string): Promise<Record<string, boolean>> {
+    try {
+      const allFlags = await db.select()
+        .from(featureFlags)
+        .where(eq(featureFlags.enabled, true));
+
+      const tierHierarchy = ['FREE', 'PRO', 'TEAM', 'ENTERPRISE'];
+      const tierIndex = tierHierarchy.indexOf(tier);
+
+      const result: Record<string, boolean> = {};
+
+      for (const flag of allFlags) {
+        // If no tier required, feature is available to all
+        if (!flag.tierRequired) {
+          result[flag.flagKey] = true;
+          continue;
+        }
+
+        // Check tier hierarchy
+        const requiredIndex = tierHierarchy.indexOf(flag.tierRequired);
+        result[flag.flagKey] = tierIndex >= requiredIndex;
+      }
+
+      return result;
+    } catch (error) {
+      console.error(`[FeatureFlags] Error fetching flags for tier ${tier}:`, error);
+      return {};
+    }
+  }
 }
 
 export const featureFlagsService = new FeatureFlagsService();

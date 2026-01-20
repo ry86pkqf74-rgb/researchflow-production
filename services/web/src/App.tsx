@@ -12,6 +12,8 @@ import { ModeBanner } from "@/components/mode/ModeBanner";
 import { DemoWatermark } from "@/components/governance/DemoWatermark";
 import { AuthGate } from "@/components/mode/AuthGate";
 import { useModeStore } from "@/stores/mode-store";
+import { useOrgStore } from "@/stores/org-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
@@ -31,6 +33,8 @@ import Onboarding from "@/pages/onboarding";
 import Settings from "@/pages/settings";
 import XRPage from "@/pages/xr";
 import ImportBundlePage from "@/pages/import-bundle";
+import { OrgSelector } from "@/components/org";
+import { AdaptiveNavigation } from "@/components/nav";
 
 function ModeInitializer() {
   const setMode = useModeStore((state) => state.setMode);
@@ -74,6 +78,29 @@ function ModeInitializer() {
 }
 
 /**
+ * Organization Context Initializer (Task 102)
+ *
+ * Fetches organization context when user is authenticated.
+ * Runs after mode is initialized.
+ */
+function OrgInitializer() {
+  const { isLive, isLoading: modeLoading } = useModeStore();
+  const { isAuthenticated } = useAuthStore();
+  const { fetchContext } = useOrgStore();
+
+  useEffect(() => {
+    // Only fetch org context in LIVE mode when user is authenticated
+    if (!modeLoading && isLive && isAuthenticated) {
+      fetchContext().catch((error) => {
+        console.error('[OrgInitializer] Failed to fetch org context:', error);
+      });
+    }
+  }, [modeLoading, isLive, isAuthenticated, fetchContext]);
+
+  return null;
+}
+
+/**
  * Loading screen shown while mode is resolving
  */
 function ModeLoader() {
@@ -88,27 +115,69 @@ function ModeLoader() {
 }
 
 /**
+ * Main Layout with Adaptive Navigation (Task 102)
+ *
+ * Provides sidebar with org selector and role-adaptive navigation
+ * for authenticated pages in LIVE mode.
+ */
+function MainLayout({ children }: { children: React.ReactNode }) {
+  const { isLive } = useModeStore();
+  const { isAuthenticated } = useAuthStore();
+
+  // Only show sidebar in LIVE mode when authenticated
+  if (!isLive || !isAuthenticated) {
+    return <>{children}</>;
+  }
+
+  return (
+    <div className="flex h-screen">
+      {/* Sidebar with org selector and adaptive navigation */}
+      <aside className="w-64 border-r bg-muted/10 flex flex-col">
+        <div className="p-4 border-b">
+          <OrgSelector />
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          <AdaptiveNavigation />
+        </div>
+      </aside>
+
+      {/* Main content area */}
+      <main className="flex-1 overflow-auto">
+        {children}
+      </main>
+    </div>
+  );
+}
+
+/**
  * Protected route wrapper for LIVE mode
  * Waits for mode resolution before rendering.
  * In LIVE mode, requires authentication. In DEMO mode, accessible to all.
  */
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isLive, isLoading } = useModeStore();
-  
+
   // Wait for mode to resolve before rendering protected content
   if (isLoading) {
     return <ModeLoader />;
   }
-  
+
   if (isLive) {
     return (
       <AuthGate requireAuth>
-        <Component />
+        <MainLayout>
+          <Component />
+        </MainLayout>
       </AuthGate>
     );
   }
-  
-  return <Component />;
+
+  return (
+    <MainLayout>
+      <Component />
+    </MainLayout>
+  );
 }
 
 /**
@@ -127,12 +196,14 @@ function HomeRoute() {
   if (isLive) {
     return (
       <AuthGate requireAuth>
-        <WorkflowPage />
+        <MainLayout>
+          <WorkflowPage />
+        </MainLayout>
       </AuthGate>
     );
   }
 
-  // In DEMO mode, show the marketing landing page
+  // In DEMO mode, show the marketing landing page (no sidebar)
   return <Home />;
 }
 
@@ -207,6 +278,7 @@ function App() {
     <ThemeProvider defaultTheme="light" storageKey="ros-theme">
       <QueryClientProvider client={queryClient}>
         <ModeInitializer />
+        <OrgInitializer />
         <AIApprovalGateProvider initialMode="REQUIRE_EACH">
           <PhiGateProvider>
             <TooltipProvider>

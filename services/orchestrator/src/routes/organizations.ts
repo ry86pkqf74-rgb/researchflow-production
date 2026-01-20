@@ -537,4 +537,44 @@ router.delete(
   })
 );
 
+/**
+ * Get organization context for frontend (Task 102)
+ * Returns org details + membership + capabilities + feature flags
+ */
+router.get(
+  "/context",
+  isAuthenticated,
+  resolveOrgContext(),
+  requireOrgMember(),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { org, membership, capabilities } = req.org!;
+
+    if (!db) {
+      return res.status(503).json({ error: "Database not available" });
+    }
+
+    // Import featureFlagsService
+    const { featureFlagsService } = await import('../services/featureFlagsService');
+
+    // Get feature flags available for this tier
+    const availableFlags = await featureFlagsService.getFlagsForTier(org.subscriptionTier);
+
+    res.json({
+      org: {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        tier: org.subscriptionTier,
+        settings: org.settings,
+      },
+      membership: {
+        role: membership.orgRole,
+        joinedAt: membership.joinedAt,
+        capabilities,
+      },
+      features: availableFlags,
+    });
+  })
+);
+
 export default router;
