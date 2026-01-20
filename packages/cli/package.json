@@ -30,7 +30,6 @@
     "cli-table3": "^0.6.3"
   },
   "devDependencies": {
-    "@types/cli-table3": "^0.6.5",
     "@types/inquirer": "^9.0.7",
     "@types/node": "^20.10.0",
     "tsx": "^4.6.2",

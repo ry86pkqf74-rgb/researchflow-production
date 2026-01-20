@@ -1,5 +1,4 @@
-@import "../../../packages/design-system/variables.css";
-
+/* Design System Variables - inlined */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

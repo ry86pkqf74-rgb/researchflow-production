@@ -15,7 +15,9 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@packages/core': path.resolve(__dirname, packagesPath, 'core'),
-      '@packages/design-system': path.resolve(__dirname, packagesPath, 'design-system')
+      '@packages/design-system': path.resolve(__dirname, packagesPath, 'design-system'),
+      // Ensure date-fns is resolved from web's node_modules for react-day-picker
+      'date-fns': path.resolve(__dirname, 'node_modules/date-fns')
     }
   },
   server: {
