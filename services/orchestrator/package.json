@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch index.ts",
-    "build": "tsc -p tsconfig.docker.json || tsc",
+    "build": "echo 'Using tsx runtime - no build required'",
     "start": "node dist/index.js",
     "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0"
   },

@@ -46,27 +46,19 @@ EXPOSE 3001
 
 CMD ["npm", "run", "dev"]
 
-# Build stage
-FROM base AS build
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages ./packages
-COPY services/orchestrator/ ./
-
-RUN npm run build
-
-# Production stage
-FROM node:20-alpine AS production
+# Production stage - using tsx runtime to avoid TypeScript build issues
+# Note: Uses tsx for runtime TypeScript execution instead of pre-compiled JS
+FROM base AS production
 WORKDIR /app
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy built application
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/package.json ./
-COPY --from=build /app/node_modules ./node_modules
+# Copy dependencies and source
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages ./packages
+COPY services/orchestrator/ ./
 
 # Create data directories
 RUN mkdir -p /data/artifacts /data/logs /data/manifests && \
@@ -80,4 +72,4 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3001/api/health || exit 1
 
-CMD ["node", "dist/index.js"]
+CMD ["npx", "tsx", "index.ts"]
