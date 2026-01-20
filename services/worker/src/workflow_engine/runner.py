@@ -3,40 +3,28 @@ Workflow Runner
 
 This module provides the run_stages function that orchestrates execution
 of registered stages with proper error handling and PHI-safe sanitization.
+
+Uses the canonical PHI patterns from the generated module to ensure
+consistency across the entire codebase.
 """
 
 import logging
-import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from .types import StageContext, StageResult
 from .registry import get_stage
 
+# Import generated PHI patterns from canonical source
+from src.validation.phi_patterns_generated import (
+    PHI_PATTERNS_OUTPUT_GUARD,
+)
+
 logger = logging.getLogger("workflow_engine.runner")
 
-# Patterns that may indicate PHI in error messages
-PHI_PATTERNS = [
-    # Social Security Numbers
-    r'\b\d{3}-\d{2}-\d{4}\b',
-    # Medical Record Numbers (common formats)
-    r'\bMRN[:\s#]*\d+\b',
-    r'\b[A-Z]{2,3}\d{6,10}\b',
-    # Phone numbers
-    r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b',
-    # Email addresses
-    r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
-    # Dates of birth patterns
-    r'\b(DOB|dob|Date of Birth)[:\s]*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b',
-    # Patient names with common prefixes
-    r'\b(Patient|Name|Pt)[:\s]+[A-Z][a-z]+\s+[A-Z][a-z]+\b',
-    # File paths with patient identifiers
-    r'/patients?/\w+',
-    r'/records?/\w+',
-]
-
-# Compiled patterns for efficiency
-_compiled_patterns = [re.compile(p, re.IGNORECASE) for p in PHI_PATTERNS]
+# Use generated patterns for PHI sanitization in error messages
+# OUTPUT_GUARD tier provides comprehensive coverage for logs/errors
+_compiled_patterns = [pattern for _, pattern in PHI_PATTERNS_OUTPUT_GUARD]
 
 
 def sanitize_phi(text: str) -> str:

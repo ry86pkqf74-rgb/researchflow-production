@@ -19,8 +19,8 @@ from pydantic import BaseModel, Field
 from dataclasses import dataclass, field
 import re
 
-# Import PHI patterns for scanning
-from validation.phi_patterns import PHI_PATTERNS_OUTPUT_GUARD
+# Import PHI patterns for scanning (from canonical generated source)
+from src.validation.phi_patterns import PHI_PATTERNS_OUTPUT_GUARD
 
 logger = logging.getLogger(__name__)
 

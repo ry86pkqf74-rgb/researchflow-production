@@ -15,8 +15,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-# Import centralized PHI patterns for sanitization
-from validation.phi_patterns import PHI_PATTERNS_HIGH_CONFIDENCE
+# Import centralized PHI patterns for sanitization (from canonical source)
+from src.validation.phi_patterns import PHI_PATTERNS_HIGH_CONFIDENCE
 
 
 # ============ Additional PII/PHI Patterns for Guidelines ============

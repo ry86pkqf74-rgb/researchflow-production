@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import List, Tuple
 import re
 
-from validation.phi_patterns import PHI_PATTERNS_HIGH_CONFIDENCE
+from src.validation.phi_patterns import PHI_PATTERNS_HIGH_CONFIDENCE
 
 
 def contains_phi(
