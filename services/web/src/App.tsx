@@ -21,6 +21,14 @@ import GovernanceConsole from "@/pages/governance-console";
 import PipelineDashboard from "@/pages/pipeline-dashboard";
 import SAPBuilder from "@/pages/SAPBuilder";
 import QualityDashboard from "@/pages/quality-dashboard";
+import OrgSettings from "@/pages/org-settings";
+import ReviewSessions from "@/pages/review-sessions";
+import Billing from "@/pages/billing";
+import SearchPage from "@/pages/search";
+import Community from "@/pages/community";
+import Onboarding from "@/pages/onboarding";
+import Settings from "@/pages/settings";
+import XRPage from "@/pages/xr";
 
 function ModeInitializer() {
   const setMode = useModeStore((state) => state.setMode);
@@ -123,6 +131,30 @@ function Router() {
       </Route>
       <Route path="/quality">
         {() => <ProtectedRoute component={QualityDashboard} />}
+      </Route>
+      <Route path="/org/:orgId/settings">
+        {() => <ProtectedRoute component={OrgSettings} />}
+      </Route>
+      <Route path="/review-sessions">
+        {() => <ProtectedRoute component={ReviewSessions} />}
+      </Route>
+      <Route path="/org/:orgId/billing">
+        {() => <ProtectedRoute component={Billing} />}
+      </Route>
+      <Route path="/search">
+        {() => <ProtectedRoute component={SearchPage} />}
+      </Route>
+      <Route path="/community">
+        {() => <ProtectedRoute component={Community} />}
+      </Route>
+      <Route path="/onboarding">
+        {() => <ProtectedRoute component={Onboarding} />}
+      </Route>
+      <Route path="/settings">
+        {() => <ProtectedRoute component={Settings} />}
+      </Route>
+      <Route path="/xr">
+        {() => <ProtectedRoute component={XRPage} />}
       </Route>
 
       <Route component={NotFound} />

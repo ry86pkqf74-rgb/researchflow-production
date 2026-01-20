@@ -49,3 +49,6 @@ export * from './literature';
 
 // Export quality types for Phase C data quality dashboard
 export * from './quality';
+
+// Export organization types for Phase E multi-tenancy
+export * from './organization';

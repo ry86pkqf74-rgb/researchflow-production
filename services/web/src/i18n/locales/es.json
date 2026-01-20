@@ -1,0 +1,149 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "submit": "Enviar",
+    "close": "Cerrar",
+    "yes": "Sí",
+    "no": "No",
+    "ok": "OK",
+    "error": "Error",
+    "success": "Éxito",
+    "warning": "Advertencia",
+    "info": "Información"
+  },
+  "nav": {
+    "home": "Inicio",
+    "pipeline": "Pipeline",
+    "quality": "Calidad",
+    "governance": "Gobernanza",
+    "search": "Buscar",
+    "community": "Comunidad",
+    "settings": "Configuración"
+  },
+  "auth": {
+    "login": "Iniciar Sesión",
+    "logout": "Cerrar Sesión",
+    "signUp": "Registrarse",
+    "welcome": "Bienvenido",
+    "email": "Correo Electrónico",
+    "password": "Contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "rememberMe": "Recordarme"
+  },
+  "pipeline": {
+    "title": "Pipeline de Investigación",
+    "description": "Gestiona tus proyectos de investigación y artefactos",
+    "newProject": "Nuevo Proyecto",
+    "allProjects": "Todos los Proyectos",
+    "myProjects": "Mis Proyectos",
+    "archived": "Archivados",
+    "status": {
+      "draft": "Borrador",
+      "inProgress": "En Progreso",
+      "review": "En Revisión",
+      "published": "Publicado",
+      "archived": "Archivado"
+    }
+  },
+  "artifacts": {
+    "title": "Artefactos",
+    "upload": "Subir Artefacto",
+    "download": "Descargar",
+    "types": {
+      "dataset": "Conjunto de Datos",
+      "manuscript": "Manuscrito",
+      "analysis": "Análisis",
+      "figure": "Figura",
+      "supplementary": "Suplementario"
+    }
+  },
+  "organizations": {
+    "title": "Organizaciones",
+    "create": "Crear Organización",
+    "settings": "Configuración de Organización",
+    "members": "Miembros",
+    "invites": "Invitaciones",
+    "billing": "Facturación",
+    "roles": {
+      "owner": "Propietario",
+      "admin": "Administrador",
+      "member": "Miembro",
+      "viewer": "Visualizador"
+    }
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Bienvenido a ResearchFlow",
+      "description": "Comienza con tu flujo de trabajo de investigación"
+    },
+    "organization": {
+      "title": "Crear Organización",
+      "description": "Configura el espacio de trabajo de tu equipo"
+    },
+    "invite": {
+      "title": "Invitar Miembros del Equipo",
+      "description": "Colabora con tu equipo"
+    },
+    "project": {
+      "title": "Crear Primer Proyecto",
+      "description": "Inicia tu primer proyecto de investigación"
+    }
+  },
+  "settings": {
+    "title": "Configuración",
+    "appearance": "Apariencia",
+    "notifications": "Notificaciones",
+    "account": "Cuenta",
+    "privacy": "Privacidad",
+    "theme": {
+      "title": "Tema",
+      "light": "Claro",
+      "dark": "Oscuro",
+      "system": "Sistema"
+    },
+    "language": {
+      "title": "Idioma",
+      "description": "Selecciona tu idioma preferido"
+    }
+  },
+  "search": {
+    "title": "Buscar",
+    "placeholder": "Buscar artefactos, manuscritos o investigaciones...",
+    "noResults": "No se encontraron resultados",
+    "filters": {
+      "all": "Todos los Tipos",
+      "manuscripts": "Manuscritos",
+      "artifacts": "Artefactos"
+    }
+  },
+  "community": {
+    "title": "Comunidad",
+    "comingSoon": "Comunidad Próximamente",
+    "description": "El foro de la comunidad se está configurando. ¡Vuelve pronto!"
+  },
+  "quality": {
+    "title": "Panel de Calidad",
+    "score": "Puntuación de Calidad",
+    "metrics": "Métricas de Calidad",
+    "issues": "Problemas Encontrados",
+    "passed": "Verificaciones Aprobadas"
+  },
+  "errors": {
+    "notFound": "Página no encontrada",
+    "unauthorized": "Acceso no autorizado",
+    "forbidden": "Acceso prohibido",
+    "serverError": "Error del servidor",
+    "networkError": "Error de red",
+    "tryAgain": "Intentar de Nuevo"
+  }
+}

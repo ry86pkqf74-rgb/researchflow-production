@@ -73,6 +73,16 @@ import qualityRouter from "./src/routes/quality";
 import consentRouter from "./src/routes/consent";
 import aiFeedbackRouter from "./src/routes/ai-feedback";
 import mfaRouter from "./src/routes/mfa";
+// Phase E: Multi-tenancy & Integrations routes
+import organizationsRouter from "./src/routes/organizations";
+import invitesRouter from "./src/routes/invites";
+import zoomWebhookRouter from "./src/routes/webhooks/zoom";
+import billingRouter from "./src/routes/billing";
+import stripeWebhookRouter from "./src/routes/webhooks/stripe";
+import searchRouter from "./src/routes/search";
+import integrationsRouter from "./src/routes/integrations";
+import badgesRouter from "./src/routes/badges";
+import sustainabilityRouter from "./src/routes/sustainability";
 import { scan as scanPhi } from "@researchflow/phi-engine";
 
 // ROS Backend API URL (Python FastAPI server)
@@ -881,6 +891,26 @@ export async function registerRoutes(
 
   // Mount MFA routes (Task 79: Multi-factor authentication)
   app.use("/api/mfa", mfaRouter);
+
+  // Phase E: Multi-tenancy & Integrations routes
+  // Mount Organizations routes (Task 81: Multi-tenancy)
+  app.use("/api/org", organizationsRouter);
+  // Mount Invites routes (Task 83: Organization invites)
+  app.use("/api", invitesRouter);
+  // Mount Zoom webhook routes (Task 87: Review sessions)
+  app.use("/api/webhooks/zoom", zoomWebhookRouter);
+  // Mount Billing routes (Task 84: Subscription billing)
+  app.use("/api/billing", billingRouter);
+  // Mount Stripe webhook routes (Task 84: Stripe integration)
+  app.use("/api/webhooks/stripe", stripeWebhookRouter);
+  // Mount Search routes (Task 98: Full-text search)
+  app.use("/api/search", searchRouter);
+  // Mount Integrations routes (Tasks 85-86, 92: External integrations)
+  app.use("/api/integrations", integrationsRouter);
+  // Mount Badges routes (Task 93: Gamification)
+  app.use("/api/badges", badgesRouter);
+  // Mount Sustainability routes (Task 95: CO2 tracking)
+  app.use("/api/sustainability", sustainabilityRouter);
 
   // Mode information endpoint - publicly accessible
   app.get("/api/mode", (_req, res) => {

@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+
+// ResearchFlow CLI entry point
+import '../dist/index.js';

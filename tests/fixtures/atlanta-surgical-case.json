@@ -1,0 +1,175 @@
+{
+  "organization": {
+    "name": "Atlanta Medical Research Institute",
+    "slug": "amri",
+    "description": "Leading medical research institution focused on surgical innovation and outcomes research",
+    "settings": {
+      "defaultRole": "MEMBER",
+      "requireMfa": false,
+      "allowPublicProjects": false
+    },
+    "subscriptionTier": "TEAM"
+  },
+  "users": [
+    {
+      "id": "user_lead",
+      "email": "dr.chen@amri.edu",
+      "displayName": "Dr. Sarah Chen",
+      "projectRole": "STEWARD",
+      "orgRole": "OWNER",
+      "department": "Department of Surgery"
+    },
+    {
+      "id": "user_researcher",
+      "email": "j.martinez@amri.edu",
+      "displayName": "James Martinez",
+      "projectRole": "RESEARCHER",
+      "orgRole": "MEMBER",
+      "department": "Clinical Research"
+    },
+    {
+      "id": "user_analyst",
+      "email": "k.patel@amri.edu",
+      "displayName": "Kavita Patel",
+      "projectRole": "ANALYST",
+      "orgRole": "MEMBER",
+      "department": "Biostatistics"
+    }
+  ],
+  "project": {
+    "title": "Robotic-Assisted Thyroidectomy Outcomes Study",
+    "description": "A retrospective analysis of surgical outcomes comparing robotic-assisted and conventional thyroidectomy procedures at AMRI from 2020-2024",
+    "status": "ACTIVE",
+    "researchType": "retrospective",
+    "hypothesis": "Robotic-assisted thyroidectomy results in reduced complication rates and shorter hospital stays compared to conventional approaches",
+    "primaryEndpoint": "30-day complication rate",
+    "secondaryEndpoints": [
+      "Hospital length of stay",
+      "Operative time",
+      "Blood loss",
+      "Patient satisfaction scores"
+    ],
+    "enrollmentTarget": 500,
+    "expectedCompletionDate": "2024-12-31",
+    "irbNumber": "AMRI-2024-0127"
+  },
+  "artifacts": [
+    {
+      "id": "artifact_dataset",
+      "filename": "thyroidectomy_outcomes_2020_2024.csv",
+      "artifactType": "dataset",
+      "mimeType": "text/csv",
+      "size": 245760,
+      "description": "De-identified patient outcomes dataset with 487 cases",
+      "metadata": {
+        "rowCount": 487,
+        "columns": ["patient_id", "procedure_type", "operative_time", "blood_loss", "complications", "los_days", "satisfaction_score"],
+        "dateRange": "2020-01-15 to 2024-06-30"
+      }
+    },
+    {
+      "id": "artifact_analysis",
+      "filename": "statistical_analysis_v2.R",
+      "artifactType": "code",
+      "mimeType": "text/plain",
+      "size": 15360,
+      "description": "R script for primary and secondary outcome analysis",
+      "metadata": {
+        "language": "R",
+        "version": "4.3.1",
+        "packages": ["tidyverse", "survival", "MatchIt", "tableone"]
+      }
+    },
+    {
+      "id": "artifact_figures",
+      "filename": "figure_kaplan_meier.png",
+      "artifactType": "figure",
+      "mimeType": "image/png",
+      "size": 524288,
+      "description": "Kaplan-Meier curves for complication-free survival",
+      "metadata": {
+        "figureNumber": 2,
+        "resolution": "300 DPI"
+      }
+    },
+    {
+      "id": "artifact_supplementary",
+      "filename": "supplementary_tables.xlsx",
+      "artifactType": "supplementary",
+      "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "size": 81920,
+      "description": "Supplementary tables including sensitivity analyses",
+      "metadata": {
+        "tableCount": 5
+      }
+    }
+  ],
+  "manuscript": {
+    "id": "manuscript_draft",
+    "title": "Comparative Outcomes of Robotic-Assisted versus Conventional Thyroidectomy: A Single-Center Retrospective Study",
+    "status": "DRAFT",
+    "sections": {
+      "introduction": {
+        "status": "complete",
+        "wordCount": 450
+      },
+      "methods": {
+        "status": "complete",
+        "wordCount": 820
+      },
+      "results": {
+        "status": "in_progress",
+        "wordCount": 340
+      },
+      "discussion": {
+        "status": "pending",
+        "wordCount": 0
+      },
+      "conclusion": {
+        "status": "pending",
+        "wordCount": 0
+      }
+    },
+    "targetJournal": "Journal of Surgical Research",
+    "keywords": ["thyroidectomy", "robotic surgery", "surgical outcomes", "minimally invasive surgery"]
+  },
+  "reviewSessions": [
+    {
+      "topic": "Weekly Progress Review",
+      "startTime": "2024-07-15T14:00:00Z",
+      "duration": 60,
+      "participants": ["dr.chen@amri.edu", "j.martinez@amri.edu"],
+      "status": "COMPLETED",
+      "notes": "Discussed preliminary analysis results. Action items: complete sensitivity analysis."
+    },
+    {
+      "topic": "Statistical Analysis Review",
+      "startTime": "2024-07-22T15:00:00Z",
+      "duration": 45,
+      "participants": ["dr.chen@amri.edu", "k.patel@amri.edu"],
+      "status": "SCHEDULED"
+    }
+  ],
+  "qualityMetrics": {
+    "overallScore": 78,
+    "dimensions": {
+      "methodology": 85,
+      "dataQuality": 92,
+      "reproducibility": 75,
+      "transparency": 68,
+      "statisticalRigor": 82
+    },
+    "issues": [
+      {
+        "severity": "warning",
+        "category": "transparency",
+        "message": "Consider pre-registering analysis plan"
+      },
+      {
+        "severity": "info",
+        "category": "reproducibility",
+        "message": "Add computational environment details to methods section"
+      }
+    ]
+  }
+}

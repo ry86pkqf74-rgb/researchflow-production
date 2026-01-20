@@ -1,0 +1,149 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info"
+  },
+  "nav": {
+    "home": "Home",
+    "pipeline": "Pipeline",
+    "quality": "Quality",
+    "governance": "Governance",
+    "search": "Search",
+    "community": "Community",
+    "settings": "Settings"
+  },
+  "auth": {
+    "login": "Log In",
+    "logout": "Log Out",
+    "signUp": "Sign Up",
+    "welcome": "Welcome",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot Password?",
+    "rememberMe": "Remember Me"
+  },
+  "pipeline": {
+    "title": "Research Pipeline",
+    "description": "Manage your research projects and artifacts",
+    "newProject": "New Project",
+    "allProjects": "All Projects",
+    "myProjects": "My Projects",
+    "archived": "Archived",
+    "status": {
+      "draft": "Draft",
+      "inProgress": "In Progress",
+      "review": "Under Review",
+      "published": "Published",
+      "archived": "Archived"
+    }
+  },
+  "artifacts": {
+    "title": "Artifacts",
+    "upload": "Upload Artifact",
+    "download": "Download",
+    "types": {
+      "dataset": "Dataset",
+      "manuscript": "Manuscript",
+      "analysis": "Analysis",
+      "figure": "Figure",
+      "supplementary": "Supplementary"
+    }
+  },
+  "organizations": {
+    "title": "Organizations",
+    "create": "Create Organization",
+    "settings": "Organization Settings",
+    "members": "Members",
+    "invites": "Invitations",
+    "billing": "Billing",
+    "roles": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "member": "Member",
+      "viewer": "Viewer"
+    }
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Welcome to ResearchFlow",
+      "description": "Get started with your research workflow"
+    },
+    "organization": {
+      "title": "Create Organization",
+      "description": "Set up your team's workspace"
+    },
+    "invite": {
+      "title": "Invite Team Members",
+      "description": "Collaborate with your team"
+    },
+    "project": {
+      "title": "Create First Project",
+      "description": "Start your first research project"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": "Appearance",
+    "notifications": "Notifications",
+    "account": "Account",
+    "privacy": "Privacy",
+    "theme": {
+      "title": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "language": {
+      "title": "Language",
+      "description": "Select your preferred language"
+    }
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search for artifacts, manuscripts, or research...",
+    "noResults": "No results found",
+    "filters": {
+      "all": "All Types",
+      "manuscripts": "Manuscripts",
+      "artifacts": "Artifacts"
+    }
+  },
+  "community": {
+    "title": "Community",
+    "comingSoon": "Community Coming Soon",
+    "description": "The community forum is currently being set up. Check back soon!"
+  },
+  "quality": {
+    "title": "Quality Dashboard",
+    "score": "Quality Score",
+    "metrics": "Quality Metrics",
+    "issues": "Issues Found",
+    "passed": "Checks Passed"
+  },
+  "errors": {
+    "notFound": "Page not found",
+    "unauthorized": "Unauthorized access",
+    "forbidden": "Access forbidden",
+    "serverError": "Server error",
+    "networkError": "Network error",
+    "tryAgain": "Try Again"
+  }
+}

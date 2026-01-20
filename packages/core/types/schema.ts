@@ -227,6 +227,7 @@ export const researchProjects = pgTable("research_projects", {
   title: text("title").notNull(),
   description: text("description"),
   ownerId: varchar("owner_id").notNull().references(() => users.id),
+  orgId: varchar("org_id"), // Phase E: Multi-tenancy FK to organizations
   dataClassification: text("data_classification").notNull().default("UNKNOWN"),
   status: text("status").notNull().default("ACTIVE"),
   irbApprovalNumber: varchar("irb_approval_number"),
@@ -1044,3 +1045,248 @@ export const insertSecurityAnomalySchema = createInsertSchema(securityAnomalies)
 
 export type SecurityAnomalyRecord = typeof securityAnomalies.$inferSelect;
 export type InsertSecurityAnomaly = z.infer<typeof insertSecurityAnomalySchema>;
+
+// =====================
+// PHASE E: MULTI-TENANCY TABLES (Tasks 81-100)
+// =====================
+
+// Note: ORG_ROLES and SUBSCRIPTION_TIERS are defined in organization.ts
+// Types re-declared here for schema use only (not exported to avoid conflicts)
+const ORG_ROLES_INTERNAL = ["OWNER", "ADMIN", "MEMBER", "VIEWER"] as const;
+const SUBSCRIPTION_TIERS_INTERNAL = ["FREE", "PRO", "TEAM", "ENTERPRISE"] as const;
+
+// Invite Statuses
+export const INVITE_STATUSES = ["PENDING", "ACCEPTED", "EXPIRED", "REVOKED"] as const;
+export type InviteStatus = (typeof INVITE_STATUSES)[number];
+
+// Integration Types
+export const INTEGRATION_TYPES = ["slack", "notion", "github", "salesforce", "zoom"] as const;
+export type IntegrationType = (typeof INTEGRATION_TYPES)[number];
+
+// Organizations Table (Task 81)
+export const organizations = pgTable("organizations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  logoUrl: text("logo_url"),
+  settings: jsonb("settings").default({}),
+  billingEmail: varchar("billing_email", { length: 255 }),
+  subscriptionTier: varchar("subscription_tier", { length: 50 }).notNull().default("FREE"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type OrganizationRecord = typeof organizations.$inferSelect;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+
+// Org Memberships Table (Task 81)
+export const orgMemberships = pgTable("org_memberships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  orgRole: varchar("org_role", { length: 50 }).notNull().default("MEMBER"),
+  joinedAt: timestamp("joined_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  invitedBy: varchar("invited_by").references(() => users.id),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const insertOrgMembershipSchema = createInsertSchema(orgMemberships).omit({
+  id: true,
+  joinedAt: true,
+});
+
+export type OrgMembershipRecord = typeof orgMemberships.$inferSelect;
+export type InsertOrgMembership = z.infer<typeof insertOrgMembershipSchema>;
+
+// Org Invites Table (Task 83)
+export const orgInvites = pgTable("org_invites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  email: varchar("email", { length: 255 }).notNull(),
+  orgRole: varchar("org_role", { length: 50 }).notNull().default("MEMBER"),
+  tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+  invitedBy: varchar("invited_by").notNull().references(() => users.id),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  status: varchar("status", { length: 20 }).notNull().default("PENDING"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertOrgInviteSchema = createInsertSchema(orgInvites).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type OrgInviteRecord = typeof orgInvites.$inferSelect;
+export type InsertOrgInvite = z.infer<typeof insertOrgInviteSchema>;
+
+// Org Subscriptions Table (Task 84)
+export const orgSubscriptions = pgTable("org_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  stripeCustomerId: varchar("stripe_customer_id", { length: 100 }),
+  stripeSubscriptionId: varchar("stripe_subscription_id", { length: 100 }),
+  tier: varchar("tier", { length: 50 }).notNull().default("FREE"),
+  status: varchar("status", { length: 50 }).notNull().default("active"),
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertOrgSubscriptionSchema = createInsertSchema(orgSubscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type OrgSubscriptionRecord = typeof orgSubscriptions.$inferSelect;
+export type InsertOrgSubscription = z.infer<typeof insertOrgSubscriptionSchema>;
+
+// Org Integrations Table (Task 85-86, 99)
+export const orgIntegrations = pgTable("org_integrations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  integrationType: varchar("integration_type", { length: 50 }).notNull(),
+  config: jsonb("config").notNull().default({}),
+  isActive: boolean("is_active").notNull().default(true),
+  lastSyncedAt: timestamp("last_synced_at"),
+  syncStatus: varchar("sync_status", { length: 50 }),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertOrgIntegrationSchema = createInsertSchema(orgIntegrations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type OrgIntegrationRecord = typeof orgIntegrations.$inferSelect;
+export type InsertOrgIntegration = z.infer<typeof insertOrgIntegrationSchema>;
+
+// Review Sessions Table (Task 87 - Zoom)
+export const REVIEW_SESSION_STATUSES = ["scheduled", "in_progress", "completed", "cancelled"] as const;
+export type ReviewSessionStatus = (typeof REVIEW_SESSION_STATUSES)[number];
+
+export const reviewSessions = pgTable("review_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  researchId: varchar("research_id"),
+  zoomMeetingId: varchar("zoom_meeting_id", { length: 100 }),
+  topic: varchar("topic", { length: 500 }),
+  startTime: timestamp("start_time"),
+  endTime: timestamp("end_time"),
+  durationMinutes: integer("duration_minutes"),
+  participants: jsonb("participants"),
+  recordingUrl: text("recording_url"),
+  transcriptUrl: text("transcript_url"),
+  status: varchar("status", { length: 50 }).notNull().default("scheduled"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertReviewSessionSchema = createInsertSchema(reviewSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type ReviewSessionRecord = typeof reviewSessions.$inferSelect;
+export type InsertReviewSession = z.infer<typeof insertReviewSessionSchema>;
+
+// Badges Table (Task 92 - Gamification)
+export const badges = pgTable("badges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: varchar("code", { length: 100 }).notNull().unique(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  iconUrl: text("icon_url"),
+  category: varchar("category", { length: 50 }),
+  criteria: jsonb("criteria"),
+  points: integer("points").default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertBadgeSchema = createInsertSchema(badges).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type BadgeRecord = typeof badges.$inferSelect;
+export type InsertBadge = z.infer<typeof insertBadgeSchema>;
+
+// User Badges Table (Task 92)
+export const userBadges = pgTable("user_badges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  badgeId: varchar("badge_id").notNull().references(() => badges.id, { onDelete: "cascade" }),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: "set null" }),
+  awardedAt: timestamp("awarded_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  awardedBy: varchar("awarded_by").references(() => users.id),
+  metadata: jsonb("metadata"),
+});
+
+export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
+  id: true,
+  awardedAt: true,
+});
+
+export type UserBadgeRecord = typeof userBadges.$inferSelect;
+export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
+
+// User Onboarding Table (Task 97)
+export const userOnboarding = pgTable("user_onboarding", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: "set null" }),
+  stepsCompleted: jsonb("steps_completed").default([]),
+  currentStep: integer("current_step").default(0),
+  completedAt: timestamp("completed_at"),
+  skipped: boolean("skipped").default(false),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertUserOnboardingSchema = createInsertSchema(userOnboarding).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UserOnboardingRecord = typeof userOnboarding.$inferSelect;
+export type InsertUserOnboarding = z.infer<typeof insertUserOnboardingSchema>;
+
+// Notion Mappings Table (Task 86)
+export const notionMappings = pgTable("notion_mappings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  artifactId: varchar("artifact_id").references(() => artifacts.id, { onDelete: "set null" }),
+  notionPageId: varchar("notion_page_id", { length: 100 }),
+  notionDatabaseId: varchar("notion_database_id", { length: 100 }),
+  syncDirection: varchar("sync_direction", { length: 20 }).default("push"),
+  lastSyncedAt: timestamp("last_synced_at"),
+  syncStatus: varchar("sync_status", { length: 50 }),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertNotionMappingSchema = createInsertSchema(notionMappings).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type NotionMappingRecord = typeof notionMappings.$inferSelect;
+export type InsertNotionMapping = z.infer<typeof insertNotionMappingSchema>;
