@@ -3,39 +3,41 @@ PHI guard for IRB drafts.
 
 This is intentionally conservative and uses simple pattern matching.
 It is designed to prevent obvious PHI/PII from being stored or exported.
+
+Now consolidated onto central patterns from validation.phi_patterns.
 """
 
 from __future__ import annotations
 
+from typing import List, Tuple
 import re
-from dataclasses import dataclass
-from typing import Iterable, Pattern
+
+from validation.phi_patterns import PHI_PATTERNS_HIGH_CONFIDENCE
 
 
-@dataclass(frozen=True)
-class PHIPattern:
-    name: str
-    pattern: Pattern[str]
+def contains_phi(
+    text: str,
+    patterns: List[Tuple[str, re.Pattern]] = PHI_PATTERNS_HIGH_CONFIDENCE,
+) -> bool:
+    """Check if text contains any PHI patterns.
 
-
-DEFAULT_PATTERNS: Iterable[PHIPattern] = [
-    PHIPattern("email", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")),
-    PHIPattern("phone", re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b")),
-    PHIPattern("ssn", re.compile(r"\b\d{3}-\d{2}-\d{4}\b")),
-    # Conservative DOB-like: YYYY-MM-DD
-    PHIPattern("date", re.compile(r"\b\d{4}-\d{2}-\d{2}\b")),
-]
-
-
-def contains_phi(text: str, patterns: Iterable[PHIPattern] = DEFAULT_PATTERNS) -> bool:
-    for p in patterns:
-        if p.pattern.search(text):
+    Uses high-confidence patterns by default to minimize false positives.
+    """
+    for _name, regex in patterns:
+        if regex.search(text):
             return True
     return False
 
 
-def redact_phi(text: str, patterns: Iterable[PHIPattern] = DEFAULT_PATTERNS) -> str:
+def redact_phi(
+    text: str,
+    patterns: List[Tuple[str, re.Pattern]] = PHI_PATTERNS_HIGH_CONFIDENCE,
+) -> str:
+    """Redact PHI from text using category-specific markers.
+
+    Returns text with PHI replaced by [REDACTED:<category>] markers.
+    """
     redacted = text
-    for p in patterns:
-        redacted = p.pattern.sub("[REDACTED]", redacted)
+    for name, regex in patterns:
+        redacted = regex.sub(f"[REDACTED:{name}]", redacted)
     return redacted
