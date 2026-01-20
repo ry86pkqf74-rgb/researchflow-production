@@ -1,0 +1,10 @@
+{
+  "bundleVersion": "1.0",
+  "project": {
+    "name": "E2E Sample Project"
+  },
+  "datasets": [],
+  "metadata": {
+    "createdBy": "e2e"
+  }
+}

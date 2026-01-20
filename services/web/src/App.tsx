@@ -29,6 +29,7 @@ import Community from "@/pages/community";
 import Onboarding from "@/pages/onboarding";
 import Settings from "@/pages/settings";
 import XRPage from "@/pages/xr";
+import ImportBundlePage from "@/pages/import-bundle";
 
 function ModeInitializer() {
   const setMode = useModeStore((state) => state.setMode);
@@ -155,6 +156,9 @@ function Router() {
       </Route>
       <Route path="/xr">
         {() => <ProtectedRoute component={XRPage} />}
+      </Route>
+      <Route path="/import">
+        {() => <ProtectedRoute component={ImportBundlePage} />}
       </Route>
 
       <Route component={NotFound} />
