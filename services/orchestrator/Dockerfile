@@ -60,6 +60,14 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages ./packages
 COPY services/orchestrator/ ./
 
+# Ensure @researchflow packages are accessible in node_modules
+# (file: dependencies create symlinks that don't transfer between build stages)
+RUN mkdir -p ./node_modules/@researchflow && \
+    rm -rf ./node_modules/@researchflow/core ./node_modules/@researchflow/phi-engine ./node_modules/@researchflow/ai-router && \
+    cp -r ./packages/core ./node_modules/@researchflow/core && \
+    cp -r ./packages/phi-engine ./node_modules/@researchflow/phi-engine && \
+    cp -r ./packages/ai-router ./node_modules/@researchflow/ai-router
+
 # Create data directories
 RUN mkdir -p /data/artifacts /data/logs /data/manifests && \
     chown -R nodejs:nodejs /data
