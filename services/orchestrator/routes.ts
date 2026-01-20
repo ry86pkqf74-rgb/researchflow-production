@@ -332,6 +332,16 @@ const workflowStageGroups = [
     isOptional: true,
     stages: [
       {
+        id: 20,
+        name: "Conference Preparation",
+        shortName: "Prep",
+        description: "Discover conferences, extract guidelines, generate submission-ready materials",
+        status: "pending",
+        icon: "Search",
+        outputs: ["Shortlisted conferences", "Guideline templates", "Submission bundle ZIP"],
+        duration: "10–30 min"
+      },
+      {
         id: 17,
         name: "Poster Preparation",
         shortName: "Poster",
@@ -670,7 +680,7 @@ function mapStageToLifecycleState(stageId: number): LifecycleState {
   if (stageId >= 9 && stageId <= 12) return 'ANALYSIS_READY';
   if (stageId === 13) return 'IN_ANALYSIS';
   if (stageId === 14) return 'ANALYSIS_COMPLETE';
-  if (stageId >= 15 && stageId <= 19) return 'FROZEN';
+  if (stageId >= 15 && stageId <= 20) return 'FROZEN';
   return 'ARCHIVED';
 }
 

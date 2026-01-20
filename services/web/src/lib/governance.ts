@@ -382,7 +382,7 @@ export function mapStageToLifecycleState(stageId: number): LifecycleState {
   if (stageId >= 9 && stageId <= 12) return 'ANALYSIS_READY';
   if (stageId === 13) return 'IN_ANALYSIS';
   if (stageId === 14) return 'ANALYSIS_COMPLETE';
-  if (stageId >= 15 && stageId <= 19) return 'FROZEN';
+  if (stageId >= 15 && stageId <= 20) return 'FROZEN';
   return 'ARCHIVED';
 }
 
@@ -598,7 +598,7 @@ export const PHI_GATE_POSITIONS: {
     id: 'gate-export',
     name: 'Pre-Export Gate',
     description: 'PHI scan required before any export',
-    beforeStages: [17, 18, 19], // Before Poster, Symposium, Presentation
+    beforeStages: [17, 18, 19, 20], // Before Poster, Symposium, Presentation, Conference Preparation
     scanScope: ['manuscript', 'figures', 'tables', 'abstracts', 'filenames'],
   },
 ];

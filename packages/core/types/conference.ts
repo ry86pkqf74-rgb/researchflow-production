@@ -90,7 +90,7 @@ export const ComplianceChecklistSchema = z.object({
   id: z.string(),
   conferenceId: z.string(),
   researchId: z.string(),
-  stageId: z.number().int().min(17).max(19),
+  stageId: z.number().int().min(17).max(20),
   items: z.array(ChecklistItemSchema),
   overallStatus: z.enum(['complete', 'incomplete', 'blocked']),
   completedItems: z.number().int().nonnegative(),
@@ -131,7 +131,7 @@ export const ConferenceMaterialSchema = z.object({
   id: z.string(),
   conferenceId: z.string(),
   researchId: z.string(),
-  stageId: z.number().int().min(17).max(19),
+  stageId: z.number().int().min(17).max(20),
   materialType: z.enum(['poster', 'slides', 'handout', 'speaker_notes', 'qr_codes']),
   title: z.string(),
   content: z.string().optional(),
@@ -149,7 +149,7 @@ export const ConferenceMaterialSchema = z.object({
 export type ConferenceMaterial = z.infer<typeof ConferenceMaterialSchema>;
 
 export interface ConferenceExportRequest {
-  stageId: 17 | 18 | 19;
+  stageId: 17 | 18 | 19 | 20;
   conferenceId: string;
   researchId: string;
   title: string;
@@ -166,6 +166,53 @@ export interface ConferenceExportResult {
   warnings: string[];
   downloadUrls: Record<string, string>;
 }
+
+// =============================================================================
+// STAGE 20: CONFERENCE DISCOVERY SCHEMAS
+// =============================================================================
+
+export const ConferenceDiscoveryRequestSchema = z.object({
+  researchId: z.string(),
+  manuscriptId: z.string().optional(),
+  keywords: z.array(z.string()).min(1),
+  researchDomain: z.string().optional(),
+  preferredPresentationType: PresentationTypeSchema.optional(),
+  deadlineAfter: z.string().datetime().optional(),
+  deadlineBefore: z.string().datetime().optional(),
+  maxResults: z.number().int().positive().default(10)
+});
+export type ConferenceDiscoveryRequest = z.infer<typeof ConferenceDiscoveryRequestSchema>;
+
+export const DiscoveredConferenceSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  acronym: z.string().optional(),
+  websiteUrl: z.string().url().optional(),
+  submissionDeadline: z.string().datetime().optional(),
+  conferenceDate: z.string().datetime().optional(),
+  location: z.string().optional(),
+  presentationTypes: z.array(PresentationTypeSchema),
+  abstractWordLimit: z.number().int().positive().optional(),
+  relevanceScore: z.number().min(0).max(100),
+  matchedKeywords: z.array(z.string()),
+  estimatedAcceptanceRate: z.number().min(0).max(1).optional(),
+  impactFactor: z.number().positive().optional(),
+  guidelinesExtracted: z.boolean().default(false)
+});
+export type DiscoveredConference = z.infer<typeof DiscoveredConferenceSchema>;
+
+export const ConferenceDiscoveryResultSchema = z.object({
+  requestId: z.string(),
+  researchId: z.string(),
+  discoveredAt: z.string().datetime(),
+  conferences: z.array(DiscoveredConferenceSchema),
+  totalFound: z.number().int().nonnegative(),
+  searchCriteria: ConferenceDiscoveryRequestSchema.omit({ researchId: true }),
+  shortlisted: z.array(z.string()).default([]),
+  bundleGenerated: z.boolean().default(false),
+  bundleUrl: z.string().url().optional()
+});
+export type ConferenceDiscoveryResult = z.infer<typeof ConferenceDiscoveryResultSchema>;
 
 export const PREDEFINED_CONFERENCES: Omit<ConferenceRequirements, 'id' | 'createdAt'>[] = [
   {
