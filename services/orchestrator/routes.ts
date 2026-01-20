@@ -90,6 +90,7 @@ import commentsRouter from "./src/routes/comments";
 import artifactVersionsRouter from "./src/routes/artifact-versions";
 import manuscriptBranchesRouter from "./src/routes/manuscript-branches";
 import claimsRouter from "./src/routes/claims";
+import sharesRouter from "./src/routes/shares";
 import { scan as scanPhi } from "@researchflow/phi-engine";
 
 // ROS Backend API URL (Python FastAPI server)
@@ -936,6 +937,7 @@ export async function registerRoutes(
   app.use("/api/ros", artifactVersionsRouter);
   app.use("/api/ros", manuscriptBranchesRouter);
   app.use("/api/ros", claimsRouter);
+  app.use("/api/ros", sharesRouter);
 
   // Mode information endpoint - publicly accessible
   app.get("/api/mode", (_req, res) => {
