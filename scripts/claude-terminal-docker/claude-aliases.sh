@@ -10,6 +10,7 @@ claude-start() {
     docker rm -f claude-researchflow 2>/dev/null
     docker run -it --rm --name claude-researchflow \
         -v ~/.claude-memory:/root/.claude \
+        -v ~/.claude:/home/agent/.claude \
         -v "$(pwd)":/workspace \
         -v ~/.gitconfig:/root/.gitconfig:ro \
         -v ~/.config/gh:/root/.config/gh:ro \
