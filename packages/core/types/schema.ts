@@ -125,6 +125,9 @@ export const artifactVersions = pgTable("artifact_versions", {
   sha256Hash: varchar("sha256_hash").notNull(),
   createdBy: varchar("created_by").notNull(),
   changeDescription: text("change_description").notNull(),
+  branch: varchar("branch", { length: 100 }).notNull().default("main"),
+  parentVersionId: varchar("parent_version_id"),
+  metadata: jsonb("metadata").notNull().default({}),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -1780,3 +1783,334 @@ export const insertWorkflowRunCheckpointSchema = createInsertSchema(workflowRunC
 
 export type WorkflowRunCheckpointRecord = typeof workflowRunCheckpoints.$inferSelect;
 export type InsertWorkflowRunCheckpoint = z.infer<typeof insertWorkflowRunCheckpointSchema>;
+
+// =====================
+// DOCUMENT LIFECYCLE TABLES (Phase H)
+// =====================
+
+// Artifact Edge Relation Types
+export const ARTIFACT_EDGE_RELATIONS = [
+  'derived_from',
+  'references', 
+  'supersedes',
+  'uses',
+  'generated_from',
+  'exported_to',
+  'annotates'
+] as const;
+export type ArtifactEdgeRelation = (typeof ARTIFACT_EDGE_RELATIONS)[number];
+
+// Artifact Edges (Provenance Graph)
+export const artifactEdges = pgTable("artifact_edges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  researchId: varchar("research_id").notNull(),
+  sourceArtifactId: varchar("source_artifact_id").notNull().references(() => artifacts.id, { onDelete: "cascade" }),
+  targetArtifactId: varchar("target_artifact_id").notNull().references(() => artifacts.id, { onDelete: "cascade" }),
+  relationType: varchar("relation_type", { length: 50 }).notNull(),
+  transformationType: varchar("transformation_type", { length: 100 }),
+  transformationConfig: jsonb("transformation_config").notNull().default({}),
+  sourceVersionId: varchar("source_version_id").references(() => artifactVersions.id, { onDelete: "set null" }),
+  targetVersionId: varchar("target_version_id").references(() => artifactVersions.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  deletedAt: timestamp("deleted_at"),
+  metadata: jsonb("metadata").notNull().default({}),
+});
+
+export const insertArtifactEdgeSchema = createInsertSchema(artifactEdges).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ArtifactEdge = typeof artifactEdges.\$inferSelect;
+export type InsertArtifactEdge = z.infer<typeof insertArtifactEdgeSchema>;
+
+// Comment Anchor Types
+export const COMMENT_ANCHOR_TYPES = [
+  'text_selection',
+  'entire_section',
+  'table_cell',
+  'figure_region',
+  'slide_region'
+] as const;
+export type CommentAnchorType = (typeof COMMENT_ANCHOR_TYPES)[number];
+
+// PHI Scan Statuses
+export const PHI_SCAN_STATUSES = ['PASS', 'FAIL', 'PENDING', 'OVERRIDE'] as const;
+export type PhiScanStatus = (typeof PHI_SCAN_STATUSES)[number];
+
+// Comments Table
+export const comments = pgTable("comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  researchId: varchar("research_id").notNull(),
+  artifactId: varchar("artifact_id").notNull().references(() => artifacts.id, { onDelete: "cascade" }),
+  versionId: varchar("version_id").references(() => artifactVersions.id, { onDelete: "set null" }),
+  parentCommentId: varchar("parent_comment_id"),
+  threadId: varchar("thread_id").notNull(),
+  anchorType: varchar("anchor_type", { length: 50 }).notNull(),
+  anchorData: jsonb("anchor_data").notNull(),
+  body: text("body").notNull(),
+  resolved: boolean("resolved").notNull().default(false),
+  resolvedBy: varchar("resolved_by").references(() => users.id),
+  resolvedAt: timestamp("resolved_at"),
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  deletedAt: timestamp("deleted_at"),
+  phiScanStatus: varchar("phi_scan_status", { length: 20 }).default('PENDING'),
+  phiFindings: jsonb("phi_findings").notNull().default([]),
+  metadata: jsonb("metadata").notNull().default({}),
+});
+
+export const insertCommentSchema = createInsertSchema(comments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Comment = typeof comments.\$inferSelect;
+export type InsertComment = z.infer<typeof insertCommentSchema>;
+
+// Claims Table
+export const claims = pgTable("claims", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  researchId: varchar("research_id").notNull(),
+  manuscriptArtifactId: varchar("manuscript_artifact_id").notNull().references(() => artifacts.id, { onDelete: "cascade" }),
+  manuscriptVersionId: varchar("manuscript_version_id").references(() => artifactVersions.id, { onDelete: "set null" }),
+  section: varchar("section", { length: 50 }),
+  claimText: text("claim_text").notNull(),
+  anchorType: varchar("anchor_type", { length: 50 }).default('text_selection'),
+  anchorData: jsonb("anchor_data").notNull().default({}),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  phiScanStatus: varchar("phi_scan_status", { length: 20 }).default('PENDING'),
+  phiFindings: jsonb("phi_findings").notNull().default([]),
+  metadata: jsonb("metadata").notNull().default({}),
+});
+
+export const insertClaimSchema = createInsertSchema(claims).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Claim = typeof claims.\$inferSelect;
+export type InsertClaim = z.infer<typeof insertClaimSchema>;
+
+// Evidence Types
+export const EVIDENCE_TYPES = ['citation', 'artifact', 'pdf_highlight', 'url'] as const;
+export type EvidenceType = (typeof EVIDENCE_TYPES)[number];
+
+// Claim Evidence Links Table
+export const claimEvidenceLinks = pgTable("claim_evidence_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  claimId: varchar("claim_id").notNull().references(() => claims.id, { onDelete: "cascade" }),
+  evidenceType: varchar("evidence_type", { length: 30 }).notNull(),
+  evidenceRef: varchar("evidence_ref").notNull(),
+  evidenceLocator: jsonb("evidence_locator").notNull().default({}),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  metadata: jsonb("metadata").notNull().default({}),
+});
+
+export const insertClaimEvidenceLinkSchema = createInsertSchema(claimEvidenceLinks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ClaimEvidenceLink = typeof claimEvidenceLinks.\$inferSelect;
+export type InsertClaimEvidenceLink = z.infer<typeof insertClaimEvidenceLinkSchema>;
+
+// Share Permissions
+export const SHARE_PERMISSIONS = ['read', 'comment'] as const;
+export type SharePermission = (typeof SHARE_PERMISSIONS)[number];
+
+// Artifact Shares Table
+export const artifactShares = pgTable("artifact_shares", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  artifactId: varchar("artifact_id").notNull().references(() => artifacts.id, { onDelete: "cascade" }),
+  permission: varchar("permission", { length: 20 }).notNull(),
+  tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+  expiresAt: timestamp("expires_at"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  revokedAt: timestamp("revoked_at"),
+  metadata: jsonb("metadata").notNull().default({}),
+});
+
+export const insertArtifactShareSchema = createInsertSchema(artifactShares).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ArtifactShare = typeof artifactShares.\$inferSelect;
+export type InsertArtifactShare = z.infer<typeof insertArtifactShareSchema>;
+
+// Submission Target Kinds
+export const SUBMISSION_TARGET_KINDS = ['journal', 'conference'] as const;
+export type SubmissionTargetKind = (typeof SUBMISSION_TARGET_KINDS)[number];
+
+// Submission Targets Table
+export const submissionTargets = pgTable("submission_targets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id"),
+  name: text("name").notNull(),
+  kind: varchar("kind", { length: 20 }).notNull(),
+  websiteUrl: text("website_url"),
+  requirementsArtifactId: varchar("requirements_artifact_id").references(() => artifacts.id, { onDelete: "set null" }),
+  metadata: jsonb("metadata").notNull().default({}),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertSubmissionTargetSchema = createInsertSchema(submissionTargets).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type SubmissionTarget = typeof submissionTargets.\$inferSelect;
+export type InsertSubmissionTarget = z.infer<typeof insertSubmissionTargetSchema>;
+
+// Submission Statuses
+export const SUBMISSION_STATUSES = [
+  'draft',
+  'submitted',
+  'revise',
+  'accepted',
+  'rejected',
+  'withdrawn',
+  'camera_ready'
+] as const;
+export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
+
+// Submissions Table
+export const submissions = pgTable("submissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  researchId: varchar("research_id").notNull(),
+  targetId: varchar("target_id").notNull().references(() => submissionTargets.id, { onDelete: "restrict" }),
+  status: varchar("status", { length: 30 }).notNull().default('draft'),
+  currentManuscriptArtifactId: varchar("current_manuscript_artifact_id").references(() => artifacts.id, { onDelete: "set null" }),
+  currentManuscriptVersionId: varchar("current_manuscript_version_id").references(() => artifactVersions.id, { onDelete: "set null" }),
+  submittedAt: timestamp("submitted_at"),
+  decisionAt: timestamp("decision_at"),
+  externalTrackingId: varchar("external_tracking_id"),
+  metadata: jsonb("metadata").notNull().default({}),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertSubmissionSchema = createInsertSchema(submissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Submission = typeof submissions.\$inferSelect;
+export type InsertSubmission = z.infer<typeof insertSubmissionSchema>;
+
+// Reviewer Point Statuses
+export const REVIEWER_POINT_STATUSES = ['open', 'resolved'] as const;
+export type ReviewerPointStatus = (typeof REVIEWER_POINT_STATUSES)[number];
+
+// Reviewer Points Table
+export const reviewerPoints = pgTable("reviewer_points", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  submissionId: varchar("submission_id").notNull().references(() => submissions.id, { onDelete: "cascade" }),
+  reviewerLabel: varchar("reviewer_label", { length: 50 }).default('reviewer_1'),
+  body: text("body").notNull(),
+  anchorData: jsonb("anchor_data").notNull().default({}),
+  status: varchar("status", { length: 20 }).notNull().default('open'),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedBy: varchar("resolved_by").references(() => users.id),
+  phiScanStatus: varchar("phi_scan_status", { length: 20 }).default('PENDING'),
+  phiFindings: jsonb("phi_findings").notNull().default([]),
+});
+
+export const insertReviewerPointSchema = createInsertSchema(reviewerPoints).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ReviewerPoint = typeof reviewerPoints.\$inferSelect;
+export type InsertReviewerPoint = z.infer<typeof insertReviewerPointSchema>;
+
+// Rebuttal Responses Table
+export const rebuttalResponses = pgTable("rebuttal_responses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reviewerPointId: varchar("reviewer_point_id").notNull().references(() => reviewerPoints.id, { onDelete: "cascade" }),
+  responseBody: text("response_body").notNull(),
+  linkedVersionId: varchar("linked_version_id").references(() => artifactVersions.id, { onDelete: "set null" }),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  phiScanStatus: varchar("phi_scan_status", { length: 20 }).default('PENDING'),
+  phiFindings: jsonb("phi_findings").notNull().default([]),
+});
+
+export const insertRebuttalResponseSchema = createInsertSchema(rebuttalResponses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type RebuttalResponse = typeof rebuttalResponses.\$inferSelect;
+export type InsertRebuttalResponse = z.infer<typeof insertRebuttalResponseSchema>;
+
+// Submission Package Types
+export const SUBMISSION_PACKAGE_TYPES = ['initial', 'rebuttal', 'camera_ready', 'conference_bundle'] as const;
+export type SubmissionPackageType = (typeof SUBMISSION_PACKAGE_TYPES)[number];
+
+// Submission Packages Table
+export const submissionPackages = pgTable("submission_packages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  submissionId: varchar("submission_id").notNull().references(() => submissions.id, { onDelete: "cascade" }),
+  packageType: varchar("package_type", { length: 30 }).notNull(),
+  artifactIds: jsonb("artifact_ids").notNull(),
+  manifest: jsonb("manifest").notNull(),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertSubmissionPackageSchema = createInsertSchema(submissionPackages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type SubmissionPackage = typeof submissionPackages.\$inferSelect;
+export type InsertSubmissionPackage = z.infer<typeof insertSubmissionPackageSchema>;
+
+// Manuscript Yjs Snapshots Table
+export const manuscriptYjsSnapshots = pgTable("manuscript_yjs_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  manuscriptArtifactId: varchar("manuscript_artifact_id").notNull().references(() => artifacts.id, { onDelete: "cascade" }),
+  snapshotClock: integer("snapshot_clock").notNull(),
+  snapshot: text("snapshot").notNull(), // Base64 encoded for BYTEA
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertManuscriptYjsSnapshotSchema = createInsertSchema(manuscriptYjsSnapshots).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ManuscriptYjsSnapshot = typeof manuscriptYjsSnapshots.\$inferSelect;
+export type InsertManuscriptYjsSnapshot = z.infer<typeof insertManuscriptYjsSnapshotSchema>;
+
+// Manuscript Yjs Updates Table
+export const manuscriptYjsUpdates = pgTable("manuscript_yjs_updates", {
+  id: serial("id").primaryKey(),
+  manuscriptArtifactId: varchar("manuscript_artifact_id").notNull().references(() => artifacts.id, { onDelete: "cascade" }),
+  clock: integer("clock").notNull(),
+  updateData: text("update_data").notNull(), // Base64 encoded for BYTEA
+  userId: varchar("user_id").references(() => users.id),
+  appliedAt: timestamp("applied_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertManuscriptYjsUpdateSchema = createInsertSchema(manuscriptYjsUpdates).omit({
+  id: true,
+  appliedAt: true,
+});
+
+export type ManuscriptYjsUpdate = typeof manuscriptYjsUpdates.\$inferSelect;
+export type InsertManuscriptYjsUpdate = z.infer<typeof insertManuscriptYjsUpdateSchema>;
