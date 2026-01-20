@@ -1,5 +1,6 @@
 import { useAuthStore } from '../stores/auth-store';
 import { useOrgStore, type OrgCapability } from '../stores/org-store';
+import type { Permission } from '@/types/api';
 
 /**
  * Unified Permissions Hook (Task 102 - Role-Adaptive Navigation)
@@ -20,22 +21,6 @@ import { useOrgStore, type OrgCapability } from '../stores/org-store';
  * }
  * ```
  */
-
-export type Permission =
-  | 'VIEW'
-  | 'ANALYZE'
-  | 'EXPORT'
-  | 'APPROVE'
-  | 'DRAFT'
-  | 'PRESENT'
-  | 'UPLOAD'
-  | 'DELETE'
-  | 'AUDIT_VIEW'
-  | 'AUDIT_EXPORT'
-  | 'PHI_VIEW'
-  | 'PHI_EXPORT'
-  | 'USER_MANAGE'
-  | 'SYSTEM_CONFIG';
 
 interface Permissions {
   // System-level (from user role)
@@ -95,8 +80,8 @@ export function usePermissions(): Permissions {
         'export_data': () => orgStore.canExport,
         'invite_member': () => orgStore.canManageMembers,
         'view_settings': () => orgStore.isAdmin,
-        'view_audit': () => hasPermission ? hasPermission('AUDIT_VIEW') : false,
-        'approve_request': () => hasPermission ? hasPermission('APPROVE') : false,
+        'view_audit': () => hasPermission ? hasPermission('VIEW_AUDIT_LOGS') : false,
+        'approve_request': () => hasPermission ? hasPermission('APPROVE_OPERATIONS') : false,
       };
 
       return actionMap[action]?.() ?? false;

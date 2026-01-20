@@ -1,6 +1,6 @@
 import { usePermissions } from '../../hooks/usePermissions';
 import { useOrgStore } from '../../stores/org-store';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'wouter';
 import { cn } from '../../lib/utils';
 import {
   Home,
@@ -36,7 +36,7 @@ interface NavItem {
 export function AdaptiveNavigation() {
   const permissions = usePermissions();
   const { org } = useOrgStore();
-  const location = useLocation();
+  const [location] = useLocation();
 
   // Define navigation structure with permission requirements
   const navItems: NavItem[] = [
@@ -67,7 +67,7 @@ export function AdaptiveNavigation() {
       label: 'Approvals',
       path: '/approvals',
       icon: CheckCircle,
-      requireSystemPermission: 'APPROVE',
+      requireSystemPermission: 'APPROVE_OPERATIONS',
     },
     {
       label: 'Data Export',
@@ -127,7 +127,7 @@ export function AdaptiveNavigation() {
   return (
     <nav className="space-y-1 px-3 py-4">
       {visibleItems.map((item) => {
-        const isActive = location.pathname === item.path;
+        const isActive = location === item.path;
         const Icon = item.icon;
 
         return (

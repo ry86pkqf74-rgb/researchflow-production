@@ -85,17 +85,17 @@ function ModeInitializer() {
  */
 function OrgInitializer() {
   const { isLive, isLoading: modeLoading } = useModeStore();
-  const { isAuthenticated } = useAuthStore();
+  const { user } = useAuthStore();
   const { fetchContext } = useOrgStore();
 
   useEffect(() => {
     // Only fetch org context in LIVE mode when user is authenticated
-    if (!modeLoading && isLive && isAuthenticated) {
+    if (!modeLoading && isLive && user) {
       fetchContext().catch((error) => {
         console.error('[OrgInitializer] Failed to fetch org context:', error);
       });
     }
-  }, [modeLoading, isLive, isAuthenticated, fetchContext]);
+  }, [modeLoading, isLive, user, fetchContext]);
 
   return null;
 }
@@ -122,10 +122,10 @@ function ModeLoader() {
  */
 function MainLayout({ children }: { children: React.ReactNode }) {
   const { isLive } = useModeStore();
-  const { isAuthenticated } = useAuthStore();
+  const { user } = useAuthStore();
 
   // Only show sidebar in LIVE mode when authenticated
-  if (!isLive || !isAuthenticated) {
+  if (!isLive || !user) {
     return <>{children}</>;
   }
 
