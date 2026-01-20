@@ -25,6 +25,14 @@ from src.jobs import (
     SummarizationConfig,
 )
 
+# Workflow Engine imports
+from src.workflow_engine import (
+    run_stages as workflow_run_stages,
+    StageContext,
+    StageResult,
+    list_stages,
+)
+
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper()),
@@ -247,20 +255,35 @@ class WorkerService:
         }
 
     async def run_stages(self, job: JobRequest) -> tuple:
-        """Run specific workflow stages."""
+        """Run specific workflow stages using the workflow engine."""
         stages = job.stages or list(range(1, 20))
-        completed = []
 
         logger.info(f"Running stages {stages} for job {job.job_id}")
 
-        for stage in stages:
-            logger.info(f"Executing stage {stage}")
-            # Import and execute stage
-            # from stages import execute_stage
-            # await execute_stage(stage, job.config)
-            completed.append(stage)
+        # Log registered stages for visibility
+        registered = list_stages()
+        logger.info(f"Registered stages: {[s['stage_id'] for s in registered]}")
 
-        return {"stages_executed": completed}, completed
+        # Create execution context
+        context = StageContext(
+            job_id=job.job_id,
+            config=job.config,
+            dataset_pointer=job.dataset_pointer,
+            artifact_path=self.artifact_path,
+            log_path=self.log_path,
+            governance_mode=self.governance_mode,
+            metadata=job.metadata or {},
+        )
+
+        # Execute stages via workflow engine
+        result = await workflow_run_stages(
+            stage_ids=stages,
+            context=context,
+            stop_on_failure=job.config.get("stop_on_failure", True),
+        )
+
+        completed = result["stages_completed"]
+        return result, completed
 
     async def generate_artifacts(self, job: JobRequest) -> tuple:
         """Generate output artifacts (figures, tables, reports)."""
