@@ -68,9 +68,9 @@ RUN mkdir -p ./node_modules/@researchflow && \
     cp -r ./packages/phi-engine ./node_modules/@researchflow/phi-engine && \
     cp -r ./packages/ai-router ./node_modules/@researchflow/ai-router
 
-# Create data directories
+# Create data directories and fix permissions for nodejs user
 RUN mkdir -p /data/artifacts /data/logs /data/manifests && \
-    chown -R nodejs:nodejs /data
+    chown -R nodejs:nodejs /data /app
 
 USER nodejs
 
