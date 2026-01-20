@@ -86,6 +86,7 @@ import sustainabilityRouter from "./src/routes/sustainability";
 // Phase G: Custom Workflow Builder
 import workflowsRouter from "./src/routes/workflows";
 import artifactGraphRouter from "./src/routes/artifact-graph";
+import commentsRouter from "./src/routes/comments";
 import { scan as scanPhi } from "@researchflow/phi-engine";
 
 // ROS Backend API URL (Python FastAPI server)
@@ -928,6 +929,7 @@ export async function registerRoutes(
   // Phase G: Custom Workflow Builder
   app.use("/api/workflows", workflowsRouter);
   app.use("/api/ros", artifactGraphRouter);
+  app.use("/api/ros", commentsRouter);
 
   // Mode information endpoint - publicly accessible
   app.get("/api/mode", (_req, res) => {
