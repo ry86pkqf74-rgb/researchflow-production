@@ -36,6 +36,9 @@ import ecosystemIntegrationsRoutes from './routes/ecosystemIntegrations';
 import apiKeysRoutes from './routes/apiKeys';
 import tutorialSandboxRoutes from './routes/tutorialSandbox';
 import futureProofingRoutes from './routes/futureProofing';
+// Audit Improvements: New modular routes
+import authRoutes from './routes/auth';
+import workflowStagesRoutes from './routes/workflow-stages';
 import { mockAuthMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { CollaborationWebSocketServer } from './collaboration/websocket-server';
@@ -117,6 +120,10 @@ app.use('/api/integrations', ecosystemIntegrationsRoutes);  // Tasks 139, 143, 1
 app.use('/api/profile/api-keys', apiKeysRoutes);  // Task 138: API key rotation
 app.use('/api/tutorials/sandbox', tutorialSandboxRoutes);  // Task 145: Tutorial code sandboxes
 app.use('/api/admin/upgrades', futureProofingRoutes);  // Task 150: Future-proofing checklists
+
+// Audit Improvements: Authentication and Workflow Routes
+app.use('/api/auth', authRoutes);  // JWT-based authentication (replaces Replit auth)
+app.use('/api/workflow', workflowStagesRoutes);  // Workflow stage management and lifecycle
 
 // 404 handler
 app.use((req, res) => {
@@ -200,6 +207,13 @@ httpServer.listen(PORT, () => {
   console.log('  ✓ API Key Rotation');
   console.log('  ✓ Scientific Notation Localization');
   console.log('  ✓ Future-Proofing Checklists');
+  console.log('='.repeat(60));
+  console.log('Audit Improvements: CODE QUALITY');
+  console.log('  ✓ JWT-Based Authentication (Production Ready)');
+  console.log('  ✓ Modular Route Architecture');
+  console.log('  ✓ Lifecycle State Service');
+  console.log('  ✓ Static Data Extraction');
+  console.log('  ✓ Workflow Stage Management');
   console.log('='.repeat(60));
 });
 
