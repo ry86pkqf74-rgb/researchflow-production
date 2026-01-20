@@ -30,7 +30,7 @@ import {
   WorkflowPolicySchema,
   type WorkflowDefinition,
   type WorkflowPolicy,
-} from '@researchflow/core/types/workflow';
+} from '@researchflow/core/types';
 
 const router = Router();
 
