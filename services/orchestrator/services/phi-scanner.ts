@@ -1,6 +1,7 @@
 import crypto from "crypto";
+import { PHI_PATTERNS, type PatternDefinition } from "@researchflow/phi-engine";
 
-export type PHICategory = 
+export type PHICategory =
   | 'name'
   | 'date'
   | 'ssn'
@@ -67,127 +68,40 @@ export interface PHIOverrideResult {
 const scanStore = new Map<string, PHIScanResult>();
 const overrideStore = new Map<string, PHIOverrideResult>();
 
-const PHI_PATTERNS: Array<{
-  category: PHICategory;
-  regex: RegExp;
-  hipaaIdentifier: string;
-  description: string;
-}> = [
-  {
-    category: 'ssn',
-    regex: /\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/g,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(A)',
-    description: 'Social Security Number'
-  },
-  {
-    category: 'phone',
-    regex: /\b(?:\+1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(C)',
-    description: 'Telephone Number'
-  },
-  {
-    category: 'email',
-    regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(F)',
-    description: 'Email Address'
-  },
-  {
-    category: 'mrn',
-    regex: /\b(?:MRN|MR#|Medical Record|Patient ID)[:\s#]*[A-Z0-9]{6,12}\b/gi,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(O)',
-    description: 'Medical Record Number'
-  },
-  {
-    category: 'date',
-    regex: /\b(?:0?[1-9]|1[0-2])[-\/](?:0?[1-9]|[12]\d|3[01])[-\/](?:19|20)\d{2}\b/g,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(B)',
-    description: 'Date (MM/DD/YYYY or MM-DD-YYYY)'
-  },
-  {
-    category: 'date',
-    regex: /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+(?:19|20)\d{2}\b/gi,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(B)',
-    description: 'Date (Month Day, Year)'
-  },
-  {
-    category: 'date',
-    regex: /\b(?:19|20)\d{2}[-\/](?:0?[1-9]|1[0-2])[-\/](?:0?[1-9]|[12]\d|3[01])\b/g,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(B)',
-    description: 'Date (YYYY-MM-DD)'
-  },
-  {
-    category: 'ip_address',
-    regex: /\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b/g,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(N)',
-    description: 'IP Address'
-  },
-  {
-    category: 'url',
-    regex: /https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)/gi,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(M)',
-    description: 'Web URL'
-  },
-  {
-    category: 'address',
-    regex: /\b\d{1,5}\s+(?:[A-Za-z]+\s+){1,4}(?:Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Drive|Dr|Lane|Ln|Court|Ct|Way|Place|Pl)\b/gi,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(C)',
-    description: 'Street Address'
-  },
-  {
-    category: 'geographic',
-    regex: /\b\d{5}(?:-\d{4})?\b/g,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(C)',
-    description: 'ZIP Code'
-  },
-  {
-    category: 'account_number',
-    regex: /\b(?:Account|Acct)[:\s#]*\d{8,16}\b/gi,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(H)',
-    description: 'Account Number'
-  },
-  {
-    category: 'license_number',
-    regex: /\b(?:License|DL|Driver's License)[:\s#]*[A-Z0-9]{6,12}\b/gi,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(K)',
-    description: 'License Number'
-  },
-  {
-    category: 'device_id',
-    regex: /\b(?:Device|Serial|IMEI)[:\s#]*[A-Z0-9]{10,20}\b/gi,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(L)',
-    description: 'Device Identifier'
-  },
-  {
-    category: 'name',
-    regex: /\b(?:Dr\.|Mr\.|Mrs\.|Ms\.)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\b/g,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(A)',
-    description: 'Name with Title'
-  },
-  {
-    category: 'name',
-    regex: /\b(?:Patient|Subject)[:\s]+[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\b/g,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(A)',
-    description: 'Patient/Subject Name'
-  },
-  {
-    category: 'age_over_89',
-    regex: /\b(?:age|aged?)[:\s]+(?:9\d|[1-9]\d{2,})\b/gi,
-    hipaaIdentifier: 'HIPAA 164.514(b)(2)(i)(C)',
-    description: 'Age over 89'
-  }
-];
+/**
+ * Map phi-engine type to orchestrator PHICategory
+ */
+function mapPhiTypeToCategory(type: PatternDefinition['type']): PHICategory {
+  const typeMap: Record<PatternDefinition['type'], PHICategory> = {
+    'SSN': 'ssn',
+    'MRN': 'mrn',
+    'DOB': 'date',
+    'PHONE': 'phone',
+    'EMAIL': 'email',
+    'NAME': 'name',
+    'ADDRESS': 'address',
+    'ZIP_CODE': 'geographic',
+    'IP_ADDRESS': 'ip_address',
+    'URL': 'url',
+    'ACCOUNT': 'account_number',
+    'HEALTH_PLAN': 'other',
+    'LICENSE': 'license_number',
+    'DEVICE_ID': 'device_id',
+    'AGE_OVER_89': 'age_over_89'
+  };
+  return typeMap[type] || 'other';
+}
 
-function calculateConfidence(pattern: string, matchedText: string): number {
-  const baseConfidence = 0.7;
+function calculateConfidence(baseConfidence: number, matchedText: string): number {
   let confidence = baseConfidence;
-  
+
   if (matchedText.length > 5) confidence += 0.1;
   if (matchedText.length > 10) confidence += 0.05;
-  
+
   if (/\d/.test(matchedText) && /[A-Za-z]/.test(matchedText)) {
     confidence += 0.05;
   }
-  
+
   return Math.min(0.99, confidence);
 }
 
@@ -222,23 +136,26 @@ function determineSuggestedAction(category: PHICategory, confidence: number): 'r
 export function scanForPHI(content: string, context: ScanContext): PHIScanResult {
   const scanId = crypto.randomUUID();
   const detected: PHIPattern[] = [];
-  
+
   for (const patternDef of PHI_PATTERNS) {
-    patternDef.regex.lastIndex = 0;
-    
+    // Clone regex to reset lastIndex for each scan
+    const regex = new RegExp(patternDef.regex.source, patternDef.regex.flags);
+
     let match;
-    while ((match = patternDef.regex.exec(content)) !== null) {
-      const confidence = calculateConfidence(patternDef.description, match[0]);
-      
+    while ((match = regex.exec(content)) !== null) {
+      const category = mapPhiTypeToCategory(patternDef.type);
+      const confidence = calculateConfidence(patternDef.baseConfidence, match[0]);
+
       detected.push({
         id: crypto.randomUUID(),
-        category: patternDef.category,
+        category,
         pattern: patternDef.description,
-        matchedText: match[0],
+        // Redact matched text to prevent PHI leakage in scan results
+        matchedText: '[REDACTED]',
         position: { start: match.index, end: match.index + match[0].length },
         confidence: Math.round(confidence * 100) / 100,
-        suggestedAction: determineSuggestedAction(patternDef.category, confidence),
-        hipaaIdentifier: patternDef.hipaaIdentifier
+        suggestedAction: determineSuggestedAction(category, confidence),
+        hipaaIdentifier: patternDef.hipaaCategory
       });
     }
   }
