@@ -3,7 +3,7 @@
  * Task T40: Integration tests for Phase 2 literature services
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { pubmedService } from '../../../packages/manuscript-engine/src/services/pubmed.service';
 import { semanticScholarService } from '../../../packages/manuscript-engine/src/services/semantic-scholar.service';
 import { litReviewService } from '../../../packages/manuscript-engine/src/services/lit-review.service';

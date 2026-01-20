@@ -1,0 +1,94 @@
+# Docker Compose for Claude Code Integration Tasks
+# ================================================
+# Usage:
+#   docker-compose -f docker-compose.claude-integration.yml up -d
+#   docker-compose -f docker-compose.claude-integration.yml exec claude-runner claude
+#
+# Or with prompts file:
+#   docker-compose -f docker-compose.claude-integration.yml exec claude-runner \
+#     claude --prompt-file /workspace/integration-prompts/task-001.md
+
+version: '3.8'
+
+services:
+  # Main Claude Code runner container
+  claude-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.claude-integration
+      args:
+        ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+        GITHUB_TOKEN: ${GITHUB_TOKEN}
+    container_name: claude-integration-runner
+    environment:
+      - NODE_ENV=development
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
+      - REDIS_URL=redis://redis:6379
+      - GOVERNANCE_MODE=DEMO
+      - CI=true
+    volumes:
+      # Mount the repo for live editing
+      - .:/workspace
+      # Preserve Claude session data between runs
+      - claude-session-data:/root/.claude
+      # Mount integration prompts directory
+      - ./integration-prompts:/workspace/integration-prompts
+      # Mount Docker socket to allow container to run docker commands
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - integration-network
+
+  # PostgreSQL for integration tests
+  postgres:
+    image: postgres:16-alpine
+    container_name: claude-integration-postgres
+    environment:
+      POSTGRES_USER: ros
+      POSTGRES_PASSWORD: ros
+      POSTGRES_DB: ros
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    volumes:
+      - integration-postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ros -d ros"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - integration-network
+
+  # Redis for job queue
+  redis:
+    image: redis:7-alpine
+    container_name: claude-integration-redis
+    ports:
+      - "6380:6379"  # Different port to avoid conflicts
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - integration-network
+
+volumes:
+  claude-session-data:
+    driver: local
+  integration-postgres-data:
+    driver: local
+
+networks:
+  integration-network:
+    driver: bridge

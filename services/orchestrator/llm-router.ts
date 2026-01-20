@@ -85,7 +85,7 @@ export async function generateStructured<T>(
 
   // Check if AI calls are allowed (mode gating)
   const callCheck = checkAICallAllowed();
-  if (!callCheck.allowed) {
+  if (callCheck.allowed === false) {
     telemetry.recordBlockedCall(callCheck.reason, 'openai');
     return {
       success: false,

@@ -1,0 +1,78 @@
+# Claude Code Integration Container
+# Optimized for running automated integration tasks against ResearchFlow
+# =====================================================================
+
+FROM node:20-bookworm
+
+# Build args
+ARG GITHUB_TOKEN
+ARG ANTHROPIC_API_KEY
+
+# Install system dependencies for Claude Code and development tools
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    wget \
+    vim \
+    jq \
+    ripgrep \
+    fzf \
+    make \
+    build-essential \
+    python3 \
+    python3-pip \
+    python3-venv \
+    postgresql-client \
+    redis-tools \
+    docker.io \
+    docker-compose-plugin \
+    # For playwright
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code globally
+RUN npm install -g @anthropic-ai/claude-code
+
+# Set up working directory
+WORKDIR /workspace
+
+# Clone the production repo (will be overridden by volume mount if needed)
+RUN git clone https://github.com/ry86pkqf74-rgb/researchflow-production.git /workspace || true
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci --include=dev
+
+# Copy all source files
+COPY . .
+
+# Install Playwright browsers for E2E tests
+RUN npx playwright install --with-deps chromium
+
+# Set environment variables
+ENV NODE_ENV=development
+ENV ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+ENV GITHUB_TOKEN=${GITHUB_TOKEN}
+ENV PATH="/workspace/node_modules/.bin:$PATH"
+
+# Create directory for Claude Code session data
+RUN mkdir -p /root/.claude /workspace/.claude
+
+# Configure git for commits
+RUN git config --global user.email "claude@integration.local" && \
+    git config --global user.name "Claude Integration"
+
+# Default command - start interactive shell ready for Claude Code
+CMD ["/bin/bash"]

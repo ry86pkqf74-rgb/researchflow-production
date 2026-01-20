@@ -102,7 +102,7 @@ export class ModelRouterService {
 
     // Mode gating check - block AI calls in STANDBY or NO_NETWORK mode
     const modeCheck = checkModeGating();
-    if (!modeCheck.allowed) {
+    if (modeCheck.allowed === false) {
       return this.createBlockedResponse(
         request,
         initialTier,

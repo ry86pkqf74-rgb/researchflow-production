@@ -3,7 +3,7 @@
  * Task T60: Full IMRaD assembly and structure tests
  */
 
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { IMRAD_TEMPLATE, getTemplateById, listTemplates } from '../../../packages/manuscript-engine/src/templates/imrad-templates';
 import { NEJM_TEMPLATE, JAMA_TEMPLATE, LANCET_TEMPLATE, BMJ_TEMPLATE, getJournalTemplate } from '../../../packages/manuscript-engine/src/templates/journal-templates';
 import { abstractGeneratorService } from '../../../packages/manuscript-engine/src/services/abstract-generator.service';

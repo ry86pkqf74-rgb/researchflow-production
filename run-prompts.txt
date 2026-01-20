@@ -1,0 +1,14 @@
+Execute the following integration prompts in order. Read each file and implement all requirements, committing after each major section:
+
+PROMPT 2: /workspace/integration-prompts/tasks/prompt-002-playwright-e2e-journeys.md
+PROMPT 3: /workspace/integration-prompts/tasks/prompt-003-load-performance-testing.md
+PROMPT 4: /workspace/integration-prompts/tasks/prompt-004-governance-maintainability-refactor.md
+
+For each prompt:
+1. Read the full prompt file
+2. Implement all deliverables
+3. Run tests to verify
+4. Commit changes with descriptive message
+5. Move to next prompt
+
+Start with Prompt 2 now. Read /workspace/integration-prompts/tasks/prompt-002-playwright-e2e-journeys.md and implement all deliverables.
