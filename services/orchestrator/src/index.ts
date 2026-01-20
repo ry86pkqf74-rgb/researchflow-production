@@ -14,6 +14,7 @@ import dotenv from 'dotenv';
 import governanceRoutes from './routes/governance.js';
 import datasetRoutes from './routes/datasets.js';
 import conferenceRoutes from './routes/conference.js';
+import webhooksRoutes from './routes/webhooks.js';
 import orcidRoutes from './routes/orcid';
 import artifactsV2Routes from './routes/v2/artifacts.routes';
 import ideasRoutes from './routes/docs-first/ideas.js';
@@ -90,6 +91,10 @@ app.use('/api/tutorials', tutorialsRoutes);  // Task 108: Inline Tutorials
 app.use('/api/search', searchRoutes);
 app.use('/api/search', semanticSearchRoutes);  // Semantic search endpoints
 app.use('/api/embeddings', semanticSearchRoutes);  // Embedding generation endpoint
+
+// Webhook Routes (Stripe, Zoom, etc.)
+// Note: These routes have their own body parsing for signature verification
+app.use('/api/webhooks', webhooksRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -282,12 +282,72 @@ All AI interactions are routed through the AI Router which:
 - Maintains full audit trail of AI invocations
 - Implements cost optimization with automatic escalation
 
+## Implementation Status (Evidence-Based)
+
+Full audit available in:
+- [docs/audit/GAP_MATRIX.md](docs/audit/GAP_MATRIX.md)
+- [docs/audit/SERVICE_INVENTORY.md](docs/audit/SERVICE_INVENTORY.md)
+- [docs/audit/REPO_STRUCTURE.md](docs/audit/REPO_STRUCTURE.md)
+
+| Feature | Status | Evidence |
+|---------|--------|----------|
+| Phase 2: Literature Integration | ✅ Done | `packages/manuscript-engine/src/services/pubmed.service.ts`, `services/orchestrator/src/routes/literature.ts` |
+| Phase 3: IMRaD Structure | ✅ Done | `packages/manuscript-engine/src/services/*-builder.service.ts` |
+| Stage 20: Conference Prep | ✅ Done | `services/worker/src/conference_prep/`, `services/worker/src/workflow_engine/stages/stage_20_conference.py` |
+| Collaboration (CRDT) | ✅ Done | `services/collab/src/server.ts`, `migrations/0008_phase_h_document_lifecycle.sql` |
+| Artifact Provenance | ✅ Done | `services/orchestrator/src/routes/artifact-graph.ts`, `artifact_edges` table |
+| Feature Flags | ✅ Done | `services/orchestrator/src/services/feature-flags.service.ts` |
+| Analytics (Consent-based) | ✅ Done | `services/orchestrator/src/services/analytics.service.ts`, `services/orchestrator/src/routes/consent.ts` |
+| CI/CD Workflows | ✅ Done | `.github/workflows/ci.yml`, `.github/workflows/security-scan.yaml` |
+| Webhooks (Stripe/Zoom) | ✅ Done | `services/orchestrator/src/webhooks/` |
+| PHI Governance | ✅ Done | `packages/phi-engine/`, `services/orchestrator/src/middleware/phiScan.ts` |
+
+## Runbooks
+
+Operational guides available in `docs/runbooks/`:
+
+- [Literature Integration](docs/runbooks/literature.md)
+- [Manuscript Engine](docs/runbooks/manuscript_engine.md)
+- [Conference Preparation](docs/runbooks/conference_prep.md)
+- [Collaboration & Provenance](docs/runbooks/collaboration.md)
+- [CI/CD](docs/runbooks/ci_cd.md)
+- [Webhooks](docs/runbooks/webhooks.md)
+
+## Environment Variables
+
+See [.env.example](.env.example) for full list. Key variables:
+
+```bash
+# Governance
+GOVERNANCE_MODE=DEMO|LIVE
+
+# Database
+DATABASE_URL=postgres://...
+
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# AI (optional)
+ANTHROPIC_API_KEY=...
+OPENAI_API_KEY=...
+
+# Literature (optional, increases rate limits)
+NCBI_API_KEY=...
+SEMANTIC_SCHOLAR_API_KEY=...
+
+# Webhooks (optional)
+STRIPE_WEBHOOK_SECRET=whsec_...
+ZOOM_WEBHOOK_SECRET_TOKEN=...
+```
+
 ## Contributing
 
 1. Create a feature branch from `develop`
 2. Make changes and add tests
 3. Run `make lint` and `make test`
 4. Submit a PR
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## License
 

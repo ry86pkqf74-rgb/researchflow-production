@@ -296,3 +296,66 @@ export const KeywordExtractionResult = z.object({
   extractedAt: z.string(),
 });
 export type KeywordExtractionResult = z.infer<typeof KeywordExtractionResult>;
+
+/**
+ * Bibliography format styles
+ */
+export const BibliographyFormat = z.enum([
+  'apa',
+  'mla',
+  'chicago',
+  'vancouver',
+  'ieee',
+  'harvard',
+  'nature',
+  'science',
+]);
+export type BibliographyFormat = z.infer<typeof BibliographyFormat>;
+
+/**
+ * Citation record for reference library
+ */
+export const CitationRecord = z.object({
+  id: z.string(),
+  doi: z.string().optional(),
+  pmid: z.string().optional(),
+  pmcid: z.string().optional(),
+  arxivId: z.string().optional(),
+  title: z.string(),
+  abstract: z.string().optional(),
+  journal: z.string().optional(),
+  year: z.number().int().optional(),
+  authors: z.array(LiteratureAuthor).default([]),
+  url: z.string().url().optional(),
+  addedAt: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+  notes: z.string().optional(),
+});
+export type CitationRecord = z.infer<typeof CitationRecord>;
+
+/**
+ * Reference library request schemas
+ */
+export const ReferenceLibraryUpsertRequest = z.object({
+  citation: CitationRecord,
+  projectId: z.string().optional(),
+});
+export type ReferenceLibraryUpsertRequest = z.infer<typeof ReferenceLibraryUpsertRequest>;
+
+export const ReferenceLibraryListRequest = z.object({
+  projectId: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  limit: z.number().int().min(1).max(500).default(100),
+  offset: z.number().int().min(0).default(0),
+});
+export type ReferenceLibraryListRequest = z.infer<typeof ReferenceLibraryListRequest>;
+
+/**
+ * Formatted citation output
+ */
+export const FormattedCitation = z.object({
+  inText: z.string(),
+  bibliography: z.string(),
+  style: BibliographyFormat,
+});
+export type FormattedCitation = z.infer<typeof FormattedCitation>;
