@@ -22,6 +22,8 @@ import venuesRoutes from './routes/docs-first/venues.js';
 import docKitsRoutes from './routes/docs-first/doc-kits.js';
 import experimentsRoutes from './routes/experiments';
 import customFieldsRoutes from './routes/custom-fields';
+import searchRoutes from './routes/search';
+import semanticSearchRoutes from './routes/semanticSearch';
 import { mockAuthMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { CollaborationWebSocketServer } from './collaboration/websocket-server';
@@ -81,6 +83,11 @@ app.use('/api/docs-first/doc-kits', docKitsRoutes);
 // Phase F API Routes (UI/UX Enhancements)
 app.use('/api/experiments', experimentsRoutes);
 app.use('/api/custom-fields', customFieldsRoutes);
+
+// Search API Routes (Task 98, Task 107)
+app.use('/api/search', searchRoutes);
+app.use('/api/search', semanticSearchRoutes);  // Semantic search endpoints
+app.use('/api/embeddings', semanticSearchRoutes);  // Embedding generation endpoint
 
 // 404 handler
 app.use((req, res) => {

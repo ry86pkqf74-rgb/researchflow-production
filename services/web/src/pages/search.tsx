@@ -21,10 +21,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SearchResults, SearchResult } from '@/components/search/SearchResults';
 
 type SearchType = 'all' | 'artifact' | 'manuscript';
+type SearchMode = 'keyword' | 'semantic' | 'hybrid';
 
 export function SearchPage() {
   const [query, setQuery] = useState('');
   const [searchType, setSearchType] = useState<SearchType>('all');
+  const [searchMode, setSearchMode] = useState<SearchMode>('keyword');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,16 +43,47 @@ export function SearchPage() {
     setHasSearched(true);
 
     try {
-      const params = new URLSearchParams({
-        q: query,
-        limit: '50',
-      });
+      let endpoint = '/api/search';
+      let method = 'GET';
+      let body: string | undefined;
 
-      if (searchType !== 'all') {
-        params.set('type', searchType);
+      if (searchMode === 'semantic') {
+        // Semantic vector search
+        endpoint = '/api/search/semantic';
+        method = 'POST';
+        body = JSON.stringify({
+          q: query,
+          limit: 50,
+          types: searchType !== 'all' ? [searchType] : undefined,
+        });
+      } else if (searchMode === 'hybrid') {
+        // Hybrid keyword + semantic
+        endpoint = '/api/search/hybrid';
+        method = 'POST';
+        body = JSON.stringify({
+          q: query,
+          limit: 50,
+          keywordWeight: 0.5,
+          semanticWeight: 0.5,
+        });
+      } else {
+        // Keyword search (existing)
+        const params = new URLSearchParams({
+          q: query,
+          limit: '50',
+        });
+
+        if (searchType !== 'all') {
+          params.set('type', searchType);
+        }
+
+        endpoint = `/api/search?${params}`;
       }
 
-      const response = await fetch(`/api/search?${params}`, {
+      const response = await fetch(endpoint, {
+        method,
+        headers: method === 'POST' ? { 'Content-Type': 'application/json' } : {},
+        body,
         credentials: 'include',
       });
 
@@ -67,7 +100,7 @@ export function SearchPage() {
     } finally {
       setLoading(false);
     }
-  }, [query, searchType]);
+  }, [query, searchType, searchMode]);
 
   // Search on Enter key
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -133,6 +166,19 @@ export function SearchPage() {
                 )}
               </div>
               <Select
+                value={searchMode}
+                onValueChange={(v) => setSearchMode(v as SearchMode)}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="keyword">Keyword</SelectItem>
+                  <SelectItem value="semantic">Semantic 🔍</SelectItem>
+                  <SelectItem value="hybrid">Hybrid ⚡</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
                 value={searchType}
                 onValueChange={(v) => setSearchType(v as SearchType)}
               >
@@ -193,6 +239,7 @@ export function SearchPage() {
             <SearchResults
               results={results}
               query={query}
+              mode={searchMode}
               onResultClick={handleResultClick}
               loading={loading}
             />

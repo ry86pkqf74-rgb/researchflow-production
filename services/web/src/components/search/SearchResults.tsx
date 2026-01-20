@@ -21,11 +21,18 @@ export interface SearchResult {
   artifactType?: string;
   createdAt: string;
   relevance?: number;
+  // Semantic search fields
+  similarity?: number;
+  matchType?: 'keyword' | 'semantic' | 'both';
+  keywordScore?: number;
+  semanticScore?: number;
+  combinedScore?: number;
 }
 
 interface SearchResultsProps {
   results: SearchResult[];
   query: string;
+  mode?: 'keyword' | 'semantic' | 'hybrid';
   onResultClick?: (result: SearchResult) => void;
   loading?: boolean;
 }
@@ -61,10 +68,12 @@ function highlightMatch(text: string, query: string): React.ReactNode {
 function ResultCard({
   result,
   query,
+  mode,
   onClick,
 }: {
   result: SearchResult;
   query: string;
+  mode?: 'keyword' | 'semantic' | 'hybrid';
   onClick?: () => void;
 }) {
   const Icon = TYPE_ICONS[result.type];
@@ -83,13 +92,37 @@ function ResultCard({
             <Icon className="h-5 w-5 text-muted-foreground" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <Badge className={colorClass} variant="secondary">
                 {result.type}
               </Badge>
               {result.artifactType && result.artifactType !== result.type && (
                 <Badge variant="outline" className="text-xs">
                   {result.artifactType}
+                </Badge>
+              )}
+
+              {/* Similarity score for semantic/hybrid searches */}
+              {(mode === 'semantic' || mode === 'hybrid') && result.similarity !== undefined && (
+                <Badge variant="outline" className="text-xs">
+                  {Math.round(result.similarity * 100)}% match
+                </Badge>
+              )}
+
+              {/* Match type indicator for hybrid searches */}
+              {mode === 'hybrid' && result.matchType === 'both' && (
+                <Badge variant="secondary" className="text-xs">
+                  Keyword + Semantic
+                </Badge>
+              )}
+              {mode === 'hybrid' && result.matchType === 'keyword' && (
+                <Badge variant="outline" className="text-xs">
+                  Keyword only
+                </Badge>
+              )}
+              {mode === 'hybrid' && result.matchType === 'semantic' && (
+                <Badge variant="outline" className="text-xs">
+                  Semantic only
                 </Badge>
               )}
             </div>
@@ -126,6 +159,7 @@ function ResultCard({
 export function SearchResults({
   results,
   query,
+  mode,
   onResultClick,
   loading,
 }: SearchResultsProps) {
@@ -169,6 +203,7 @@ export function SearchResults({
           key={result.id}
           result={result}
           query={query}
+          mode={mode}
           onClick={() => onResultClick?.(result)}
         />
       ))}
