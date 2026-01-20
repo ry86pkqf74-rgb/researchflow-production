@@ -11,7 +11,8 @@
  * - DELETE /api/ros/comments/:id - Soft delete comment
  */
 import { Router, Request, Response } from "express";
-import { requireRole, logAuditEvent } from "../middleware/rbac";
+import { requireRole } from "../middleware/rbac";
+import { createAuditEntry } from "../services/auditService";
 import * as commentService from "../services/commentService";
 import { z } from "zod";
 
@@ -118,7 +119,7 @@ router.post(
       }
 
       const result = await commentService.createComment({
-        ...params,
+        ...params as commentService.CreateCommentParams,
         createdBy: userId,
       });
 
@@ -130,7 +131,7 @@ router.post(
       }
 
       // Audit log
-      await logAuditEvent({
+      await createAuditEntry({
         eventType: "COMMENT_CREATE",
         userId,
         resourceType: "comment",
@@ -140,8 +141,8 @@ router.post(
           artifactId: params.artifactId,
           threadId: result.comment!.threadId,
           anchorType: params.anchorType,
+          researchId: params.researchId,
         },
-        researchId: params.researchId,
       });
 
       res.status(201).json(result.comment);
@@ -263,14 +264,13 @@ router.patch(
       }
 
       // Audit log
-      await logAuditEvent({
+      await createAuditEntry({
         eventType: "COMMENT_UPDATE",
         userId,
         resourceType: "comment",
         resourceId: id,
         action: "update",
-        details: { artifactId: existing.artifactId },
-        researchId: existing.researchId,
+        details: { artifactId: existing.artifactId, researchId: existing.researchId },
       });
 
       res.json(result.comment);
@@ -302,14 +302,13 @@ router.post(
       const comment = await commentService.resolveComment(id, userId);
 
       // Audit log
-      await logAuditEvent({
+      await createAuditEntry({
         eventType: "COMMENT_RESOLVE",
         userId,
         resourceType: "comment",
         resourceId: id,
         action: "resolve",
-        details: { artifactId: existing.artifactId },
-        researchId: existing.researchId,
+        details: { artifactId: existing.artifactId, researchId: existing.researchId },
       });
 
       res.json(comment);
@@ -341,14 +340,13 @@ router.post(
       const comment = await commentService.unresolveComment(id);
 
       // Audit log
-      await logAuditEvent({
+      await createAuditEntry({
         eventType: "COMMENT_UNRESOLVE",
         userId,
         resourceType: "comment",
         resourceId: id,
         action: "unresolve",
-        details: { artifactId: existing.artifactId },
-        researchId: existing.researchId,
+        details: { artifactId: existing.artifactId, researchId: existing.researchId },
       });
 
       res.json(comment);
@@ -381,17 +379,17 @@ router.post(
       const comment = await commentService.assignComment(id, assignedTo || null);
 
       // Audit log
-      await logAuditEvent({
+      await createAuditEntry({
         eventType: "COMMENT_ASSIGN",
         userId,
         resourceType: "comment",
         resourceId: id,
         action: "assign",
-        details: { 
+        details: {
           artifactId: existing.artifactId,
           assignedTo: assignedTo || null,
+          researchId: existing.researchId,
         },
-        researchId: existing.researchId,
       });
 
       res.json(comment);
@@ -433,14 +431,13 @@ router.delete(
       }
 
       // Audit log
-      await logAuditEvent({
+      await createAuditEntry({
         eventType: "COMMENT_DELETE",
         userId,
         resourceType: "comment",
         resourceId: id,
         action: "delete",
-        details: { artifactId: existing.artifactId },
-        researchId: existing.researchId,
+        details: { artifactId: existing.artifactId, researchId: existing.researchId },
       });
 
       res.json({ success: true });

@@ -12,7 +12,7 @@ import { comments, artifacts, artifactVersions } from "@researchflow/core/schema
 import { eq, and, isNull, desc, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { scan as scanPhi, hasPhi } from "@researchflow/phi-engine";
-import crypto from "crypto";
+import { createHash } from "crypto";
 
 export type CommentAnchorType = 
   | 'text_selection' 
@@ -108,7 +108,7 @@ export interface CommentWithThread {
  * Hash a sample of PHI for audit purposes (never store raw PHI).
  */
 function hashSample(text: string): string {
-  return crypto.createHash("sha256").update(text).digest("hex").slice(0, 12);
+  return createHash("sha256").update(text).digest("hex").slice(0, 12);
 }
 
 /**
@@ -255,7 +255,7 @@ export async function listComments(
     commentMap.set(comment.id, comment);
   }
 
-  for (const comment of commentMap.values()) {
+  for (const comment of Array.from(commentMap.values())) {
     if (comment.parentCommentId && commentMap.has(comment.parentCommentId)) {
       const parent = commentMap.get(comment.parentCommentId)!;
       parent.replies = parent.replies || [];

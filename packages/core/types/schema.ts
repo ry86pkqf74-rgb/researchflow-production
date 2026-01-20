@@ -1821,7 +1821,7 @@ export const insertArtifactEdgeSchema = createInsertSchema(artifactEdges).omit({
   createdAt: true,
 });
 
-export type ArtifactEdge = typeof artifactEdges.\$inferSelect;
+export type ArtifactEdge = typeof artifactEdges.$inferSelect;
 export type InsertArtifactEdge = z.infer<typeof insertArtifactEdgeSchema>;
 
 // Comment Anchor Types
@@ -1868,7 +1868,7 @@ export const insertCommentSchema = createInsertSchema(comments).omit({
   updatedAt: true,
 });
 
-export type Comment = typeof comments.\$inferSelect;
+export type Comment = typeof comments.$inferSelect;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 
 // Claims Table
@@ -1893,7 +1893,7 @@ export const insertClaimSchema = createInsertSchema(claims).omit({
   createdAt: true,
 });
 
-export type Claim = typeof claims.\$inferSelect;
+export type Claim = typeof claims.$inferSelect;
 export type InsertClaim = z.infer<typeof insertClaimSchema>;
 
 // Evidence Types
@@ -1917,7 +1917,7 @@ export const insertClaimEvidenceLinkSchema = createInsertSchema(claimEvidenceLin
   createdAt: true,
 });
 
-export type ClaimEvidenceLink = typeof claimEvidenceLinks.\$inferSelect;
+export type ClaimEvidenceLink = typeof claimEvidenceLinks.$inferSelect;
 export type InsertClaimEvidenceLink = z.infer<typeof insertClaimEvidenceLinkSchema>;
 
 // Share Permissions
@@ -1942,7 +1942,7 @@ export const insertArtifactShareSchema = createInsertSchema(artifactShares).omit
   createdAt: true,
 });
 
-export type ArtifactShare = typeof artifactShares.\$inferSelect;
+export type ArtifactShare = typeof artifactShares.$inferSelect;
 export type InsertArtifactShare = z.infer<typeof insertArtifactShareSchema>;
 
 // Submission Target Kinds
@@ -1967,7 +1967,7 @@ export const insertSubmissionTargetSchema = createInsertSchema(submissionTargets
   createdAt: true,
 });
 
-export type SubmissionTarget = typeof submissionTargets.\$inferSelect;
+export type SubmissionTarget = typeof submissionTargets.$inferSelect;
 export type InsertSubmissionTarget = z.infer<typeof insertSubmissionTargetSchema>;
 
 // Submission Statuses
@@ -2005,7 +2005,7 @@ export const insertSubmissionSchema = createInsertSchema(submissions).omit({
   updatedAt: true,
 });
 
-export type Submission = typeof submissions.\$inferSelect;
+export type Submission = typeof submissions.$inferSelect;
 export type InsertSubmission = z.infer<typeof insertSubmissionSchema>;
 
 // Reviewer Point Statuses
@@ -2033,7 +2033,7 @@ export const insertReviewerPointSchema = createInsertSchema(reviewerPoints).omit
   createdAt: true,
 });
 
-export type ReviewerPoint = typeof reviewerPoints.\$inferSelect;
+export type ReviewerPoint = typeof reviewerPoints.$inferSelect;
 export type InsertReviewerPoint = z.infer<typeof insertReviewerPointSchema>;
 
 // Rebuttal Responses Table
@@ -2053,7 +2053,7 @@ export const insertRebuttalResponseSchema = createInsertSchema(rebuttalResponses
   createdAt: true,
 });
 
-export type RebuttalResponse = typeof rebuttalResponses.\$inferSelect;
+export type RebuttalResponse = typeof rebuttalResponses.$inferSelect;
 export type InsertRebuttalResponse = z.infer<typeof insertRebuttalResponseSchema>;
 
 // Submission Package Types
@@ -2076,7 +2076,7 @@ export const insertSubmissionPackageSchema = createInsertSchema(submissionPackag
   createdAt: true,
 });
 
-export type SubmissionPackage = typeof submissionPackages.\$inferSelect;
+export type SubmissionPackage = typeof submissionPackages.$inferSelect;
 export type InsertSubmissionPackage = z.infer<typeof insertSubmissionPackageSchema>;
 
 // Manuscript Yjs Snapshots Table
@@ -2094,7 +2094,7 @@ export const insertManuscriptYjsSnapshotSchema = createInsertSchema(manuscriptYj
   createdAt: true,
 });
 
-export type ManuscriptYjsSnapshot = typeof manuscriptYjsSnapshots.\$inferSelect;
+export type ManuscriptYjsSnapshot = typeof manuscriptYjsSnapshots.$inferSelect;
 export type InsertManuscriptYjsSnapshot = z.infer<typeof insertManuscriptYjsSnapshotSchema>;
 
 // Manuscript Yjs Updates Table
@@ -2112,5 +2112,5 @@ export const insertManuscriptYjsUpdateSchema = createInsertSchema(manuscriptYjsU
   appliedAt: true,
 });
 
-export type ManuscriptYjsUpdate = typeof manuscriptYjsUpdates.\$inferSelect;
+export type ManuscriptYjsUpdate = typeof manuscriptYjsUpdates.$inferSelect;
 export type InsertManuscriptYjsUpdate = z.infer<typeof insertManuscriptYjsUpdateSchema>;

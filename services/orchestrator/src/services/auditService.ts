@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import { createHash } from "crypto";
 import { db } from "../../db";
 import { auditLogs, AuditLog, InsertAuditLog } from "@researchflow/core/schema";
 import { desc } from "drizzle-orm";
@@ -38,7 +38,7 @@ export function calculateAuditHash(entry: {
   const jsonString = JSON.stringify(payload, Object.keys(payload).sort());
 
   // Calculate SHA-256 hash
-  return crypto.createHash("sha256").update(jsonString).digest("hex");
+  return createHash("sha256").update(jsonString).digest("hex");
 }
 
 /**

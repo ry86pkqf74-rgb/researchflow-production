@@ -9,7 +9,7 @@ import { artifactVersions, artifactComparisons } from "@researchflow/core/schema
 import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { hasPhi } from "@researchflow/phi-engine";
-import crypto from "crypto";
+import { createHash } from "crypto";
 
 // diff-match-patch implementation
 interface DiffOp {
@@ -21,7 +21,61 @@ interface DiffOp {
  * Simple diff implementation using longest common subsequence.
  * Returns array of operations: equal, insert, delete.
  */
-function computeLineDiff(fromText: string, toText: string): DiffOp[] {
+export function computeLineDiff(fromText: string, toText: string): {
+  operations: DiffOp[];
+  addedLines: number;
+  removedLines: number;
+  unchangedLines: number;
+} {
+  const fromLines = fromText.split('\n');
+  const toLines = toText.split('\n');
+
+  // Build LCS table
+  const m = fromLines.length;
+  const n = toLines.length;
+  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (fromLines[i - 1] === toLines[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+
+  // Backtrack to build diff
+  const operations: DiffOp[] = [];
+  let i = m, j = n;
+  let addedLines = 0;
+  let removedLines = 0;
+  let unchangedLines = 0;
+
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && fromLines[i - 1] === toLines[j - 1]) {
+      operations.unshift({ operation: 'equal', text: fromLines[i - 1] });
+      unchangedLines++;
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      operations.unshift({ operation: 'insert', text: toLines[j - 1] });
+      addedLines++;
+      j--;
+    } else {
+      operations.unshift({ operation: 'delete', text: fromLines[i - 1] });
+      removedLines++;
+      i--;
+    }
+  }
+
+  return { operations, addedLines, removedLines, unchangedLines };
+}
+
+/**
+ * Internal helper for computing raw line diffs.
+ */
+function computeLineDiffInternal(fromText: string, toText: string): DiffOp[] {
   const fromLines = fromText.split('\n');
   const toLines = toText.split('\n');
   
@@ -116,8 +170,8 @@ export async function computeDiff(
   const fromText = fromVersion.content;
   const toText = toVersion.content;
 
-  // Compute line-based diff
-  const diffs = computeLineDiff(fromText, toText);
+  // Compute line-based diff using internal helper
+  const diffs = computeLineDiffInternal(fromText, toText);
 
   let addedLines = 0;
   let removedLines = 0;
@@ -129,7 +183,7 @@ export async function computeDiff(
 
   for (const diff of diffs) {
     const lineCount = 1; // Each diff op is one line
-    
+
     if (diff.operation === 'equal') {
       unchangedLines += lineCount;
       fromLineNum++;
@@ -205,7 +259,7 @@ export async function getUnifiedDiff(
 
   const fromLines = fromVersion.content.split('\n');
   const toLines = toVersion.content.split('\n');
-  const diffs = computeLineDiff(fromVersion.content, toVersion.content);
+  const diffs = computeLineDiffInternal(fromVersion.content, toVersion.content);
 
   const hunks: DiffHunk[] = [];
   let currentHunk: DiffHunk | null = null;
@@ -328,7 +382,7 @@ export async function getStoredComparison(
  * Hash text for verification without exposing content.
  */
 function hashText(text: string): string {
-  return crypto.createHash('sha256').update(text).digest('hex').slice(0, 16);
+  return createHash('sha256').update(text).digest('hex').slice(0, 16);
 }
 
 /**
@@ -338,18 +392,18 @@ function generateDiffSummary(added: number, removed: number, unchanged: number):
   const parts: string[] = [];
   
   if (added > 0) {
-    parts.push(\`+\${added} line\${added === 1 ? '' : 's'}\`);
+    parts.push(`+${added} line${added === 1 ? '' : 's'}`);
   }
   if (removed > 0) {
-    parts.push(\`-\${removed} line\${removed === 1 ? '' : 's'}\`);
+    parts.push(`-${removed} line${removed === 1 ? '' : 's'}`);
   }
-  
+
   if (parts.length === 0) {
     return 'No changes';
   }
-  
+
   const total = added + removed + unchanged;
   const changePercent = Math.round(((added + removed) / Math.max(total, 1)) * 100);
-  
-  return \`\${parts.join(', ')} (\${changePercent}% changed)\`;
+
+  return `${parts.join(', ')} (${changePercent}% changed)`;
 }

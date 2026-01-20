@@ -8,7 +8,8 @@
  * - GET /api/ros/artifact-edges - List edges for research
  */
 import { Router, Request, Response } from "express";
-import { requireRole, logAuditEvent } from "../middleware/rbac";
+import { requireRole } from "../middleware/rbac";
+import { createAuditEntry } from "../services/auditService";
 import * as artifactGraphService from "../services/artifactGraphService";
 import { z } from "zod";
 
@@ -94,7 +95,7 @@ router.post(
         });
       }
 
-      const params = parseResult.data;
+      const params = parseResult.data as artifactGraphService.CreateEdgeParams;
       const result = await artifactGraphService.createEdge(params);
 
       if (!result.success) {
@@ -102,7 +103,7 @@ router.post(
       }
 
       // Audit log
-      await logAuditEvent({
+      await createAuditEntry({
         eventType: "ARTIFACT_EDGE_CREATE",
         userId: (req as any).user?.id,
         resourceType: "artifact_edge",
@@ -112,8 +113,8 @@ router.post(
           sourceArtifactId: params.sourceArtifactId,
           targetArtifactId: params.targetArtifactId,
           relationType: params.relationType,
+          researchId: params.researchId,
         },
-        researchId: params.researchId,
       });
 
       res.status(201).json({ id: result.id, success: true });
@@ -149,7 +150,7 @@ router.delete(
       }
 
       // Audit log
-      await logAuditEvent({
+      await createAuditEntry({
         eventType: "ARTIFACT_EDGE_DELETE",
         userId: (req as any).user?.id,
         resourceType: "artifact_edge",

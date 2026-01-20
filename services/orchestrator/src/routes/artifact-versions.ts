@@ -9,12 +9,13 @@
  * - GET /api/ros/artifacts/:artifactId/versions/:versionId/diff - Get diff
  */
 import { Router, Request, Response } from "express";
-import { requireRole, logAuditEvent } from "../middleware/rbac";
+import { requireRole } from "../middleware/rbac";
+import { createAuditEntry } from "../services/auditService";
 import { db } from "../../db";
 import { artifacts, artifactVersions } from "@researchflow/core/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import crypto from "crypto";
+import { createHash } from "crypto";
 import * as diffService from "../services/diffService";
 import { z } from "zod";
 
@@ -201,7 +202,7 @@ router.post(
 
       // Compute hash and size
       const contentBuffer = Buffer.from(content, 'utf-8');
-      const sha256Hash = crypto.createHash('sha256').update(contentBuffer).digest('hex');
+      const sha256Hash = createHash('sha256').update(contentBuffer).digest('hex');
       const sizeBytes = contentBuffer.length;
 
       const versionId = nanoid();
@@ -229,7 +230,7 @@ router.post(
       }
 
       // Audit log
-      await logAuditEvent({
+      await createAuditEntry({
         eventType: "ARTIFACT_VERSION_CREATE",
         userId,
         resourceType: "artifact_version",
@@ -240,8 +241,8 @@ router.post(
           versionNumber: nextVersionNumber,
           branch,
           sizeBytes,
+          researchId: artifact.researchId,
         },
-        researchId: artifact.researchId,
       });
 
       res.status(201).json({
@@ -380,7 +381,7 @@ router.post(
         sizeBytes: versionToRestore.sizeBytes,
         sha256Hash: versionToRestore.sha256Hash,
         createdBy: userId,
-        changeDescription: \`Restored from version \${versionToRestore.versionNumber}\`,
+        changeDescription: `Restored from version ${versionToRestore.versionNumber}`,
         branch: versionToRestore.branch || 'main',
         parentVersionId: artifact.currentVersionId,
         metadata: {
@@ -396,7 +397,7 @@ router.post(
         .where(eq(artifacts.id, artifactId));
 
       // Audit log
-      await logAuditEvent({
+      await createAuditEntry({
         eventType: "ARTIFACT_VERSION_RESTORE",
         userId,
         resourceType: "artifact_version",
@@ -407,8 +408,8 @@ router.post(
           restoredFromVersionId: versionId,
           restoredFromVersion: versionToRestore.versionNumber,
           newVersionNumber: nextVersionNumber,
+          researchId: artifact.researchId,
         },
-        researchId: artifact.researchId,
       });
 
       res.status(201).json({

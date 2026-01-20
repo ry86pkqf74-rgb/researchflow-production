@@ -75,11 +75,11 @@ export async function wouldCreateCycle(
   if (sourceId === targetId) return true;
   
   // Check if there's a path from target back to source
-  const query = \`
+  const query = `
     WITH RECURSIVE paths AS (
       SELECT source_artifact_id, target_artifact_id, 1 AS depth
       FROM artifact_edges
-      WHERE source_artifact_id = \$1 AND deleted_at IS NULL
+      WHERE source_artifact_id = $1 AND deleted_at IS NULL
       UNION ALL
       SELECT e.source_artifact_id, e.target_artifact_id, p.depth + 1
       FROM artifact_edges e
@@ -87,9 +87,9 @@ export async function wouldCreateCycle(
       WHERE e.deleted_at IS NULL AND p.depth < 20
     )
     SELECT EXISTS(
-      SELECT 1 FROM paths WHERE target_artifact_id = \$2
+      SELECT 1 FROM paths WHERE target_artifact_id = $2
     ) AS has_cycle;
-  \`;
+  `;
   
   const res = await pool.query(query, [targetId, sourceId]);
   return Boolean(res.rows?.[0]?.has_cycle);
@@ -178,40 +178,40 @@ export async function getGraph(
   
   if (direction === 'downstream' || direction === 'both') {
     // Get downstream artifacts (those that depend on this one)
-    queries.push(\`
+    queries.push(`
       WITH RECURSIVE downstream AS (
-        SELECT id, source_artifact_id, target_artifact_id, relation_type, 
+        SELECT id, source_artifact_id, target_artifact_id, relation_type,
                transformation_type, created_at, 1 AS depth
         FROM artifact_edges
-        WHERE source_artifact_id = \$1 AND deleted_at IS NULL
+        WHERE source_artifact_id = $1 AND deleted_at IS NULL
         UNION ALL
         SELECT e.id, e.source_artifact_id, e.target_artifact_id, e.relation_type,
                e.transformation_type, e.created_at, d.depth + 1
         FROM artifact_edges e
         JOIN downstream d ON e.source_artifact_id = d.target_artifact_id
-        WHERE e.deleted_at IS NULL AND d.depth < \$2
+        WHERE e.deleted_at IS NULL AND d.depth < $2
       )
       SELECT * FROM downstream
-    \`);
+    `);
   }
-  
+
   if (direction === 'upstream' || direction === 'both') {
     // Get upstream artifacts (those this one depends on)
-    queries.push(\`
+    queries.push(`
       WITH RECURSIVE upstream AS (
         SELECT id, source_artifact_id, target_artifact_id, relation_type,
                transformation_type, created_at, 1 AS depth
         FROM artifact_edges
-        WHERE target_artifact_id = \$1 AND deleted_at IS NULL
+        WHERE target_artifact_id = $1 AND deleted_at IS NULL
         UNION ALL
         SELECT e.id, e.source_artifact_id, e.target_artifact_id, e.relation_type,
                e.transformation_type, e.created_at, u.depth + 1
         FROM artifact_edges e
         JOIN upstream u ON e.target_artifact_id = u.source_artifact_id
-        WHERE e.deleted_at IS NULL AND u.depth < \$2
+        WHERE e.deleted_at IS NULL AND u.depth < $2
       )
       SELECT * FROM upstream
-    \`);
+    `);
   }
 
   // Execute queries and collect results
@@ -245,7 +245,7 @@ export async function getGraph(
         currentVersionId: artifacts.currentVersionId,
       })
       .from(artifacts)
-      .where(sql\`\${artifacts.id} IN (\${sql.join(nodeIdArray.map(id => sql\`\${id}\`), sql\`, \`)})\`);
+      .where(sql`${artifacts.id} IN (${sql.join(nodeIdArray.map(id => sql`${id}`), sql`, `)})`);
 
     // Get latest version numbers
     for (const artifact of artifactRows) {
@@ -297,16 +297,16 @@ async function computeOutdatedStatus(
     if (!targetNode) continue;
 
     // Get the edge's recorded source version and current source version
-    const edgeQuery = \`
-      SELECT 
+    const edgeQuery = `
+      SELECT
         ae.source_version_id,
         a.current_version_id as source_current_version,
         ae.created_at as edge_created_at,
         (SELECT MAX(created_at) FROM artifact_versions WHERE artifact_id = ae.source_artifact_id) as latest_source_version_at
       FROM artifact_edges ae
       JOIN artifacts a ON a.id = ae.source_artifact_id
-      WHERE ae.id = \$1
-    \`;
+      WHERE ae.id = $1
+    `;
     
     const res = await pool.query(edgeQuery, [edge.id]);
     const row = res.rows[0];
@@ -318,13 +318,13 @@ async function computeOutdatedStatus(
       // Version-tracked edge: outdated if source version changed
       if (row.source_version_id !== row.source_current_version) {
         targetNode.isOutdated = true;
-        targetNode.outdatedReason = \`Source artifact version changed since edge was created\`;
+        targetNode.outdatedReason = `Source artifact version changed since edge was created`;
       }
     } else if (row.latest_source_version_at && row.edge_created_at) {
       // Non-version-tracked: outdated if source updated after edge created
       if (new Date(row.latest_source_version_at) > new Date(row.edge_created_at)) {
         targetNode.isOutdated = true;
-        targetNode.outdatedReason = \`Source artifact updated after dependency was created\`;
+        targetNode.outdatedReason = `Source artifact updated after dependency was created`;
       }
     }
   }
