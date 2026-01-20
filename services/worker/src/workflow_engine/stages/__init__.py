@@ -9,9 +9,11 @@ registered with the stage registry on module load.
 from . import stage_03_irb
 from . import stage_05_phi
 from . import stage_08_validation
+from . import stage_20_conference
 
 __all__ = [
     "stage_03_irb",
     "stage_05_phi",
     "stage_08_validation",
+    "stage_20_conference",
 ]

@@ -46,8 +46,8 @@ def register_stage(cls: Type[Stage]) -> Type[Stage]:
 
     stage_id = cls.stage_id
 
-    if not isinstance(stage_id, int) or stage_id < 1 or stage_id > 19:
-        raise ValueError(f"stage_id must be an integer between 1 and 19, got {stage_id}")
+    if not isinstance(stage_id, int) or stage_id < 1 or stage_id > 20:
+        raise ValueError(f"stage_id must be an integer between 1 and 20, got {stage_id}")
 
     if stage_id in _stage_registry:
         existing = _stage_registry[stage_id]
@@ -66,7 +66,7 @@ def get_stage(stage_id: int) -> Optional[Type[Stage]]:
     """Retrieve a registered stage class by its ID.
 
     Args:
-        stage_id: The numeric stage identifier (1-19)
+        stage_id: The numeric stage identifier (1-20)
 
     Returns:
         The registered Stage class, or None if not found

@@ -28,7 +28,7 @@ Docker-first deployment architecture for ResearchFlow with clean Node.js/Python 
 ┌─────────────────────────────────────────────────────────────────┐
 │                    PYTHON COMPUTE WORKER                         │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
-│  │  Data    │ │ 19-Stage │ │  Figure  │ │ Artifact │           │
+│  │  Data    │ │ 20-Stage │ │  Figure  │ │ Artifact │           │
 │  │Validation│ │ Workflow │ │  + Table │ │ + Manifest│          │
 │  │ (Pandera)│ │  Engine  │ │   Gen    │ │   Writer │           │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
@@ -86,7 +86,7 @@ make build           # Build production images
 researchflow-production/
 ├── services/
 │   ├── orchestrator/     # Node.js API (auth, RBAC, job queue, AI routing)
-│   ├── worker/           # Python compute (validation, analysis, 19-stage workflow)
+│   ├── worker/           # Python compute (validation, analysis, 20-stage workflow)
 │   └── web/              # React frontend
 ├── packages/
 │   ├── core/             # Shared TypeScript types and schemas
@@ -118,10 +118,11 @@ The orchestrator handles:
 
 The worker handles:
 - Data validation (Pandera schemas)
-- 19-stage research workflow execution
+- 20-stage research workflow execution (with optional conference prep)
 - Statistical analysis and QC
 - Figure and table generation
 - Artifact creation with manifest tracking
+- Conference material generation (posters, slides, export bundles)
 
 ### Web (React)
 
@@ -204,6 +205,62 @@ make test-e2e
 
 # With coverage
 make test-coverage
+```
+
+## Stage 20: Conference Preparation
+
+Stage 20 is an optional workflow stage that automates conference submission material generation:
+
+### Features
+
+- **Conference Discovery**: Automatically find relevant conferences based on research keywords and preferences
+- **Guideline Extraction**: Parse submission requirements (word limits, poster dimensions, slide counts)
+- **Material Generation**: Create conference-ready materials:
+  - Abstracts (formatted to word limits)
+  - Poster PDFs (compliant with dimension requirements)
+  - Presentation slides (PPTX format)
+  - Compliance checklists
+- **Validation & Export**: QC checks and bundled ZIP exports ready for submission
+
+### Usage
+
+Enable conference prep in your job spec:
+
+```json
+{
+  "enable_conference_prep": true,
+  "conference_prep": {
+    "keywords": ["surgery", "endocrinology", "thyroid"],
+    "field": "endocrinology",
+    "year_range": [2026, 2027],
+    "location_preferences": ["North America", "Europe"],
+    "formats": ["poster", "oral"],
+    "max_candidates": 10,
+    "selected_conferences": ["SAGES Annual Meeting", "ACS"]
+  }
+}
+```
+
+### PHI Protection
+
+Stage 20 enforces strict PHI protection:
+- All query keywords are scanned for PHI before external searches
+- Generated materials pass PHI redaction checks before export
+- Conference discovery uses only public, non-sensitive metadata
+- Offline/DEMO mode uses curated fixture data (no external calls)
+
+### Output Structure
+
+```
+.tmp/conference_prep/{run_id}/
+├── discovery/conference_candidates.json
+├── guidelines/guidelines_{conference}.json
+├── materials/{conference}/{format}/
+│   ├── abstract.txt
+│   ├── poster.pdf
+│   └── slides.pptx
+├── validation/validation_report_{conference}_{format}.json
+└── bundles/export_bundle_{conference}_{format}.zip
 ```
 
 ## Governance

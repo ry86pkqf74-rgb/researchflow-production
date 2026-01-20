@@ -19,7 +19,8 @@ const WORKFLOW_STAGES = [
   { id: 16, name: 'Submission Readiness', group: 'finalization' },
   { id: 17, name: 'Poster Preparation', group: 'conference-readiness' },
   { id: 18, name: 'Symposium Materials', group: 'conference-readiness' },
-  { id: 19, name: 'Presentation Preparation', group: 'conference-readiness' }
+  { id: 19, name: 'Presentation Preparation', group: 'conference-readiness' },
+  { id: 20, name: 'Conference Preparation', group: 'conference-readiness' }
 ];
 
 type StageStatus = 'pending' | 'active' | 'completed' | 'blocked';
@@ -43,8 +44,8 @@ function isValidStatusTransition(from: StageStatus, to: StageStatus): boolean {
 }
 
 describe('Workflow Stage Accessibility', () => {
-  it('should define exactly 19 stages', () => {
-    expect(WORKFLOW_STAGES.length).toBe(19);
+  it('should define exactly 20 stages', () => {
+    expect(WORKFLOW_STAGES.length).toBe(20);
   });
 
   it('should have unique stage IDs', () => {
@@ -53,7 +54,7 @@ describe('Workflow Stage Accessibility', () => {
     expect(uniqueIds.size).toBe(ids.length);
   });
 
-  it('should have sequential stage IDs from 1 to 19', () => {
+  it('should have sequential stage IDs from 1 to 20', () => {
     const ids = WORKFLOW_STAGES.map(s => s.id).sort((a, b) => a - b);
     for (let i = 0; i < ids.length; i++) {
       expect(ids[i]).toBe(i + 1);
@@ -99,9 +100,9 @@ describe('Workflow Stage Accessibility', () => {
       expect(final.map(s => s.id)).toEqual([15, 16]);
     });
 
-    it('should have conference-readiness group with stages 17-19', () => {
+    it('should have conference-readiness group with stages 17-20', () => {
       const conf = WORKFLOW_STAGES.filter(s => s.group === 'conference-readiness');
-      expect(conf.map(s => s.id)).toEqual([17, 18, 19]);
+      expect(conf.map(s => s.id)).toEqual([17, 18, 19, 20]);
     });
   });
 });
