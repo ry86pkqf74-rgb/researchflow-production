@@ -6,9 +6,13 @@ import cors from "cors";
 import dotenv from "dotenv";
 import net from "net";
 import { pool } from "./db";
+import { createLogger, type LogLevel } from "./src/utils/logger";
 
 // Load environment variables
 dotenv.config();
+
+// Create logger instance
+const logger = createLogger('orchestrator');
 
 const app = express();
 const httpServer = createServer(app);
@@ -40,26 +44,24 @@ app.use(
 
 app.use(express.urlencoded({ extended: false, limit: "50mb" }));
 
-// Logging function
-export function log(message: string, source = "orchestrator") {
-  const timestamp = new Date().toISOString();
-  const logEntry = {
-    timestamp,
-    source,
-    message,
-    level: "info",
-  };
-
-  if (process.env.LOG_FORMAT === "json") {
-    console.log(JSON.stringify(logEntry));
-  } else {
-    const formattedTime = new Date().toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
-    });
-    console.log(`${formattedTime} [${source}] ${message}`);
+/**
+ * Legacy log function - wraps structured logger for backward compatibility
+ * @deprecated Use createLogger() from src/utils/logger.ts instead
+ */
+export function log(message: string, level: string = "info") {
+  const logLevel = level as LogLevel;
+  switch (logLevel) {
+    case 'debug':
+      logger.debug(message);
+      break;
+    case 'warn':
+      logger.warn(message);
+      break;
+    case 'error':
+      logger.error(message);
+      break;
+    default:
+      logger.info(message);
   }
 }
 
@@ -257,17 +259,13 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-
-      // Only log response body in development or if small
-      if (process.env.NODE_ENV !== "production" && capturedJsonResponse) {
-        const responseStr = JSON.stringify(capturedJsonResponse);
-        if (responseStr.length < 500) {
-          logLine += ` :: ${responseStr}`;
-        }
-      }
-
-      log(logLine);
+      // Use debug level for request logging to reduce noise in production
+      logger.debug(`${req.method} ${path} ${res.statusCode} in ${duration}ms`, {
+        method: req.method,
+        path,
+        statusCode: res.statusCode,
+        duration,
+      });
     }
   });
 
@@ -288,11 +286,14 @@ app.use((req, res, next) => {
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";
 
-      // Log error details
-      log(`Error ${status}: ${message}`, "error");
-      if (process.env.NODE_ENV !== "production") {
-        console.error(err.stack);
-      }
+      // Log error details using structured logger
+      logger.error(`Request error: ${message}`, {
+        statusCode: status,
+        errorCode: err.code || "INTERNAL_ERROR",
+        ...(process.env.NODE_ENV !== "production" && {
+          stack: err.stack?.split('\n').slice(0, 5).join('\n'),
+        }),
+      });
 
       res.status(status).json({
         error: message,
@@ -345,7 +346,9 @@ app.use((req, res, next) => {
     process.on("SIGINT", () => shutdown("SIGINT"));
 
   } catch (error) {
-    console.error("Failed to start orchestrator:", error);
+    logger.error("Failed to start orchestrator", {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     process.exit(1);
   }
 })();

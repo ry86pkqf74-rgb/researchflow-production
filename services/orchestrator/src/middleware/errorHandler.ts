@@ -9,6 +9,9 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { OperationNotAllowedError } from "@researchflow/core/types/classification"
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('error-handler');
 
 interface ErrorWithStatus extends Error {
   status?: number;
@@ -25,14 +28,16 @@ export function errorHandler(
   res: Response,
   next: NextFunction
 ): void {
-  // Log error details in development
-  if (process.env.NODE_ENV === 'development') {
-    console.error('='.repeat(60));
-    console.error('ERROR:', err.message);
-    console.error('Path:', req.method, req.path);
-    console.error('Stack:', err.stack);
-    console.error('='.repeat(60));
-  }
+  // Log error details using structured logger
+  logger.error(`Request error: ${err.message}`, {
+    method: req.method,
+    path: req.path,
+    statusCode: err.status || 500,
+    errorCode: err.code,
+    ...(process.env.NODE_ENV !== 'production' && {
+      stack: err.stack?.split('\n').slice(0, 5).join('\n'),
+    }),
+  });
 
   // Handle specific error types
   if (err instanceof OperationNotAllowedError) {

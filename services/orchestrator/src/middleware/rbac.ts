@@ -20,6 +20,9 @@ import {
   hasMinimumRole,
   InsufficientPermissionsError
 } from "@researchflow/core"
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('rbac');
 
 export { ROLES };
 export type { Permission };
@@ -28,15 +31,14 @@ export type Role = RoleName;
 
 export function logAuditEvent(action: string, resourceType: string) {
   return (req: Request, _res: Response, next: NextFunction): void => {
-    console.log(JSON.stringify({
-      timestamp: new Date().toISOString(),
+    logger.info(`Audit event: ${action}`, {
       type: 'AUDIT_EVENT',
       action,
       resourceType,
       userId: req.user?.id || 'anonymous',
       method: req.method,
       path: req.path
-    }));
+    });
     next();
   };
 }
@@ -265,16 +267,14 @@ export function rbacErrorHandler(err: Error, req: Request, res: Response, next: 
  */
 export function auditAccess(req: Request, res: Response, next: NextFunction): void {
   if (req.user) {
-    console.log(JSON.stringify({
-      timestamp: new Date().toISOString(),
+    // Use debug level for access logging to reduce noise
+    logger.debug(`API access`, {
       type: 'API_ACCESS',
-      user: req.user.email,
+      userId: req.user.id,
       role: req.user.role,
       method: req.method,
       path: req.path,
-      ip: req.ip,
-      userAgent: req.get('user-agent')
-    }));
+    });
   }
 
   next();

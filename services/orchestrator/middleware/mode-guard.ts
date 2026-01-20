@@ -5,6 +5,9 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { AppMode, MODE_CONFIGS } from '@researchflow/core';
+import { createLogger } from '../src/utils/logger';
+
+const logger = createLogger('mode-guard');
 
 /**
  * Get current mode from environment or default to DEMO for safety
@@ -25,7 +28,7 @@ export const getCurrentMode = (): AppMode => {
     if (rosMode === AppMode.LIVE) return AppMode.LIVE;
     if (rosMode === AppMode.DEMO) return AppMode.DEMO;
     // Invalid ROS_MODE value - log warning and continue to fallback
-    console.warn(`[MODE-GUARD] Invalid ROS_MODE value: ${rosMode}, falling back to GOVERNANCE_MODE`);
+    logger.warn(`Invalid ROS_MODE value, falling back to GOVERNANCE_MODE`, { rosMode });
   }
 
   // Fallback to GOVERNANCE_MODE
@@ -165,8 +168,8 @@ export const blockAIInDemo = (req: Request, res: Response, next: NextFunction) =
   const mode = getCurrentMode();
 
   if (mode === AppMode.DEMO) {
-    // Log the blocked AI call attempt (if audit logging is configured)
-    console.log(`[DEMO MODE] Blocked AI call to ${req.path} - returning mock response`);
+    // Log the blocked AI call attempt using debug level to reduce noise
+    logger.debug(`Blocked AI call in DEMO mode - returning mock response`, { path: req.path });
 
     // Return mock response instead of calling real AI
     return res.json(getMockResponseForEndpoint(req.path, req.method));
@@ -318,7 +321,7 @@ export const enforceStandbyMode = (req: Request, res: Response, next: NextFuncti
   
   // In STANDBY mode, only GET requests to status/config are allowed
   if (method !== 'GET') {
-    console.log(`[STANDBY MODE] Blocked ${method} request to ${path}`);
+    logger.debug(`STANDBY MODE blocked request`, { method, path });
     return res.status(503).json({
       error: 'System in STANDBY mode',
       mode: 'STANDBY',
@@ -334,7 +337,7 @@ export const enforceStandbyMode = (req: Request, res: Response, next: NextFuncti
   
   // Check if the GET request is to an allowed path
   if (!isPathAllowedInStandby(path)) {
-    console.log(`[STANDBY MODE] Blocked GET request to non-status path: ${path}`);
+    logger.debug(`STANDBY MODE blocked GET request to non-status path`, { path });
     return res.status(503).json({
       error: 'System in STANDBY mode',
       mode: 'STANDBY',
@@ -369,7 +372,7 @@ export const blockWritesInStandby = (req: Request, res: Response, next: NextFunc
   const writeOperations = ['POST', 'PUT', 'DELETE', 'PATCH'];
   
   if (writeOperations.includes(method)) {
-    console.log(`[STANDBY MODE] Blocked ${method} operation to ${req.path}`);
+    logger.debug(`STANDBY MODE blocked write operation`, { method, path: req.path });
     return res.status(503).json({
       error: 'Write operations blocked in STANDBY mode',
       mode: 'STANDBY',
