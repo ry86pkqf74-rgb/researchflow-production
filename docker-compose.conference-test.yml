@@ -1,0 +1,80 @@
+version: '3.8'
+
+# Docker Compose configuration for Stage 20: Conference Preparation testing
+# Usage: docker-compose -f docker-compose.conference-test.yml up --build
+
+services:
+  # Python worker service with conference prep modules
+  worker:
+    build:
+      context: ./services/worker
+      dockerfile: Dockerfile
+    container_name: researchflow-worker-conference
+    ports:
+      - "8001:8001"
+    environment:
+      - PYTHONPATH=/app
+      - CONFERENCE_MODE=DEMO
+      - CONFERENCE_ARTIFACTS_PATH=/data/artifacts/conference
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./services/worker:/app
+      - conference-artifacts:/data/artifacts/conference
+    command: uvicorn api_server:app --host 0.0.0.0 --port 8001 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Test runner for conference prep unit tests
+  test-runner:
+    build:
+      context: ./services/worker
+      dockerfile: Dockerfile
+    container_name: researchflow-conference-tests
+    environment:
+      - PYTHONPATH=/app
+      - CONFERENCE_MODE=DEMO
+    volumes:
+      - ./services/worker:/app
+      - ./tests:/app/tests
+    working_dir: /app
+    command: >
+      sh -c "
+        pip install pytest pytest-asyncio pytest-cov &&
+        python -m pytest tests/unit/conference_prep/test_stage_20.py -v --tb=short
+      "
+    depends_on:
+      worker:
+        condition: service_healthy
+
+  # Optional: Integration test with orchestrator
+  orchestrator:
+    build:
+      context: ./services/orchestrator
+      dockerfile: Dockerfile
+    container_name: researchflow-orchestrator-conference
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=test
+      - WORKER_SERVICE_URL=http://worker:8001
+      - ARTIFACTS_PATH=/data/artifacts/conference
+      - CONFERENCE_API_TIMEOUT=120000
+    volumes:
+      - ./services/orchestrator:/app
+      - conference-artifacts:/data/artifacts/conference
+    depends_on:
+      worker:
+        condition: service_healthy
+    profiles:
+      - integration
+
+volumes:
+  conference-artifacts:
+    driver: local
+
+networks:
+  default:
+    name: researchflow-conference-test
