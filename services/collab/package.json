@@ -1,0 +1,30 @@
+{
+  "name": "@researchflow/collab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/src/server.js",
+    "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^2.13.5",
+    "@researchflow/core": "file:../../packages/core",
+    "@researchflow/phi-engine": "file:../../packages/phi-engine",
+    "ioredis": "^5.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1",
+    "ws": "^8.18.0",
+    "yjs": "^13.6.18"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.10",
+    "@types/ws": "^8.5.12",
+    "tsx": "^4.15.0",
+    "typescript": "^5.4.5"
+  }
+}

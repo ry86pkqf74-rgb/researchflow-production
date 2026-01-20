@@ -54,6 +54,34 @@ services:
     networks:
       - researchflow
 
+  collab:
+    build:
+      context: .
+      dockerfile: services/collab/Dockerfile
+    ports:
+      - "1234:1234"
+    environment:
+      - NODE_ENV=development
+      - PORT=1234
+      - HOST=0.0.0.0
+      - APP_MODE=DEMO
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
+      - JWT_SECRET=${JWT_SECRET:-development-secret}
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/collab:/app
+      - /app/node_modules
+    networks:
+      - researchflow
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1234/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   postgres:
     image: postgres:16-alpine
     environment:

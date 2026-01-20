@@ -1,5 +1,6 @@
 #!/bin/bash
 # Manuscript Engine Test Runner (Containerized with Auto-Approve)
+# Phase B E2E Test Entry Point
 
 set -e
 
@@ -16,12 +17,14 @@ print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 show_usage() {
     cat << EOF
-Manuscript Engine Containerized Test Runner
+Manuscript Engine Test Runner (Phase B Closeout)
 
 Usage: $0 [COMMAND]
 
 Commands:
-  test              Run all tests once (default)
+  test              Run all unit tests once (default)
+  smoke             Run Phase B smoke E2E tests
+  e2e               Run Playwright E2E tests
   watch             Run tests in watch mode
   coverage          Generate coverage report
   build             Build the container
@@ -30,8 +33,9 @@ Commands:
   clean             Clean up containers and volumes
 
 Examples:
-  $0 test           # Run tests
-  $0 watch          # Watch mode
+  $0 test           # Run unit tests
+  $0 smoke          # Run Phase B smoke E2E (fast)
+  $0 e2e            # Run Playwright UI E2E
   $0 coverage       # Coverage report
   $0 shell          # Debug in container
 
@@ -48,7 +52,21 @@ case $COMMAND in
     test)
         print_info "Running manuscript-engine tests in container..."
         docker-compose -f $COMPOSE_FILE run --rm manuscript-engine-test
-        print_success "Tests completed! ✓"
+        print_success "Tests completed!"
+        ;;
+
+    smoke)
+        print_info "Running Phase B smoke E2E tests..."
+        print_info "This tests manuscript creation, generation, export, and governance gates."
+        ./scripts/test-phase-b-smoke.sh
+        print_success "Smoke E2E tests completed!"
+        ;;
+
+    e2e)
+        print_info "Running Playwright E2E tests..."
+        print_info "Ensure services are running: docker-compose up -d"
+        npx playwright test tests/e2e/manuscripts.spec.ts
+        print_success "Playwright E2E tests completed!"
         ;;
 
     watch)

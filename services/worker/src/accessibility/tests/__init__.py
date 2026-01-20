@@ -1,0 +1,1 @@
+"""Accessibility validation tests."""

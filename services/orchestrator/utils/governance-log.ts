@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-export type GovernanceEventType = 
+export type GovernanceEventType =
   | 'PHI_SCAN_STARTED'
   | 'PHI_SCAN_COMPLETED'
   | 'PHI_DETECTED'
@@ -28,7 +28,11 @@ export type GovernanceEventType =
   | 'DATA_ACCESSED'
   | 'TOPIC_VERSIONED'
   | 'SAP_APPROVED'
-  | 'SAP_EXECUTED';
+  | 'SAP_EXECUTED'
+  | 'ORCID_FETCHED'
+  | 'ORCID_VERIFIED'
+  | 'PLAGIARISM_CHECK_REQUESTED'
+  | 'PLAGIARISM_CHECK_COMPLETED';
 
 export type SeverityLevel = 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
 

@@ -13,6 +13,7 @@ import dotenv from 'dotenv';
 import governanceRoutes from './routes/governance.js';
 import datasetRoutes from './routes/datasets.js';
 import conferenceRoutes from './routes/conference.js';
+import orcidRoutes from './routes/orcid';
 import { mockAuthMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -57,6 +58,7 @@ app.get('/health', (req, res) => {
 app.use('/api/governance', governanceRoutes);
 app.use('/api/datasets', datasetRoutes);
 app.use('/api/ros', conferenceRoutes);
+app.use('/api/orcid', orcidRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -87,6 +89,7 @@ app.listen(PORT, () => {
   console.log('  ✓ Approval Gates');
   console.log('  ✓ Claim Linter');
   console.log('  ✓ PHI Scanning');
+  console.log('  ✓ ORCID Integration');
   console.log('='.repeat(60));
 });
 
