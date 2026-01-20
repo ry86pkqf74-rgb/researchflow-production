@@ -83,6 +83,8 @@ import searchRouter from "./src/routes/search";
 import integrationsRouter from "./src/routes/integrations";
 import badgesRouter from "./src/routes/badges";
 import sustainabilityRouter from "./src/routes/sustainability";
+// Phase G: Custom Workflow Builder
+import workflowsRouter from "./src/routes/workflows";
 import { scan as scanPhi } from "@researchflow/phi-engine";
 
 // ROS Backend API URL (Python FastAPI server)
@@ -921,6 +923,9 @@ export async function registerRoutes(
   app.use("/api/badges", badgesRouter);
   // Mount Sustainability routes (Task 95: CO2 tracking)
   app.use("/api/sustainability", sustainabilityRouter);
+
+  // Phase G: Custom Workflow Builder
+  app.use("/api/workflows", workflowsRouter);
 
   // Mode information endpoint - publicly accessible
   app.get("/api/mode", (_req, res) => {
