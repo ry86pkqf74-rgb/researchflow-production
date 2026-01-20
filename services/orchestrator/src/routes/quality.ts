@@ -6,7 +6,7 @@
 
 import { Router, type Request, type Response } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
-import { requirePermission } from "../middleware/requirePermission";
+import { requirePermission } from "../middleware/rbac";
 import { createAuditEntry } from "../services/auditService";
 
 const router = Router();
@@ -54,7 +54,7 @@ interface ProfilingReport {
  */
 router.get(
   "/dashboard",
-  requirePermission("data:read"),
+  requirePermission("VIEW"),
   asyncHandler(async (req: Request, res: Response) => {
     // In production, this would fetch from database/profiling service
     // For now, return mock data structure
@@ -92,7 +92,7 @@ router.get(
  */
 router.get(
   "/datasets",
-  requirePermission("data:read"),
+  requirePermission("VIEW"),
   asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
@@ -116,7 +116,7 @@ router.get(
  */
 router.get(
   "/datasets/:datasetId",
-  requirePermission("data:read"),
+  requirePermission("VIEW"),
   asyncHandler(async (req: Request, res: Response) => {
     const { datasetId } = req.params;
 
@@ -141,7 +141,7 @@ router.get(
  */
 router.post(
   "/datasets/:datasetId/profile",
-  requirePermission("data:write"),
+  requirePermission("UPLOAD"),
   asyncHandler(async (req: Request, res: Response) => {
     const { datasetId } = req.params;
     const { minimal = false } = req.body;
@@ -173,7 +173,7 @@ router.post(
  */
 router.get(
   "/reports",
-  requirePermission("data:read"),
+  requirePermission("VIEW"),
   asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const offset = parseInt(req.query.offset as string) || 0;
@@ -198,7 +198,7 @@ router.get(
  */
 router.get(
   "/reports/:reportId",
-  requirePermission("data:read"),
+  requirePermission("VIEW"),
   asyncHandler(async (req: Request, res: Response) => {
     const { reportId } = req.params;
 
@@ -223,7 +223,7 @@ router.get(
  */
 router.get(
   "/reports/:reportId/html",
-  requirePermission("data:read"),
+  requirePermission("VIEW"),
   asyncHandler(async (req: Request, res: Response) => {
     const { reportId: _reportId } = req.params;
 

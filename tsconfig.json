@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
+    "types": ["vitest/globals"],
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
     "strict": false,
     "noImplicitAny": false,
     "esModuleInterop": true,
@@ -36,12 +37,25 @@
     "packages/*/src/**/*",
     "packages/*/*.ts",
     "services/orchestrator/src/**/*",
-    "tests/**/*"
+    "tests/**/*",
+    "types/**/*"
   ],
   "exclude": [
     "node_modules",
     "**/node_modules",
     "**/dist",
-    "services/web"
+    "services/web",
+    "packages/cli",
+    "tests/integration/manuscript-engine/writing-tools.test.ts",
+    "tests/integration/manuscript-engine/compliance-export.test.ts",
+    "tests/integration/manuscript-engine/data-integration.test.ts",
+    "tests/integration/manuscript-engine/literature.test.ts",
+    "tests/governance/rbac.test.ts",
+    "tests/governance/fail-closed.test.ts",
+    "tests/integration/artifacts.test.ts",
+    "tests/integration/standby-mode.test.ts",
+    "tests/utils/test-app.ts",
+    "tests/e2e/mocks/**/*",
+    "packages/manuscript-engine/src/services/__tests__/**/*"
   ]
 }

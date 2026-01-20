@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   DataMapperService,
   DataTaggerService,
-  ManuscriptVersionService,
+  VersionControlService,
   DataCitationService
 } from '@researchflow/manuscript-engine';
 import type { ClinicalDataset } from '@researchflow/manuscript-engine';
@@ -88,7 +88,7 @@ describe('Data Integration Pipeline', () => {
   });
 
   it('creates hash-chained versions', async () => {
-    const versionService = new ManuscriptVersionService();
+    const versionService = new VersionControlService();
 
     const v1 = await versionService.createVersion({
       manuscriptId: 'ms-001',
@@ -145,7 +145,7 @@ describe('Data Integration Pipeline', () => {
   });
 
   it('compares versions and shows diffs', async () => {
-    const versionService = new ManuscriptVersionService();
+    const versionService = new VersionControlService();
 
     await versionService.createVersion({
       manuscriptId: 'ms-002',

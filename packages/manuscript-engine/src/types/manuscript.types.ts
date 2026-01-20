@@ -4,15 +4,19 @@
  */
 
 import { z } from 'zod';
+import type { IMRaDSection } from './imrad.types';
 
-// IMRaD Section Types
-export type IMRaDSection = 'abstract' | 'introduction' | 'methods' | 'results' | 'discussion' | 'references';
+// Note: IMRaDSection is imported from imrad.types.ts and used here
+// The type is exported from imrad.types.ts which is re-exported via index.ts
 
 export type ManuscriptStatus = 'draft' | 'review' | 'approved' | 'submitted' | 'published';
 
 export type TemplateType = 'imrad' | 'case_report' | 'systematic_review' | 'meta_analysis';
 
-export type CitationStyle = 'AMA' | 'APA' | 'Vancouver' | 'NLM' | 'Chicago';
+// Bibliography formatting style (different from in-text citation style in citation-inserter.types)
+export type BibliographyStyle = 'AMA' | 'APA' | 'Vancouver' | 'NLM' | 'Chicago';
+/** @deprecated Use BibliographyStyle instead */
+export type CitationStyleLegacy = BibliographyStyle;
 
 // Clinical Data Types
 export const ClinicalDatasetSchema = z.object({
@@ -92,7 +96,7 @@ export interface Author {
 export interface ManuscriptMetadata {
   journalTarget?: string;
   wordLimits?: Record<IMRaDSection, number>;
-  style: CitationStyle;
+  style: BibliographyStyle;
   conflicts: string[];
   funding: string[];
   ethics?: {
@@ -159,8 +163,8 @@ export interface GeneratedFigure {
   config: VisualizationConfig;
 }
 
-// Citations
-export interface Citation {
+// Legacy Citation - use Citation from citation.types instead
+export interface LegacyCitation {
   id: string;
   type: 'pubmed' | 'doi' | 'arxiv' | 'manual' | 'semantic_scholar';
   externalId: string;
@@ -175,7 +179,7 @@ export interface Citation {
   pmid?: string;
   url?: string;
   abstract?: string;
-  formatted: Record<CitationStyle, string>;
+  formatted: Record<BibliographyStyle, string>;
 }
 
 // PHI Scan Result

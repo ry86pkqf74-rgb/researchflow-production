@@ -516,7 +516,7 @@ describe('PhiGuardService', () => {
 
       const findings: PhiFinding[] = [
         {
-          type: 'ZIP',
+          type: 'ZIP_CODE',
           value: '12345',
           startIndex: 0,
           endIndex: 5,
@@ -545,14 +545,14 @@ describe('PhiGuardService', () => {
 
       const findings: PhiFinding[] = [
         {
-          type: 'ZIP',
+          type: 'ZIP_CODE',
           value: '12345',
           startIndex: 0,
           endIndex: 5,
           confidence: 0.85,
         },
         {
-          type: 'DATE',
+          type: 'DOB',
           value: '2023-01-01',
           startIndex: 10,
           endIndex: 20,
@@ -697,14 +697,14 @@ describe('PhiGuardService', () => {
 
       const findings: PhiFinding[] = [
         {
-          type: 'ZIP',
+          type: 'ZIP_CODE',
           value: '12345',
           startIndex: 0,
           endIndex: 5,
           confidence: 0.85,
         },
         {
-          type: 'DATE',
+          type: 'DOB',
           value: '2023-01-01',
           startIndex: 10,
           endIndex: 20,

@@ -7,6 +7,9 @@
 import { z } from 'zod';
 import type { AIRouterRequest, AIRouterResponse } from '@researchflow/ai-router';
 
+// Re-export all types from the types directory for backward compatibility
+export * from './types/index';
+
 /**
  * Section types for manuscript
  */

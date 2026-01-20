@@ -81,9 +81,10 @@ export { ClaimHighlighterService } from './src/services/claim-highlighter.servic
 
 export * from './src/templates/table-templates';
 export * from './src/templates/phrase-library';
-export * from './src/prompts/abstract-generator.prompt';
+// Note: abstract-generator.prompt is deprecated, use section-prompts/abstract.prompt instead
+// export * from './src/prompts/abstract-generator.prompt';
 
-// Section-specific prompts
+// Section-specific prompts (includes buildAbstractPrompt)
 export * from './src/prompts/section-prompts/abstract.prompt';
 export * from './src/prompts/section-prompts/introduction.prompt';
 export * from './src/prompts/section-prompts/methods.prompt';

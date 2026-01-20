@@ -48,12 +48,12 @@ export interface SuggestionContext {
   currentSentence: string;
   previousSentences: string[];
   sectionContext: string;
-  availableCitations?: CitationContext[];
+  availableCitations?: CoWriterCitationContext[];
   availableData?: DataContext[];
   outlinePoint?: string;
 }
 
-export interface CitationContext {
+export interface CoWriterCitationContext {
   id: string;
   shortRef: string; // "Smith et al., 2023"
   relevance: number;
@@ -146,7 +146,7 @@ export interface WritingAssistantState {
   lastKeystroke: Date;
 }
 
-export interface CitationSuggestion {
+export interface CoWriterCitationSuggestion {
   id: string;
   citationId: string;
   shortRef: string;

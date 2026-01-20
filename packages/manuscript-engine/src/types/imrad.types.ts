@@ -5,14 +5,45 @@
 
 import { z } from 'zod';
 
+// IMRaD Section Type - Core manuscript sections
+export type IMRaDSection =
+  | 'abstract'
+  | 'introduction'
+  | 'methods'
+  | 'results'
+  | 'discussion'
+  | 'references'
+  | 'title'
+  | 'keywords'
+  | 'acknowledgments'
+  | 'appendices'
+  | 'supplementary'
+  | 'case_presentation'
+  // Journal-specific sections
+  | 'what_is_already_known'
+  | 'what_this_study_adds'
+  | 'panel';
+
+// Word Count Limits Configuration
+export interface WordCountLimits {
+  abstract?: { min?: number; max?: number };
+  introduction?: { min?: number; max?: number };
+  methods?: { min?: number; max?: number };
+  results?: { min?: number; max?: number };
+  discussion?: { min?: number; max?: number };
+  total?: { min?: number; max?: number };
+}
+
 // Template Placeholder
 export interface TemplatePlaceholder {
   id: string;
   label: string;
-  type: 'text' | 'data' | 'citation' | 'figure' | 'table';
-  required: boolean;
+  type?: 'text' | 'data' | 'citation' | 'figure' | 'table';
+  required?: boolean;
   defaultValue?: string;
   helpText?: string;
+  description?: string;
+  dataBinding?: string;
 }
 
 // IMRaD Template

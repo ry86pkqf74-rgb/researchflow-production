@@ -3,8 +3,9 @@
  * Barrel export for all type definitions
  */
 
-export * from './manuscript.types';
+// IMRaD types must be exported first as manuscript.types depends on it
 export * from './imrad.types';
+export * from './manuscript.types';
 export * from './citation.types';
 export * from './data-filter.types';
 export * from './citation-inserter.types';

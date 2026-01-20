@@ -32,7 +32,7 @@ describe('Literature Integration Pipeline', () => {
 
       expect(result.totalResults).toBeGreaterThanOrEqual(0);
       expect(result.source).toBe('pubmed');
-      expect(Array.isArray(result.articles)).toBe(true);
+      expect(Array.isArray(result.results)).toBe(true);
     });
 
     it('fetches PubMed article by PMID', async () => {
@@ -470,18 +470,22 @@ describe('Literature Integration Pipeline', () => {
       expect(Array.isArray(keywords)).toBe(true);
 
       // 3. Format a citation
-      if (searchResults.articles.length > 0) {
+      if (searchResults.results && searchResults.results.length > 0) {
         const mockCitation: Citation = {
           id: '1',
           manuscriptId: mockManuscriptId,
           sourceType: 'pubmed',
-          externalId: searchResults.articles[0].pmid || '0',
-          title: searchResults.articles[0].title,
-          authors: searchResults.articles[0].authors.map(a => ({
-            lastName: a.lastName,
-            firstName: a.firstName,
-          })),
-          year: searchResults.articles[0].year,
+          externalId: searchResults.results[0].externalId || '0',
+          title: searchResults.results[0].title || '',
+          authors: (searchResults.results[0].authors || []).map(a => {
+            // authors is string[] in LitSearchResult
+            const parts = a.split(' ');
+            return {
+              lastName: parts[0] || a,
+              firstName: parts.slice(1).join(' ') || undefined,
+            };
+          }),
+          year: searchResults.results[0].year || 2023,
         };
 
         const formatted = citationFormatterService.format(mockCitation, 'ama');
