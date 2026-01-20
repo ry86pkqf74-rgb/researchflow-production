@@ -15,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { usePhiGate, PhiStatusBadge } from "@/components/ui/phi-gate";
-import { 
+import {
   Image,
   Users,
   Monitor,
@@ -35,7 +35,14 @@ import {
   Sparkles,
   X,
   Loader2,
-  FileDown
+  FileDown,
+  Search,
+  Globe,
+  BookOpen,
+  ArrowRight,
+  RefreshCw,
+  Star,
+  Award
 } from "lucide-react";
 
 interface ConferenceDetails {
@@ -109,9 +116,57 @@ interface ConferenceRequirementsResponse {
   mode: string;
 }
 
+// Stage 20 Conference Prep interfaces
+interface DiscoveredConference {
+  id: string;
+  name: string;
+  acronym: string;
+  location: string;
+  dates: string;
+  deadline: string;
+  format: string[];
+  relevanceScore: number;
+  topics: string[];
+  website?: string;
+}
+
+interface ConferenceDiscoverResponse {
+  conferences: DiscoveredConference[];
+  totalFound: number;
+  searchCriteria: {
+    keywords: string[];
+    yearRange?: { start: number; end: number };
+    locationPreference?: string;
+  };
+}
+
+interface GuidelinesExtractResponse {
+  conferenceId: string;
+  conferenceName: string;
+  guidelines: {
+    abstractWordLimit?: number;
+    posterDimensions?: { width: number; height: number; unit: string };
+    slideLimits?: { min: number; max: number };
+    speakingTime?: number;
+    requiredSections: string[];
+    fileFormats: string[];
+    deadlines: { type: string; date: string }[];
+    additionalRequirements: string[];
+  };
+  extractedAt: string;
+  sourceUrl?: string;
+}
+
+interface MaterialsExportResponse {
+  runId: string;
+  status: string;
+  files: { name: string; type: string; size: string; url: string }[];
+  generatedAt: string;
+}
+
 interface ConferenceReadinessPanelProps {
-  stageId: 17 | 18 | 19;
-  onGenerateOutput?: (type: "poster" | "symposium" | "presentation") => void;
+  stageId: 17 | 18 | 19 | 20;
+  onGenerateOutput?: (type: "poster" | "symposium" | "presentation" | "conference-prep") => void;
 }
 
 export function ConferenceReadinessPanel({ stageId, onGenerateOutput }: ConferenceReadinessPanelProps) {

@@ -484,4 +484,317 @@ router.get(
   })
 );
 
+// =============================================================================
+// SECTION E: Worker Proxy Endpoints for Stage 20 Conference Preparation
+// =============================================================================
+
+const WORKER_API_URL = process.env.WORKER_API_URL || process.env.ROS_API_URL || 'http://localhost:8000';
+
+/**
+ * POST /api/ros/conference/discover
+ * Discover and rank conferences based on research keywords and preferences.
+ * Proxies to worker: POST /api/ros/conference/discover
+ */
+router.post(
+  '/discover',
+  requireRole('RESEARCHER'),
+  asyncHandler(async (req, res) => {
+    const { keywords, yearRange, locationPreference, formatPreferences } = req.body;
+
+    if (!keywords || !Array.isArray(keywords) || keywords.length === 0) {
+      res.status(400).json({
+        error: 'Invalid request',
+        code: 'INVALID_REQUEST',
+        details: 'keywords array is required and must not be empty'
+      });
+      return;
+    }
+
+    // Audit log the discovery request
+    console.log(`[AUDIT] Conference discovery request by ${(req.user as any)?.email || 'unknown'}`, {
+      keywords,
+      yearRange,
+      locationPreference,
+      timestamp: new Date().toISOString()
+    });
+
+    try {
+      const response = await fetch(`${WORKER_API_URL}/api/ros/conference/discover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keywords,
+          year_range: yearRange,
+          location_preference: locationPreference,
+          format_preferences: formatPreferences
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        res.status(response.status).json({
+          error: 'Worker request failed',
+          code: 'WORKER_ERROR',
+          details: errorData.detail || response.statusText
+        });
+        return;
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error('[ERROR] Conference discover proxy failed:', error);
+      res.status(503).json({
+        error: 'Service unavailable',
+        code: 'WORKER_UNAVAILABLE',
+        details: 'Unable to reach conference discovery service'
+      });
+    }
+  })
+);
+
+/**
+ * POST /api/ros/conference/guidelines/extract
+ * Extract and parse conference submission guidelines from a URL.
+ * Proxies to worker: POST /api/ros/conference/guidelines/extract
+ */
+router.post(
+  '/guidelines/extract',
+  requireRole('RESEARCHER'),
+  asyncHandler(async (req, res) => {
+    const { conferenceId, guidelinesUrl, forceRefresh } = req.body;
+
+    if (!conferenceId) {
+      res.status(400).json({
+        error: 'Invalid request',
+        code: 'INVALID_REQUEST',
+        details: 'conferenceId is required'
+      });
+      return;
+    }
+
+    // Audit log the guidelines extraction request
+    console.log(`[AUDIT] Guidelines extraction request by ${(req.user as any)?.email || 'unknown'}`, {
+      conferenceId,
+      guidelinesUrl,
+      timestamp: new Date().toISOString()
+    });
+
+    try {
+      const response = await fetch(`${WORKER_API_URL}/api/ros/conference/guidelines/extract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conference_id: conferenceId,
+          guidelines_url: guidelinesUrl,
+          force_refresh: forceRefresh
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        res.status(response.status).json({
+          error: 'Worker request failed',
+          code: 'WORKER_ERROR',
+          details: errorData.detail || response.statusText
+        });
+        return;
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error('[ERROR] Guidelines extract proxy failed:', error);
+      res.status(503).json({
+        error: 'Service unavailable',
+        code: 'WORKER_UNAVAILABLE',
+        details: 'Unable to reach guidelines extraction service'
+      });
+    }
+  })
+);
+
+/**
+ * POST /api/ros/conference/materials/export
+ * Generate conference materials and create export bundle.
+ * Proxies to worker: POST /api/ros/conference/materials/export
+ */
+router.post(
+  '/materials/export',
+  requireRole('RESEARCHER'),
+  asyncHandler(async (req, res) => {
+    const {
+      conferenceId,
+      topicId,
+      materialTypes,
+      guidelines,
+      customOptions
+    } = req.body;
+
+    if (!conferenceId || !topicId) {
+      res.status(400).json({
+        error: 'Invalid request',
+        code: 'INVALID_REQUEST',
+        details: 'conferenceId and topicId are required'
+      });
+      return;
+    }
+
+    // Audit log the materials export request
+    console.log(`[AUDIT] Materials export request by ${(req.user as any)?.email || 'unknown'}`, {
+      conferenceId,
+      topicId,
+      materialTypes,
+      timestamp: new Date().toISOString()
+    });
+
+    try {
+      const response = await fetch(`${WORKER_API_URL}/api/ros/conference/materials/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conference_id: conferenceId,
+          topic_id: topicId,
+          material_types: materialTypes,
+          guidelines,
+          custom_options: customOptions
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        res.status(response.status).json({
+          error: 'Worker request failed',
+          code: 'WORKER_ERROR',
+          details: errorData.detail || response.statusText
+        });
+        return;
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error('[ERROR] Materials export proxy failed:', error);
+      res.status(503).json({
+        error: 'Service unavailable',
+        code: 'WORKER_UNAVAILABLE',
+        details: 'Unable to reach materials export service'
+      });
+    }
+  })
+);
+
+/**
+ * GET /api/ros/conference/download/:runId/:filename
+ * Stream download of generated conference materials.
+ * Implements path traversal protection.
+ */
+router.get(
+  '/download/:runId/:filename',
+  requireRole('RESEARCHER'),
+  asyncHandler(async (req, res) => {
+    const { runId, filename } = req.params;
+
+    // Path traversal protection: reject any path containing .. or /
+    if (!runId || !filename ||
+        runId.includes('..') || runId.includes('/') || runId.includes('\\') ||
+        filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      res.status(400).json({
+        error: 'Invalid request',
+        code: 'INVALID_PATH',
+        details: 'Invalid runId or filename - path traversal not allowed'
+      });
+      return;
+    }
+
+    // Validate runId format (should be UUID-like or alphanumeric)
+    const validIdPattern = /^[a-zA-Z0-9_-]+$/;
+    if (!validIdPattern.test(runId) || !validIdPattern.test(filename.replace(/\.[^.]+$/, ''))) {
+      res.status(400).json({
+        error: 'Invalid request',
+        code: 'INVALID_FORMAT',
+        details: 'Invalid runId or filename format'
+      });
+      return;
+    }
+
+    // Audit log the download request
+    console.log(`[AUDIT] Conference material download by ${(req.user as any)?.email || 'unknown'}`, {
+      runId,
+      filename,
+      timestamp: new Date().toISOString()
+    });
+
+    const artifactPath = `/data/artifacts/conference/${runId}/${filename}`;
+
+    // Dynamic import for fs and path modules
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // Additional path validation: ensure resolved path stays within artifacts directory
+    const basePath = '/data/artifacts/conference';
+    const resolvedPath = path.resolve(artifactPath);
+    if (!resolvedPath.startsWith(basePath)) {
+      res.status(400).json({
+        error: 'Invalid request',
+        code: 'PATH_VIOLATION',
+        details: 'Requested path is outside allowed directory'
+      });
+      return;
+    }
+
+    // Check if file exists
+    if (!fs.existsSync(resolvedPath)) {
+      res.status(404).json({
+        error: 'Not found',
+        code: 'FILE_NOT_FOUND',
+        details: `File not found: ${filename}`
+      });
+      return;
+    }
+
+    // Determine Content-Type based on file extension
+    const ext = path.extname(filename).toLowerCase();
+    const contentTypeMap: Record<string, string> = {
+      '.pdf': 'application/pdf',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.zip': 'application/zip',
+      '.txt': 'text/plain',
+      '.json': 'application/json',
+      '.csv': 'text/csv'
+    };
+
+    const contentType = contentTypeMap[ext] || 'application/octet-stream';
+
+    // Get file stats for Content-Length
+    const stats = fs.statSync(resolvedPath);
+
+    // Set response headers
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', stats.size);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+
+    // Stream the file
+    const fileStream = fs.createReadStream(resolvedPath);
+    fileStream.pipe(res);
+
+    fileStream.on('error', (error) => {
+      console.error('[ERROR] File streaming failed:', error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: 'Internal error',
+          code: 'STREAM_ERROR',
+          details: 'Failed to stream file'
+        });
+      }
+    });
+  })
+);
+
 export default router;

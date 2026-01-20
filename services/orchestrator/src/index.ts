@@ -57,7 +57,7 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/governance', governanceRoutes);
 app.use('/api/datasets', datasetRoutes);
-app.use('/api/ros', conferenceRoutes);
+app.use('/api/ros/conference', conferenceRoutes);
 app.use('/api/orcid', orcidRoutes);
 
 // 404 handler
