@@ -1,0 +1,165 @@
+# Istio DestinationRules for Zero-Trust mTLS (Task 68)
+# Configures client-side mTLS settings for service-to-service communication
+#
+# These rules ensure:
+# - All outbound connections use mTLS
+# - Connection pool settings for resilience
+# - Outlier detection for automatic circuit breaking
+#
+# Feature Flag: ISTIO_MTLS_ENABLED
+
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: orchestrator-mtls
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: orchestrator
+    app.kubernetes.io/component: security
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "68"
+spec:
+  host: orchestrator.researchflow.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 10s
+      http:
+        h2UpgradePolicy: UPGRADE
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 10
+        maxRetries: 3
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: worker-mtls
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: worker
+    app.kubernetes.io/component: security
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "68"
+spec:
+  host: worker.researchflow.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 50
+        connectTimeout: 30s
+      http:
+        h2UpgradePolicy: UPGRADE
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 5
+        maxRetries: 3
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 30s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 30
+      minHealthPercent: 30
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: web-mtls
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/component: security
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "68"
+spec:
+  host: web.researchflow.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 200
+        connectTimeout: 5s
+      http:
+        h2UpgradePolicy: UPGRADE
+        http1MaxPendingRequests: 200
+        http2MaxRequests: 2000
+        maxRequestsPerConnection: 20
+        maxRetries: 2
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: redis-mtls
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: security
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "68"
+spec:
+  host: redis.researchflow.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 5s
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: postgres-mtls
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: security
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "68"
+spec:
+  host: postgres.researchflow.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 50
+        connectTimeout: 10s
+
+---
+# Default rule for all services in namespace
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: default-mtls
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/component: security
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "68"
+spec:
+  host: "*.researchflow.svc.cluster.local"
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL

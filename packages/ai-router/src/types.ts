@@ -80,6 +80,7 @@ export interface AIRouterRequest {
     researchId?: string;
     stageId?: number;
     workflowStep?: string;
+    sessionId?: string;
   };
 }
 

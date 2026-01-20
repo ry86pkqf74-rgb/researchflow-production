@@ -1,0 +1,230 @@
+# HorizontalPodAutoscaler Configuration for Unpredictable Bursts (Task 76)
+#
+# Implements advanced HPA tuning for:
+# - Fast scale-up during traffic bursts
+# - Gradual scale-down to prevent thrashing
+# - Custom metrics support for AI workloads
+# - Behavior policies for stability
+#
+# Uses HPA v2 with behavior configuration
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: orchestrator-hpa
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: orchestrator
+    app.kubernetes.io/component: autoscaling
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "76"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: orchestrator
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    # CPU-based scaling
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    # Memory-based scaling
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+    # Request rate scaling (if metrics-server supports custom metrics)
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "100"
+  behavior:
+    scaleUp:
+      # Aggressive scale-up for burst handling
+      stabilizationWindowSeconds: 0  # Scale immediately
+      policies:
+        # Add 100% of current replicas, up to 4 pods at once
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+      selectPolicy: Max  # Use the policy that adds more pods
+    scaleDown:
+      # Conservative scale-down to prevent thrashing
+      stabilizationWindowSeconds: 300  # 5 minute stabilization
+      policies:
+        # Remove at most 1 pod per minute
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+      selectPolicy: Min  # Use the most conservative policy
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: worker-hpa
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: worker
+    app.kubernetes.io/component: autoscaling
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "76"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  minReplicas: 1
+  maxReplicas: 20
+  metrics:
+    # CPU-based scaling
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+    # Memory scaling for AI workloads
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70
+    # Queue depth scaling (custom metric)
+    - type: External
+      external:
+        metric:
+          name: redis_queue_length
+          selector:
+            matchLabels:
+              queue: researchflow-jobs-pending
+        target:
+          type: AverageValue
+          averageValue: "10"
+  behavior:
+    scaleUp:
+      # Very aggressive for queue buildup
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 200  # Triple capacity quickly
+          periodSeconds: 15
+        - type: Pods
+          value: 5
+          periodSeconds: 15
+      selectPolicy: Max
+    scaleDown:
+      # Very conservative for workers (jobs in progress)
+      stabilizationWindowSeconds: 600  # 10 minute stabilization
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120  # 1 pod per 2 minutes max
+      selectPolicy: Min
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web-hpa
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/component: autoscaling
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "76"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 30
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 180
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+      selectPolicy: Min
+
+---
+# PodDisruptionBudget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orchestrator-pdb
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: orchestrator
+    app.kubernetes.io/component: availability
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "76"
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: orchestrator
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: worker-pdb
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: worker
+    app.kubernetes.io/component: availability
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "76"
+spec:
+  maxUnavailable: 50%
+  selector:
+    matchLabels:
+      app: worker
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web-pdb
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/component: availability
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "76"
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: web

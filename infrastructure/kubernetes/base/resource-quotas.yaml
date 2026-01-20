@@ -1,0 +1,219 @@
+# Resource Quotas and LimitRange per Tenant (Task 75)
+#
+# Implements resource governance for multi-tenant deployment:
+# - Namespace-level quotas prevent resource exhaustion
+# - LimitRanges set default and max limits per container
+# - Prevents noisy neighbor problems
+# - Ensures fair resource distribution
+#
+# Feature Flag: Enabled via Kubernetes admission controllers
+
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: researchflow-quota
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: governance
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "75"
+spec:
+  hard:
+    # Compute resources
+    requests.cpu: "20"
+    requests.memory: "40Gi"
+    limits.cpu: "40"
+    limits.memory: "80Gi"
+
+    # Storage resources
+    requests.storage: "100Gi"
+    persistentvolumeclaims: "20"
+
+    # Object counts
+    pods: "50"
+    services: "20"
+    secrets: "50"
+    configmaps: "50"
+    replicationcontrollers: "0"  # Use deployments instead
+
+    # Network policies
+    count/networkpolicies.networking.k8s.io: "20"
+
+---
+# ResourceQuota for AI workloads (heavier resources allowed)
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: researchflow-ai-quota
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: governance
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "75"
+spec:
+  hard:
+    # GPU resources (if available)
+    requests.nvidia.com/gpu: "4"
+    limits.nvidia.com/gpu: "4"
+
+  # Scope to AI-labeled pods
+  scopeSelector:
+    matchExpressions:
+      - operator: In
+        scopeName: PriorityClass
+        values: ["ai-workload"]
+
+---
+# LimitRange for default container limits
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: researchflow-limits
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: governance
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "75"
+spec:
+  limits:
+    # Container limits
+    - type: Container
+      default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      max:
+        cpu: "4"
+        memory: "8Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+
+    # Pod limits (aggregate of all containers)
+    - type: Pod
+      max:
+        cpu: "8"
+        memory: "16Gi"
+      min:
+        cpu: "100m"
+        memory: "128Mi"
+
+    # PVC limits
+    - type: PersistentVolumeClaim
+      max:
+        storage: "20Gi"
+      min:
+        storage: "1Gi"
+
+---
+# PriorityClass for AI workloads
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: ai-workload
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: governance
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "75"
+value: 100000
+globalDefault: false
+description: "Priority class for AI processing workloads"
+preemptionPolicy: PreemptLowerPriority
+
+---
+# PriorityClass for critical services
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: critical-service
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: governance
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "75"
+value: 1000000
+globalDefault: false
+description: "Priority class for critical services (orchestrator, database)"
+preemptionPolicy: PreemptLowerPriority
+
+---
+# Network Policy to isolate tenant namespaces
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-external-egress
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: security
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "75"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow internal namespace communication
+    - to:
+        - podSelector: {}
+    # Allow external HTTPS (for API calls)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+# Network Policy to restrict ingress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restrict-ingress
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: security
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "75"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+    # Allow internal namespace communication
+    - from:
+        - podSelector: {}
+    # Allow from monitoring
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090  # Prometheus metrics

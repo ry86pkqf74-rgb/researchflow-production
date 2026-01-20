@@ -1,0 +1,98 @@
+# Istio PeerAuthentication for Zero-Trust mTLS (Task 68)
+# Enforces mutual TLS between all services in the researchflow namespace
+#
+# Security Model:
+# - STRICT mode requires all communication to be mTLS encrypted
+# - No plaintext traffic allowed between services
+# - Certificates are managed automatically by Istio
+#
+# Prerequisites:
+# - Istio installed with istio-injection enabled on namespace
+# - All pods must have Istio sidecar proxy injected
+#
+# Feature Flag: ISTIO_MTLS_ENABLED (set via Istio config, not env var)
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: researchflow-mtls
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: security
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "68"
+spec:
+  # STRICT: Only accept mTLS connections
+  # PERMISSIVE: Accept both mTLS and plaintext (use during migration)
+  # DISABLE: No mTLS enforcement
+  mtls:
+    mode: STRICT
+
+---
+# Namespace-level default policy
+# Applies to all services without explicit PeerAuthentication
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: researchflow
+spec:
+  mtls:
+    mode: STRICT
+
+---
+# Service-specific policy for orchestrator (stricter settings)
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: orchestrator-mtls
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: orchestrator
+    app.kubernetes.io/component: security
+spec:
+  selector:
+    matchLabels:
+      app: orchestrator
+  mtls:
+    mode: STRICT
+  # Port-level overrides if needed
+  portLevelMtls:
+    # Health check port can be permissive for external probes
+    8080:
+      mode: STRICT
+
+---
+# Service-specific policy for worker
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: worker-mtls
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: worker
+    app.kubernetes.io/component: security
+spec:
+  selector:
+    matchLabels:
+      app: worker
+  mtls:
+    mode: STRICT
+
+---
+# Service-specific policy for web frontend
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: web-mtls
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/component: security
+spec:
+  selector:
+    matchLabels:
+      app: web
+  mtls:
+    mode: STRICT

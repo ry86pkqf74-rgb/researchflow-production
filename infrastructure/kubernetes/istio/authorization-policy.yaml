@@ -1,0 +1,173 @@
+# Istio AuthorizationPolicy for Zero-Trust Access Control (Task 68)
+# Defines which services can communicate with each other
+#
+# Security Model:
+# - Default deny all traffic
+# - Explicit allow rules for legitimate service communication
+# - Principal-based access using service accounts
+#
+# Feature Flag: ISTIO_AUTHZ_ENABLED
+
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/component: security
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "68"
+spec:
+  # Empty spec = deny all by default
+  {}
+
+---
+# Allow orchestrator to receive traffic from ingress and web
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-orchestrator-ingress
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: orchestrator
+    app.kubernetes.io/component: security
+spec:
+  selector:
+    matchLabels:
+      app: orchestrator
+  action: ALLOW
+  rules:
+    # Allow from ingress gateway
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"
+      to:
+        - operation:
+            methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+            paths: ["/api/*", "/health", "/health/ready"]
+    # Allow from web frontend
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/researchflow/sa/web"
+      to:
+        - operation:
+            methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+            paths: ["/api/*"]
+    # Allow health checks from kubelet (no mTLS)
+    - from:
+        - source:
+            namespaces: ["kube-system"]
+      to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/health", "/health/ready"]
+
+---
+# Allow worker to receive traffic from orchestrator only
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-worker-from-orchestrator
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: worker
+    app.kubernetes.io/component: security
+spec:
+  selector:
+    matchLabels:
+      app: worker
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/researchflow/sa/orchestrator"
+      to:
+        - operation:
+            methods: ["GET", "POST"]
+            paths: ["/api/*", "/health"]
+    # Allow health checks
+    - from:
+        - source:
+            namespaces: ["kube-system"]
+      to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/health"]
+
+---
+# Allow web to receive traffic from ingress only
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-web-ingress
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/component: security
+spec:
+  selector:
+    matchLabels:
+      app: web
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"
+      to:
+        - operation:
+            methods: ["GET", "HEAD", "OPTIONS"]
+            paths: ["/*"]
+
+---
+# Allow Redis to receive traffic from orchestrator and worker
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-redis-internal
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: security
+spec:
+  selector:
+    matchLabels:
+      app: redis
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/researchflow/sa/orchestrator"
+              - "cluster.local/ns/researchflow/sa/worker"
+      to:
+        - operation:
+            ports: ["6379"]
+
+---
+# Allow Postgres to receive traffic from orchestrator and worker
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-postgres-internal
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: security
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/researchflow/sa/orchestrator"
+              - "cluster.local/ns/researchflow/sa/worker"
+      to:
+        - operation:
+            ports: ["5432"]

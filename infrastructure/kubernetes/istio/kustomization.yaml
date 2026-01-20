@@ -1,0 +1,28 @@
+# Kustomization for Istio Zero-Trust mTLS Configuration
+# Part of Phase D Task 68: Zero-trust mTLS between services
+#
+# Apply with: kubectl apply -k infrastructure/kubernetes/istio/
+#
+# Prerequisites:
+# 1. Istio installed: istioctl install --set profile=demo
+# 2. Namespace labeled: kubectl label namespace researchflow istio-injection=enabled
+# 3. Services have appropriate service accounts
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: researchflow-istio
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: security
+    researchflow.io/phase: phase-d
+
+resources:
+  - peer-authentication.yaml
+  - destination-rules.yaml
+  - authorization-policy.yaml
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+  researchflow.io/security: istio-mtls

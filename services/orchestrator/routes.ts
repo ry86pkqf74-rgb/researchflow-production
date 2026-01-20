@@ -67,6 +67,12 @@ import governanceRouter from "./src/routes/governance";
 import sapRouter from "./src/routes/sap";
 import researchBriefRouter from "./src/routes/research-brief";
 import exportBundleRouter from "./src/routes/export-bundle";
+import literatureRouter from "./src/routes/literature";
+import qualityRouter from "./src/routes/quality";
+// Phase D: AI Ethics & Security routes
+import consentRouter from "./src/routes/consent";
+import aiFeedbackRouter from "./src/routes/ai-feedback";
+import mfaRouter from "./src/routes/mfa";
 import { scan as scanPhi } from "@researchflow/phi-engine";
 
 // ROS Backend API URL (Python FastAPI server)
@@ -859,6 +865,22 @@ export async function registerRoutes(
 
   // Mount Export Bundle routes (reproducibility bundle export with approval workflow)
   app.use("/api/ros/export", exportBundleRouter);
+
+  // Mount Literature routes (Phase C: PubMed, Semantic Scholar, arXiv search)
+  app.use("/api/literature", literatureRouter);
+
+  // Mount Quality routes (Phase C: Data quality dashboard and profiling)
+  app.use("/api/quality", qualityRouter);
+
+  // Phase D: AI Ethics & Security routes
+  // Mount Consent routes (Task 73: GDPR consent management)
+  app.use("/api/consent", consentRouter);
+
+  // Mount AI Feedback routes (Task 65: AI output feedback collection)
+  app.use("/api/ai/feedback", aiFeedbackRouter);
+
+  // Mount MFA routes (Task 79: Multi-factor authentication)
+  app.use("/api/mfa", mfaRouter);
 
   // Mode information endpoint - publicly accessible
   app.get("/api/mode", (_req, res) => {

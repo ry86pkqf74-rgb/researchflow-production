@@ -1,0 +1,315 @@
+# Chaos Engineering Experiments (Task 77)
+#
+# Uses Chaos Mesh (https://chaos-mesh.org/) for:
+# - Network partition testing
+# - Pod failure injection
+# - CPU/Memory stress testing
+# - DNS failures
+#
+# Prerequisites:
+# 1. Install Chaos Mesh: kubectl apply -f https://mirrors.chaos-mesh.org/v2.6.0/chaos-mesh.yaml
+# 2. Label namespace: kubectl label ns researchflow chaos-mesh.org/inject=enabled
+#
+# Feature Flag: CHAOS_TESTING_ENABLED (only in non-prod)
+#
+# SAFETY: These experiments should NEVER run in production.
+# Always verify CHAOS_TESTING_ENABLED=true and environment != production
+
+---
+# Network Partition: Isolate worker from orchestrator
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-partition-worker
+  namespace: researchflow
+  labels:
+    app.kubernetes.io/name: researchflow
+    app.kubernetes.io/component: chaos-testing
+    researchflow.io/phase: phase-d
+    researchflow.io/task: "77"
+    experiment-type: network-partition
+spec:
+  action: partition
+  mode: all
+  selector:
+    namespaces:
+      - researchflow
+    labelSelectors:
+      app: worker
+  direction: both
+  target:
+    selector:
+      namespaces:
+        - researchflow
+      labelSelectors:
+        app: orchestrator
+    mode: all
+  duration: "60s"
+  # Schedule: Run once per day at 3 AM in staging
+  # scheduler:
+  #   cron: "0 3 * * *"
+
+---
+# Network Partition: Isolate database
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-partition-postgres
+  namespace: researchflow
+  labels:
+    experiment-type: network-partition
+spec:
+  action: partition
+  mode: all
+  selector:
+    namespaces:
+      - researchflow
+    labelSelectors:
+      app: postgres
+  direction: both
+  target:
+    selector:
+      namespaces:
+        - researchflow
+      labelSelectors:
+        app: orchestrator
+    mode: all
+  duration: "30s"
+
+---
+# Network Latency: Add 200ms latency to Redis
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-latency-redis
+  namespace: researchflow
+  labels:
+    experiment-type: network-latency
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - researchflow
+    labelSelectors:
+      app: redis
+  delay:
+    latency: "200ms"
+    jitter: "50ms"
+    correlation: "25"
+  duration: "120s"
+
+---
+# Network Loss: 10% packet loss to worker
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-loss-worker
+  namespace: researchflow
+  labels:
+    experiment-type: network-loss
+spec:
+  action: loss
+  mode: all
+  selector:
+    namespaces:
+      - researchflow
+    labelSelectors:
+      app: worker
+  loss:
+    loss: "10"
+    correlation: "25"
+  duration: "60s"
+
+---
+# Pod Failure: Kill random orchestrator pod
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: pod-failure-orchestrator
+  namespace: researchflow
+  labels:
+    experiment-type: pod-failure
+spec:
+  action: pod-failure
+  mode: one  # Kill only one pod
+  selector:
+    namespaces:
+      - researchflow
+    labelSelectors:
+      app: orchestrator
+  duration: "30s"
+
+---
+# Pod Kill: Immediately terminate worker pod
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: pod-kill-worker
+  namespace: researchflow
+  labels:
+    experiment-type: pod-kill
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - researchflow
+    labelSelectors:
+      app: worker
+  gracePeriod: 0  # No graceful shutdown
+
+---
+# Container Kill: Kill main container only
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: container-kill-orchestrator
+  namespace: researchflow
+  labels:
+    experiment-type: container-kill
+spec:
+  action: container-kill
+  mode: one
+  selector:
+    namespaces:
+      - researchflow
+    labelSelectors:
+      app: orchestrator
+  containerNames:
+    - orchestrator
+
+---
+# CPU Stress: 80% CPU on worker for 60s
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: cpu-stress-worker
+  namespace: researchflow
+  labels:
+    experiment-type: cpu-stress
+spec:
+  mode: all
+  selector:
+    namespaces:
+      - researchflow
+    labelSelectors:
+      app: worker
+  stressors:
+    cpu:
+      workers: 2
+      load: 80
+  duration: "60s"
+
+---
+# Memory Stress: Consume 512MB on orchestrator
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: memory-stress-orchestrator
+  namespace: researchflow
+  labels:
+    experiment-type: memory-stress
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - researchflow
+    labelSelectors:
+      app: orchestrator
+  stressors:
+    memory:
+      workers: 1
+      size: "512MB"
+  duration: "60s"
+
+---
+# DNS Chaos: Make external API DNS fail
+apiVersion: chaos-mesh.org/v1alpha1
+kind: DNSChaos
+metadata:
+  name: dns-failure-external
+  namespace: researchflow
+  labels:
+    experiment-type: dns-failure
+spec:
+  action: error
+  mode: all
+  selector:
+    namespaces:
+      - researchflow
+    labelSelectors:
+      app: worker
+  patterns:
+    - "api.openai.com"
+    - "api.anthropic.com"
+  duration: "60s"
+
+---
+# Time Chaos: Skew time by 1 hour (test time-sensitive operations)
+apiVersion: chaos-mesh.org/v1alpha1
+kind: TimeChaos
+metadata:
+  name: time-skew-orchestrator
+  namespace: researchflow
+  labels:
+    experiment-type: time-skew
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - researchflow
+    labelSelectors:
+      app: orchestrator
+  timeOffset: "1h"
+  duration: "120s"
+
+---
+# Workflow: Combined chaos scenario - "Partial Outage"
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Workflow
+metadata:
+  name: partial-outage-scenario
+  namespace: researchflow
+  labels:
+    experiment-type: scenario
+spec:
+  entry: partial-outage
+  templates:
+    - name: partial-outage
+      templateType: Serial
+      children:
+        - network-delay-phase
+        - pod-failure-phase
+        - recovery-phase
+
+    - name: network-delay-phase
+      templateType: NetworkChaos
+      networkChaos:
+        action: delay
+        mode: all
+        selector:
+          namespaces:
+            - researchflow
+          labelSelectors:
+            app: worker
+        delay:
+          latency: "500ms"
+        duration: "60s"
+
+    - name: pod-failure-phase
+      templateType: PodChaos
+      podChaos:
+        action: pod-failure
+        mode: one
+        selector:
+          namespaces:
+            - researchflow
+          labelSelectors:
+            app: orchestrator
+        duration: "30s"
+
+    - name: recovery-phase
+      templateType: Suspend
+      suspend:
+        duration: "120s"  # Allow system to recover

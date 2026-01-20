@@ -806,3 +806,241 @@ export const insertApprovalSchema = createInsertSchema(approvals).omit({
 
 export type Approval = typeof approvals.$inferSelect;
 export type InsertApproval = z.infer<typeof insertApprovalSchema>;
+
+// =====================
+// PHASE D: AI ETHICS & SECURITY TABLES
+// =====================
+
+// Ethics Approvals Table (Task 62)
+export const ETHICS_CATEGORIES = ["bias_review", "data_usage", "patient_impact", "model_safety", "consent_verification"] as const;
+export type EthicsCategory = (typeof ETHICS_CATEGORIES)[number];
+
+export const ETHICS_RISK_LEVELS = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
+export type EthicsRiskLevel = (typeof ETHICS_RISK_LEVELS)[number];
+
+export const ethicsApprovals = pgTable("ethics_approvals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  taskType: text("task_type").notNull(),
+  ethicsCategory: text("ethics_category").notNull(),
+  riskLevel: text("risk_level").notNull().default("LOW"),
+  requestedById: varchar("requested_by_id").notNull().references(() => users.id),
+  requestedByRole: text("requested_by_role").notNull(),
+  approvedById: varchar("approved_by_id").references(() => users.id),
+  status: text("status").notNull().default("PENDING"),
+  riskAssessment: jsonb("risk_assessment"),
+  conditions: jsonb("conditions"),
+  justification: text("justification"),
+  governanceMode: text("governance_mode").notNull(),
+  phiRiskLevel: text("phi_risk_level"),
+  validUntil: timestamp("valid_until"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+});
+
+export const insertEthicsApprovalSchema = createInsertSchema(ethicsApprovals).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type EthicsApprovalRecord = typeof ethicsApprovals.$inferSelect;
+export type InsertEthicsApproval = z.infer<typeof insertEthicsApprovalSchema>;
+
+// AI Invocations Table (Task 64 - Explainability)
+export const AI_INVOCATION_STATUSES = ["SUCCESS", "FAILED", "BLOCKED", "TIMEOUT"] as const;
+export type AIInvocationStatus = (typeof AI_INVOCATION_STATUSES)[number];
+
+export const aiInvocations = pgTable("ai_invocations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  auditEventId: integer("audit_event_id").references(() => auditLogs.id),
+  provider: text("provider").notNull(),
+  model: text("model").notNull(),
+  taskType: text("task_type").notNull(),
+  workflowStage: integer("workflow_stage"),
+  promptTemplateId: varchar("prompt_template_id"),
+  promptTemplateVersion: integer("prompt_template_version"),
+  promptHash: varchar("prompt_hash").notNull(),
+  promptTokenCount: integer("prompt_token_count").notNull(),
+  responseHash: varchar("response_hash").notNull(),
+  responseTokenCount: integer("response_token_count").notNull(),
+  latencyMs: integer("latency_ms").notNull(),
+  phiScanPassed: boolean("phi_scan_passed").notNull(),
+  phiRiskLevel: text("phi_risk_level"),
+  initialTier: text("initial_tier").notNull(),
+  finalTier: text("final_tier").notNull(),
+  escalated: boolean("escalated").notNull().default(false),
+  escalationCount: integer("escalation_count").default(0),
+  escalationReason: text("escalation_reason"),
+  qualityGatePassed: boolean("quality_gate_passed").notNull(),
+  qualityChecks: jsonb("quality_checks"),
+  estimatedCostUsd: text("estimated_cost_usd"),
+  reasoningTrace: jsonb("reasoning_trace"),
+  ethicsApprovalId: varchar("ethics_approval_id").references(() => ethicsApprovals.id),
+  status: text("status").notNull().default("SUCCESS"),
+  errorMessage: text("error_message"),
+  researchId: varchar("research_id"),
+  userId: varchar("user_id").references(() => users.id),
+  sessionId: varchar("session_id"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertAiInvocationSchema = createInsertSchema(aiInvocations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AiInvocationRecord = typeof aiInvocations.$inferSelect;
+export type InsertAiInvocation = z.infer<typeof insertAiInvocationSchema>;
+
+// AI Output Feedback Table (Task 65)
+export const FEEDBACK_TYPES = ["accuracy", "relevance", "safety", "quality", "bias", "completeness"] as const;
+export type FeedbackType = (typeof FEEDBACK_TYPES)[number];
+
+export const aiOutputFeedback = pgTable("ai_output_feedback", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invocationId: varchar("invocation_id").notNull().references(() => aiInvocations.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  rating: integer("rating").notNull(),
+  feedbackType: text("feedback_type").notNull(),
+  tags: jsonb("tags"),
+  comment: text("comment"),
+  isUsefulForTraining: boolean("is_useful_for_training").default(false),
+  reviewedByAdmin: boolean("reviewed_by_admin").default(false),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertAiOutputFeedbackSchema = createInsertSchema(aiOutputFeedback).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AiOutputFeedbackRecord = typeof aiOutputFeedback.$inferSelect;
+export type InsertAiOutputFeedback = z.infer<typeof insertAiOutputFeedbackSchema>;
+
+// User Consents Table (Task 73 - GDPR)
+export const CONSENT_TYPES = ["data_processing", "ai_usage", "phi_access", "marketing", "research_participation", "data_sharing"] as const;
+export type ConsentType = (typeof CONSENT_TYPES)[number];
+
+export const LEGAL_BASES = ["consent", "legitimate_interest", "contract", "legal_obligation", "vital_interest", "public_task"] as const;
+export type LegalBasis = (typeof LEGAL_BASES)[number];
+
+export const userConsents = pgTable("user_consents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  consentType: text("consent_type").notNull(),
+  consentVersion: varchar("consent_version").notNull(),
+  granted: boolean("granted").notNull(),
+  grantedAt: timestamp("granted_at"),
+  revokedAt: timestamp("revoked_at"),
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+  legalBasis: text("legal_basis"),
+  purpose: text("purpose"),
+  dataCategories: jsonb("data_categories"),
+  retentionPeriodDays: integer("retention_period_days"),
+  expiresAt: timestamp("expires_at"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertUserConsentSchema = createInsertSchema(userConsents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type UserConsentRecord = typeof userConsents.$inferSelect;
+export type InsertUserConsent = z.infer<typeof insertUserConsentSchema>;
+
+// User Quotas Table (Task 75)
+export const QUOTA_TYPES = ["ai_calls_per_minute", "ai_calls_per_day", "tokens_per_day", "storage_mb", "exports_per_day", "concurrent_jobs"] as const;
+export type QuotaType = (typeof QUOTA_TYPES)[number];
+
+export const RESET_PERIODS = ["minute", "hour", "day", "week", "month"] as const;
+export type ResetPeriod = (typeof RESET_PERIODS)[number];
+
+export const userQuotas = pgTable("user_quotas", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  quotaType: text("quota_type").notNull(),
+  maxValue: integer("max_value").notNull(),
+  currentValue: integer("current_value").notNull().default(0),
+  resetPeriod: text("reset_period").notNull(),
+  lastResetAt: timestamp("last_reset_at").default(sql`CURRENT_TIMESTAMP`),
+  customLimit: integer("custom_limit"),
+  customLimitSetBy: varchar("custom_limit_set_by").references(() => users.id),
+  customLimitReason: text("custom_limit_reason"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertUserQuotaSchema = createInsertSchema(userQuotas).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UserQuotaRecord = typeof userQuotas.$inferSelect;
+export type InsertUserQuota = z.infer<typeof insertUserQuotaSchema>;
+
+// MFA Enrollments Table (Task 79)
+export const MFA_TYPES = ["totp", "webauthn", "sms", "email"] as const;
+export type MfaType = (typeof MFA_TYPES)[number];
+
+export const mfaEnrollments = pgTable("mfa_enrollments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  mfaType: text("mfa_type").notNull().default("totp"),
+  secretEncrypted: varchar("secret_encrypted").notNull(),
+  backupCodesEncrypted: text("backup_codes_encrypted"),
+  backupCodesUsed: jsonb("backup_codes_used"),
+  isActive: boolean("is_active").notNull().default(false),
+  isVerified: boolean("is_verified").notNull().default(false),
+  lastUsedAt: timestamp("last_used_at"),
+  failedAttempts: integer("failed_attempts").default(0),
+  lockedUntil: timestamp("locked_until"),
+  enrolledAt: timestamp("enrolled_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  verifiedAt: timestamp("verified_at"),
+});
+
+export const insertMfaEnrollmentSchema = createInsertSchema(mfaEnrollments).omit({
+  id: true,
+  enrolledAt: true,
+});
+
+export type MfaEnrollmentRecord = typeof mfaEnrollments.$inferSelect;
+export type InsertMfaEnrollment = z.infer<typeof insertMfaEnrollmentSchema>;
+
+// Security Anomalies Table (Task 67)
+export const ANOMALY_TYPES = ["brute_force", "unusual_access", "phi_spike", "privilege_escalation", "geographic_anomaly", "rate_limit_abuse"] as const;
+export type AnomalyType = (typeof ANOMALY_TYPES)[number];
+
+export const ANOMALY_SEVERITIES = ["INFO", "WARNING", "ALERT", "CRITICAL"] as const;
+export type AnomalySeverity = (typeof ANOMALY_SEVERITIES)[number];
+
+export const securityAnomalies = pgTable("security_anomalies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  anomalyType: text("anomaly_type").notNull(),
+  severity: text("severity").notNull().default("WARNING"),
+  userId: varchar("user_id").references(() => users.id),
+  ipAddress: varchar("ip_address"),
+  description: text("description").notNull(),
+  detectionScore: text("detection_score"),
+  evidence: jsonb("evidence"),
+  acknowledged: boolean("acknowledged").default(false),
+  acknowledgedBy: varchar("acknowledged_by").references(() => users.id),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  resolvedAt: timestamp("resolved_at"),
+  resolutionNotes: text("resolution_notes"),
+  falsePositive: boolean("false_positive").default(false),
+  detectedAt: timestamp("detected_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertSecurityAnomalySchema = createInsertSchema(securityAnomalies).omit({
+  id: true,
+  detectedAt: true,
+});
+
+export type SecurityAnomalyRecord = typeof securityAnomalies.$inferSelect;
+export type InsertSecurityAnomaly = z.infer<typeof insertSecurityAnomalySchema>;

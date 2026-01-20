@@ -12,10 +12,18 @@ import asyncio
 import signal
 import logging
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, asdict
 import httpx
 import redis.asyncio as redis
+
+# Phase C imports - Literature and Data Processing
+from src.jobs import (
+    index_literature,
+    LiteratureIndexingConfig,
+    summarize_literature,
+    SummarizationConfig,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -167,6 +175,13 @@ class WorkerService:
                 result, stages_completed = await self.run_stages(job)
             elif job.type == "artifact_generation":
                 result, artifacts = await self.generate_artifacts(job)
+            # Phase C: Literature processing jobs
+            elif job.type == "literature_indexing":
+                result = await self.run_literature_indexing(job)
+            elif job.type == "literature_summarization":
+                result = await self.run_literature_summarization(job)
+            elif job.type == "literature_search":
+                result = await self.run_literature_search(job)
             else:
                 raise ValueError(f"Unknown job type: {job.type}")
 
@@ -258,6 +273,124 @@ class WorkerService:
 
         # Placeholder implementation
         return {"artifact_count": 0}, artifacts
+
+    # -------------------------------------------------------------------------
+    # Phase C: Literature Processing Jobs
+    # -------------------------------------------------------------------------
+
+    async def run_literature_indexing(self, job: JobRequest) -> Dict[str, Any]:
+        """Index literature items into Chroma vector database."""
+        logger.info(f"Running literature indexing for job {job.job_id}")
+
+        items = job.config.get("items", [])
+        if not items:
+            return {
+                "indexed_count": 0,
+                "updated_count": 0,
+                "collection": "literature",
+                "errors": [],
+            }
+
+        # Build config from job parameters
+        config = LiteratureIndexingConfig(
+            collection=job.config.get("collection", "literature"),
+            upsert=job.config.get("upsert", True),
+            include_abstract=job.config.get("include_abstract", True),
+            include_title=job.config.get("include_title", True),
+        )
+
+        # Run indexing (sync function, run in thread pool)
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: index_literature(items, config)
+        )
+
+        return result
+
+    async def run_literature_summarization(self, job: JobRequest) -> Dict[str, Any]:
+        """Summarize literature using LLM map-reduce approach."""
+        logger.info(f"Running literature summarization for job {job.job_id}")
+
+        items = job.config.get("items", [])
+        query = job.config.get("query", "")
+
+        if not items:
+            return {
+                "paper_summaries": [],
+                "synthesis": {
+                    "themes": [],
+                    "contradictions": [],
+                    "gaps": [],
+                    "overall_summary": "No papers provided for summarization.",
+                },
+                "generated_at": datetime.utcnow().isoformat() + "Z",
+                "config": {},
+            }
+
+        # Build config from job parameters
+        config = SummarizationConfig(
+            include_methods=job.config.get("include_methods", True),
+            include_findings=job.config.get("include_findings", True),
+            include_limitations=job.config.get("include_limitations", True),
+            max_papers_for_synthesis=job.config.get("max_papers_for_synthesis", 20),
+            synthesis_style=job.config.get("synthesis_style", "structured"),
+            model=job.config.get("model", "claude-3-haiku-20240307"),
+            temperature=job.config.get("temperature", 0.3),
+            max_tokens_per_paper=job.config.get("max_tokens_per_paper", 500),
+            max_tokens_synthesis=job.config.get("max_tokens_synthesis", 2000),
+        )
+
+        # Run summarization (sync function with LLM calls)
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: summarize_literature(
+                items=items,
+                query=query,
+                config=config,
+                save_artifact=job.config.get("save_artifact", True),
+            )
+        )
+
+        return result
+
+    async def run_literature_search(self, job: JobRequest) -> Dict[str, Any]:
+        """Search literature using semantic similarity in Chroma."""
+        logger.info(f"Running literature search for job {job.job_id}")
+
+        from src.jobs.literature_indexing import search_literature
+
+        query = job.config.get("query", "")
+        k = job.config.get("k", 10)
+        collection = job.config.get("collection", "literature")
+        year_start = job.config.get("year_start")
+        year_end = job.config.get("year_end")
+        providers = job.config.get("providers")
+
+        if not query:
+            return {"results": [], "query": "", "k": k}
+
+        # Run search (sync function)
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(
+            None,
+            lambda: search_literature(
+                query=query,
+                k=k,
+                collection=collection,
+                year_start=year_start,
+                year_end=year_end,
+                providers=providers,
+            )
+        )
+
+        return {
+            "results": results,
+            "query": query,
+            "k": k,
+            "collection": collection,
+        }
 
     async def send_callback(self, job: JobRequest, result: JobResult):
         """Send job result callback to orchestrator."""

@@ -19,12 +19,22 @@ export { PHI_PATTERNS } from './src/patterns';
 export type { PatternDefinition } from './src/patterns';
 
 // Log scrubbing utilities
-export { 
-  scrubLog, 
-  scrubObject, 
-  containsPhi, 
-  getPhiStats 
+export {
+  scrubLog,
+  scrubObject,
+  containsPhi,
+  getPhiStats
 } from './src/log-scrubber';
+
+// Snippet scanner for batch processing
+export {
+  PhiSnippetScanner,
+  createSnippetScanner,
+  type SnippetScanResult,
+  type BatchScanResult,
+  type SnippetScanOptions,
+  type SnippetInput,
+} from './src/snippet-scanner';
 
 // Logger adapters
 export { createScrubbedLogger } from './src/adapters/pino-adapter';

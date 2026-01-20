@@ -20,6 +20,7 @@ import GovernancePage from "@/pages/governance";
 import GovernanceConsole from "@/pages/governance-console";
 import PipelineDashboard from "@/pages/pipeline-dashboard";
 import SAPBuilder from "@/pages/SAPBuilder";
+import QualityDashboard from "@/pages/quality-dashboard";
 
 function ModeInitializer() {
   const setMode = useModeStore((state) => state.setMode);
@@ -120,7 +121,10 @@ function Router() {
       <Route path="/sap/:topicId/:researchId">
         {() => <ProtectedRoute component={SAPBuilder} />}
       </Route>
-      
+      <Route path="/quality">
+        {() => <ProtectedRoute component={QualityDashboard} />}
+      </Route>
+
       <Route component={NotFound} />
     </Switch>
   );

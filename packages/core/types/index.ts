@@ -43,3 +43,9 @@ export {
 export * from './topic-declaration';
 // Export research brief types for AI-generated briefs
 export * from './research-brief';
+
+// Export literature types for Phase C literature search
+export * from './literature';
+
+// Export quality types for Phase C data quality dashboard
+export * from './quality';
