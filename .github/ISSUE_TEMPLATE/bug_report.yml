@@ -1,0 +1,124 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this bug! Please fill out the form below.
+
+        **IMPORTANT**: Do NOT include any PHI/PII in this report. Sanitize all examples.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the bug
+      placeholder: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component is affected?
+      options:
+        - Web UI
+        - Orchestrator
+        - Worker
+        - Database
+        - Infrastructure/K8s
+        - CI/CD
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - Critical - System unusable, data loss, security issue
+        - High - Major feature broken, no workaround
+        - Medium - Feature impaired, workaround exists
+        - Low - Minor issue, cosmetic
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where does this occur?
+      options:
+        - Production
+        - Staging
+        - Development
+        - Local Docker
+        - CI/CD Pipeline
+      multiple: true
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: |
+        Please include relevant log output. **IMPORTANT**: Remove any PHI/PII before pasting!
+      render: shell
+      placeholder: |
+        Paste sanitized logs here...
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: |
+        If applicable, add screenshots to help explain the problem.
+        **IMPORTANT**: Blur or remove any PHI/PII from screenshots!
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What version are you running?
+      placeholder: e.g., v1.2.3 or commit SHA
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: phi-check
+    attributes:
+      label: PHI/PII Check
+      description: Confirm you've sanitized this report
+      options:
+        - label: I have removed all PHI/PII from this bug report
+          required: true

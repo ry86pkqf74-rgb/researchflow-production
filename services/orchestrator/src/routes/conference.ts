@@ -625,26 +625,56 @@ router.post(
   asyncHandler(async (req, res) => {
     const {
       conferenceId,
+      conference_id,  // snake_case alias
       topicId,
+      researchId,
+      research_id,    // snake_case alias
       materialTypes,
+      material_types, // snake_case alias
       guidelines,
-      customOptions
+      customOptions,
+      custom_options, // snake_case alias
+      blinded,
+      title
     } = req.body;
 
-    if (!conferenceId || !topicId) {
+    // Accept both camelCase and snake_case for flexibility
+    const confId = conferenceId || conference_id;
+    const resId = researchId || research_id || topicId;  // researchId takes priority, fallback to topicId
+    const matTypes = materialTypes || material_types || ['poster_pdf', 'slides_pptx'];
+    const custOpts = customOptions || custom_options;
+
+    // Check for demo mode
+    const isDemoMode = process.env.ROS_MODE !== 'LIVE' || process.env.NO_NETWORK === 'true';
+
+    // In DEMO mode, allow missing IDs with defaults
+    if (!confId) {
+      if (!isDemoMode) {
+        res.status(400).json({
+          error: 'Invalid request',
+          code: 'INVALID_REQUEST',
+          details: 'conferenceId is required'
+        });
+        return;
+      }
+    }
+
+    // Use default researchId in DEMO mode if missing
+    const effectiveResearchId = resId || (isDemoMode ? 'demo-research' : null);
+    if (!effectiveResearchId) {
       res.status(400).json({
         error: 'Invalid request',
         code: 'INVALID_REQUEST',
-        details: 'conferenceId and topicId are required'
+        details: 'researchId or topicId is required'
       });
       return;
     }
 
     // Audit log the materials export request
     console.log(`[AUDIT] Materials export request by ${(req.user as any)?.email || 'unknown'}`, {
-      conferenceId,
-      topicId,
-      materialTypes,
+      conferenceId: confId,
+      researchId: effectiveResearchId,
+      materialTypes: matTypes,
       timestamp: new Date().toISOString()
     });
 
@@ -653,11 +683,13 @@ router.post(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          conference_id: conferenceId,
-          topic_id: topicId,
-          material_types: materialTypes,
+          conference_id: confId || 'demo-conference',
+          research_id: effectiveResearchId,
+          material_types: matTypes,
           guidelines,
-          custom_options: customOptions
+          custom_options: custOpts,
+          blinded: blinded || false,
+          title: title || ''
         })
       });
 
@@ -672,6 +704,15 @@ router.post(
       }
 
       const data = await response.json();
+
+      // Post-process response to add download URLs for files
+      if (data.runId && Array.isArray(data.files)) {
+        data.files = data.files.map((file: any) => ({
+          ...file,
+          url: file.url || `/api/ros/conference/download/${data.runId}/${file.filename || file.name}`
+        }));
+      }
+
       res.json(data);
     } catch (error) {
       console.error('[ERROR] Materials export proxy failed:', error);
@@ -794,6 +835,91 @@ router.get(
         });
       }
     });
+  })
+);
+
+/**
+ * POST /api/ros/conference/export
+ * Backwards compatibility alias for /materials/export.
+ * Web UI may still call this endpoint; internally forwards to /materials/export.
+ */
+router.post(
+  '/export',
+  requireRole('RESEARCHER'),
+  asyncHandler(async (req, res) => {
+    // Transform legacy payload format to new format
+    const {
+      stage_id,
+      title,
+      presentation_duration,
+      include_handouts,
+      qr_links,
+      poster_dimensions,
+      conferenceId,
+      topicId,
+      researchId,
+      materialTypes
+    } = req.body;
+
+    // Build a compatible payload for /materials/export
+    const exportPayload = {
+      conference_id: conferenceId || title || 'legacy-export',
+      research_id: researchId || topicId || 'legacy-research',
+      material_types: materialTypes || ['poster_pdf', 'slides_pptx'],
+      title: title || '',
+      blinded: false,
+      custom_options: {
+        stage_id,
+        presentation_duration,
+        include_handouts,
+        qr_links,
+        poster_dimensions
+      }
+    };
+
+    // Audit log
+    console.log(`[AUDIT] Legacy conference export (alias) by ${(req.user as any)?.email || 'unknown'}`, {
+      stage_id,
+      title,
+      timestamp: new Date().toISOString()
+    });
+
+    try {
+      const response = await fetch(`${WORKER_API_URL}/api/ros/conference/materials/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(exportPayload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        res.status(response.status).json({
+          error: 'Worker request failed',
+          code: 'WORKER_ERROR',
+          details: errorData.detail || response.statusText
+        });
+        return;
+      }
+
+      const data = await response.json();
+
+      // Post-process response to add download URLs for files
+      if (data.runId && Array.isArray(data.files)) {
+        data.files = data.files.map((file: any) => ({
+          ...file,
+          url: file.url || `/api/ros/conference/download/${data.runId}/${file.filename || file.name}`
+        }));
+      }
+
+      res.json(data);
+    } catch (error) {
+      console.error('[ERROR] Legacy export proxy failed:', error);
+      res.status(503).json({
+        error: 'Service unavailable',
+        code: 'WORKER_UNAVAILABLE',
+        details: 'Unable to reach materials export service'
+      });
+    }
   })
 );
 

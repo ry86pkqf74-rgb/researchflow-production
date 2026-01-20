@@ -1,0 +1,324 @@
+name: Slack Notifications
+
+on:
+  # Notify on deployment events
+  workflow_run:
+    workflows: ["Deploy Production", "Deploy Staging"]
+    types: [completed]
+
+  # Notify on security scan results
+  workflow_run:
+    workflows: ["Security Scan"]
+    types: [completed]
+
+  # Notify on CI failures (main/develop only)
+  workflow_run:
+    workflows: ["CI/CD Pipeline"]
+    branches: [main, develop]
+    types: [completed]
+
+  # Notify on new issues and PRs
+  issues:
+    types: [opened, labeled]
+  pull_request:
+    types: [opened, ready_for_review, closed]
+
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      message:
+        description: 'Custom message to send'
+        required: false
+        default: 'Test notification from ResearchFlow'
+
+jobs:
+  notify-deployment:
+    name: Deployment Notification
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_run' &&
+      (github.event.workflow.name == 'Deploy Production' ||
+       github.event.workflow.name == 'Deploy Staging')
+    steps:
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ github.event.workflow_run.conclusion }}
+          fields: repo,message,workflow,job,took,eventName
+          custom_payload: |
+            {
+              "attachments": [{
+                "color": "${{ github.event.workflow_run.conclusion == 'success' && 'good' || 'danger' }}",
+                "blocks": [
+                  {
+                    "type": "header",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "${{ github.event.workflow_run.conclusion == 'success' && '✅' || '❌' }} ${{ github.event.workflow.name }}"
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Status:*\n${{ github.event.workflow_run.conclusion }}"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Branch:*\n${{ github.event.workflow_run.head_branch }}"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Actor:*\n${{ github.event.workflow_run.actor.login }}"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Commit:*\n<${{ github.event.workflow_run.head_repository.html_url }}/commit/${{ github.event.workflow_run.head_sha }}|${{ github.event.workflow_run.head_sha }}>"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "actions",
+                    "elements": [
+                      {
+                        "type": "button",
+                        "text": {
+                          "type": "plain_text",
+                          "text": "View Run"
+                        },
+                        "url": "${{ github.event.workflow_run.html_url }}"
+                      }
+                    ]
+                  }
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != ''
+
+  notify-ci-failure:
+    name: CI Failure Notification
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow.name == 'CI/CD Pipeline' &&
+      github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          fields: repo,message,workflow,job,took
+          custom_payload: |
+            {
+              "attachments": [{
+                "color": "danger",
+                "blocks": [
+                  {
+                    "type": "header",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "🚨 CI Pipeline Failed"
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Branch:*\n${{ github.event.workflow_run.head_branch }}"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Author:*\n${{ github.event.workflow_run.actor.login }}"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "CI checks failed on `${{ github.event.workflow_run.head_branch }}`. Please investigate."
+                    }
+                  },
+                  {
+                    "type": "actions",
+                    "elements": [
+                      {
+                        "type": "button",
+                        "text": {
+                          "type": "plain_text",
+                          "text": "View Failure"
+                        },
+                        "style": "danger",
+                        "url": "${{ github.event.workflow_run.html_url }}"
+                      }
+                    ]
+                  }
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != ''
+
+  notify-security:
+    name: Security Alert
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow.name == 'Security Scan' &&
+      github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          fields: repo,workflow
+          custom_payload: |
+            {
+              "attachments": [{
+                "color": "danger",
+                "blocks": [
+                  {
+                    "type": "header",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "🔒 Security Scan Alert"
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "Security vulnerabilities detected in ResearchFlow. Immediate attention required."
+                    }
+                  },
+                  {
+                    "type": "actions",
+                    "elements": [
+                      {
+                        "type": "button",
+                        "text": {
+                          "type": "plain_text",
+                          "text": "View Security Report"
+                        },
+                        "style": "danger",
+                        "url": "${{ github.event.workflow_run.html_url }}"
+                      }
+                    ]
+                  }
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != ''
+
+  notify-pr:
+    name: PR Notification
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: PR Opened
+        if: github.event.action == 'opened'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "attachments": [{
+                "color": "#0366d6",
+                "blocks": [
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "📝 *New PR:* <${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>\n*Author:* ${{ github.event.pull_request.user.login }}\n*Base:* `${{ github.event.pull_request.base.ref }}` ← `${{ github.event.pull_request.head.ref }}`"
+                    }
+                  }
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != ''
+
+      - name: PR Merged
+        if: github.event.action == 'closed' && github.event.pull_request.merged == true
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "attachments": [{
+                "color": "good",
+                "blocks": [
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "✅ *PR Merged:* <${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }} ${{ github.event.pull_request.title }}>\n*Merged by:* ${{ github.event.pull_request.merged_by.login }}"
+                    }
+                  }
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != ''
+
+  notify-issue:
+    name: Issue Notification
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues'
+    steps:
+      - name: Critical Issue Alert
+        if: github.event.action == 'labeled' && contains(github.event.label.name, 'critical')
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "attachments": [{
+                "color": "danger",
+                "blocks": [
+                  {
+                    "type": "header",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "🚨 Critical Issue"
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "<${{ github.event.issue.html_url }}|#${{ github.event.issue.number }} ${{ github.event.issue.title }}>\n*Reported by:* ${{ github.event.issue.user.login }}"
+                    }
+                  }
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != ''
+
+  notify-manual:
+    name: Manual Notification
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Send custom message
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "${{ github.event.inputs.message }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != ''

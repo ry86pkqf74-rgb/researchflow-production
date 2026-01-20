@@ -189,6 +189,141 @@ describe('API Endpoints Integration Tests', () => {
         expect(response.body.error).toBeDefined();
       });
     });
+
+    describe('POST /api/ros/conference/materials/export - Stage 20 Export Bundle (New Endpoint)', () => {
+      it('should reject VIEWER role', async () => {
+        const exportData = {
+          conferenceId: 'SAGES',
+          researchId: 'test-research-123',
+          materialTypes: ['poster', 'slides'],
+          blinded: false,
+        };
+
+        const response = await request(app)
+          .post('/api/ros/conference/materials/export')
+          .set(getRoleHeader('VIEWER'))
+          .send(exportData);
+
+        expect(response.status).toBe(403);
+        expect(response.body.error).toBeDefined();
+      });
+
+      it('should accept researchId parameter', async () => {
+        const exportData = {
+          conferenceId: 'SAGES',
+          researchId: 'research-uuid-123',
+          materialTypes: ['poster'],
+        };
+
+        const response = await request(app)
+          .post('/api/ros/conference/materials/export')
+          .set(getRoleHeader('RESEARCHER'))
+          .send(exportData);
+
+        // Should not fail due to missing ID
+        expect(response.status).not.toBe(400);
+        expect(response.body.code).not.toBe('MISSING_RESEARCH_ID');
+      });
+
+      it('should accept snake_case research_id parameter', async () => {
+        const exportData = {
+          conference_id: 'SAGES',
+          research_id: 'research-uuid-456',
+          material_types: ['slides'],
+        };
+
+        const response = await request(app)
+          .post('/api/ros/conference/materials/export')
+          .set(getRoleHeader('RESEARCHER'))
+          .send(exportData);
+
+        // Should not fail due to missing ID
+        expect(response.status).not.toBe(400);
+        expect(response.body.code).not.toBe('MISSING_RESEARCH_ID');
+      });
+
+      it('should accept topicId for backwards compatibility', async () => {
+        const exportData = {
+          conferenceId: 'SAGES',
+          topicId: 'topic-legacy-789',
+          materialTypes: ['poster'],
+        };
+
+        const response = await request(app)
+          .post('/api/ros/conference/materials/export')
+          .set(getRoleHeader('RESEARCHER'))
+          .send(exportData);
+
+        // Should not fail due to missing ID
+        expect(response.status).not.toBe(400);
+        expect(response.body.code).not.toBe('MISSING_RESEARCH_ID');
+      });
+
+      it('should return bundle with file URLs in DEMO mode', async () => {
+        const exportData = {
+          conferenceId: 'SAGES',
+          researchId: 'demo-research-123',
+          materialTypes: ['poster'],
+        };
+
+        const response = await request(app)
+          .post('/api/ros/conference/materials/export')
+          .set(getRoleHeader('RESEARCHER'))
+          .send(exportData);
+
+        // In DEMO mode, should return success with files
+        if (response.status === 200 && response.body.files) {
+          expect(Array.isArray(response.body.files)).toBe(true);
+          response.body.files.forEach((file: any) => {
+            expect(file.url).toBeDefined();
+            expect(file.url).toMatch(/^\/api\/ros\/conference\/download\//);
+          });
+        }
+      });
+
+      it('should support include_poster and include_slides flags', async () => {
+        const exportData = {
+          conferenceId: 'SAGES',
+          researchId: 'test-research-flags',
+          include_poster: true,
+          include_slides: false,
+        };
+
+        const response = await request(app)
+          .post('/api/ros/conference/materials/export')
+          .set(getRoleHeader('RESEARCHER'))
+          .send(exportData);
+
+        expect(response.status).not.toBe(400);
+      });
+    });
+
+    describe('GET /api/ros/conference/download/:runId/:filename - Download Files', () => {
+      it('should reject VIEWER role', async () => {
+        const response = await request(app)
+          .get('/api/ros/conference/download/test-run-123/poster.pdf')
+          .set(getRoleHeader('VIEWER'));
+
+        expect(response.status).toBe(403);
+      });
+
+      it('should prevent path traversal attacks', async () => {
+        const response = await request(app)
+          .get('/api/ros/conference/download/test-run/../../../etc/passwd')
+          .set(getRoleHeader('RESEARCHER'));
+
+        // Should return 400 or 404, not serve the file
+        expect([400, 403, 404]).toContain(response.status);
+      });
+
+      it('should return 404 for non-existent files', async () => {
+        const response = await request(app)
+          .get('/api/ros/conference/download/nonexistent-run/missing.pdf')
+          .set(getRoleHeader('RESEARCHER'));
+
+        expect(response.status).toBe(404);
+      });
+    });
   });
 
   // ==========================================

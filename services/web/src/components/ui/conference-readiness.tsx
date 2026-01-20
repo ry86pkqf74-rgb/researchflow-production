@@ -167,9 +167,13 @@ interface MaterialsExportResponse {
 interface ConferenceReadinessPanelProps {
   stageId: 17 | 18 | 19 | 20;
   onGenerateOutput?: (type: "poster" | "symposium" | "presentation" | "conference-prep") => void;
+  /** Research session ID for Stage 20 exports */
+  researchId?: string;
+  /** Topic ID if available */
+  topicId?: string | null;
 }
 
-export function ConferenceReadinessPanel({ stageId, onGenerateOutput }: ConferenceReadinessPanelProps) {
+export function ConferenceReadinessPanel({ stageId, onGenerateOutput, researchId, topicId }: ConferenceReadinessPanelProps) {
   const { phiStatus } = usePhiGate();
   const { toast } = useToast();
   
@@ -234,7 +238,11 @@ export function ConferenceReadinessPanel({ stageId, onGenerateOutput }: Conferen
 
   const exportMutation = useMutation({
     mutationFn: async (payload: any) => {
-      const response = await apiRequest("POST", "/api/ros/conference/export", payload);
+      // Stage 20 uses /materials/export endpoint, others use /export
+      const endpoint = stageId === 20
+        ? "/api/ros/conference/materials/export"
+        : "/api/ros/conference/export";
+      const response = await apiRequest("POST", endpoint, payload);
       return response.json();
     },
     onSuccess: (data) => {
@@ -280,32 +288,66 @@ export function ConferenceReadinessPanel({ stageId, onGenerateOutput }: Conferen
   }, []);
 
   const handleGenerate = useCallback(() => {
-    const type = stageId === 17 ? "poster" : stageId === 18 ? "symposium" : "presentation";
+    const type = stageId === 17 ? "poster" : stageId === 18 ? "symposium" : stageId === 20 ? "conference-prep" : "presentation";
     onGenerateOutput?.(type);
-    
-    // Call the export API
-    exportMutation.mutate({
-      stage_id: stageId,
-      title: state.conferenceDetails.name,
-      presentation_duration: parseInt(state.conferenceDetails.timeAllotted) || 15,
-      include_handouts: state.handoutsEnabled,
-      qr_links: state.qrCodeLinks,
-      poster_dimensions: stageId === 17 ? state.posterDimensions : undefined
-    });
-  }, [stageId, onGenerateOutput, state, exportMutation]);
+
+    // Build payload based on stage
+    if (stageId === 20) {
+      // Stage 20: Conference Preparation - use materials/export endpoint format
+      exportMutation.mutate({
+        conference_id: selectedConferenceId || state.conferenceDetails.name,
+        research_id: researchId || 'demo-research',
+        material_types: ["poster_pdf", "slides_pptx"],
+        title: state.conferenceDetails.name,
+        blinded: false,
+        custom_options: {
+          poster_dimensions: state.posterDimensions,
+          presentation_slides: state.presentationSlides,
+          qr_links: state.qrCodeLinks,
+          include_handouts: state.handoutsEnabled,
+        }
+      });
+    } else {
+      // Stages 17-19: Use legacy export endpoint format
+      exportMutation.mutate({
+        stage_id: stageId,
+        title: state.conferenceDetails.name,
+        presentation_duration: parseInt(state.conferenceDetails.timeAllotted) || 15,
+        include_handouts: state.handoutsEnabled,
+        qr_links: state.qrCodeLinks,
+        poster_dimensions: stageId === 17 ? state.posterDimensions : undefined
+      });
+    }
+  }, [stageId, onGenerateOutput, state, exportMutation, selectedConferenceId, researchId]);
 
   const handleDownloadFile = useCallback((file: any) => {
-    // Create a mock download - in production this would fetch from the file URL
-    const content = `[Generated ${file.name}]\n\nThis is a placeholder for the generated conference material.\nFile Type: ${file.type}\nSize: ${file.size}\n\nIn a production environment, this would be the actual generated document.`;
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = file.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    // Check if we have a real URL from the server
+    if (file.url && file.url.startsWith('/api/')) {
+      // Real file URL - open in new tab or trigger download
+      const link = document.createElement('a');
+      link.href = file.url;
+      link.download = file.name || file.filename;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else if (file.url) {
+      // External URL - open in new tab
+      window.open(file.url, '_blank', 'noopener,noreferrer');
+    } else {
+      // Fallback: Create a placeholder download for DEMO mode
+      const content = `[Generated ${file.name || file.filename}]\n\nThis is a placeholder for the generated conference material.\nFile Type: ${file.type}\nSize: ${file.size || file.sizeBytes}\n\nIn a production environment, this would be the actual generated document.`;
+      const blob = new Blob([content], { type: "text/plain" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name || file.filename || "download.txt";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }
   }, []);
 
   const completedItems = state.checklist.filter(i => i.completed).length;
@@ -340,7 +382,6 @@ export function ConferenceReadinessPanel({ stageId, onGenerateOutput }: Conferen
           iconTextClass: "text-ros-primary",
         };
       case 19:
-      default:
         return {
           title: "Presentation Preparation",
           icon: Monitor,
@@ -350,6 +391,18 @@ export function ConferenceReadinessPanel({ stageId, onGenerateOutput }: Conferen
           bgGradientClass: "bg-gradient-to-br from-ros-success/5 to-transparent",
           iconBgClass: "bg-ros-success/10",
           iconTextClass: "text-ros-success",
+        };
+      case 20:
+      default:
+        return {
+          title: "Conference Preparation",
+          icon: Award,
+          description: "Full conference submission package with discovery and materials export",
+          outputs: ["Conference poster (PDF)", "Presentation slides (PPTX)", "Submission bundle (ZIP)", "Manifest with hashes"],
+          borderClass: "border-amber-500/30",
+          bgGradientClass: "bg-gradient-to-br from-amber-500/5 to-transparent",
+          iconBgClass: "bg-amber-500/10",
+          iconTextClass: "text-amber-500",
         };
     }
   };

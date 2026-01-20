@@ -471,6 +471,8 @@ def orchestrate_full_export(
     guidelines: Optional[Dict[str, Any]] = None,
     output_dir: Optional[Path] = None,
     include_validation: bool = True,
+    include_poster: bool = True,
+    include_slides: bool = True,
 ) -> ExportBundleResult:
     """
     Orchestrate full conference export: generation -> validation -> bundling.
@@ -489,6 +491,8 @@ def orchestrate_full_export(
         guidelines: Conference guidelines for compliance checking
         output_dir: Output directory (defaults to /data/artifacts/conference/<run_id>/)
         include_validation: Whether to validate bundle after creation
+        include_poster: Whether to generate and include poster PDF (default True)
+        include_slides: Whether to generate and include slides PPTX (default True)
 
     Returns:
         ExportBundleResult with bundle path, manifest, and status
@@ -498,8 +502,8 @@ def orchestrate_full_export(
         output_dir=output_dir,
         conference_name=conference_name,
         blinded=blinded,
-        include_poster=True,
-        include_slides=True,
+        include_poster=include_poster,
+        include_slides=include_slides,
         poster_content=poster_content,
         slide_content=slide_content,
         guidelines=guidelines,

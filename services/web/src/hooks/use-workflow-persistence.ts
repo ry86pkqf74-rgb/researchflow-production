@@ -2,6 +2,18 @@ import { useEffect, useRef, useCallback } from 'react';
 import type { TopicVersionHistory } from '@packages/core/types';
 
 /**
+ * Generate a UUID v4
+ * Used for creating unique research session IDs
+ */
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
  * Complete persistent state for the workflow
  * This interface defines all state that should be preserved across sessions
  */
@@ -16,6 +28,10 @@ export interface WorkflowPersistentState {
   overviewByStage: Record<number, string>;
   lifecycleState: string;
   lastSavedAt: string;
+  /** Persistent research session ID for Stage 20 conference exports */
+  researchId: string;
+  /** Optional topic ID for linking to research topics */
+  topicId: string | null;
 }
 
 /**
@@ -35,6 +51,8 @@ const DEFAULT_WORKFLOW_STATE: WorkflowPersistentState = {
   overviewByStage: {},
   lifecycleState: 'DRAFT',
   lastSavedAt: new Date().toISOString(),
+  researchId: '', // Will be generated on first load if empty
+  topicId: null,
 };
 
 const STORAGE_KEY = 'ros-workflow-state';
@@ -79,6 +97,14 @@ export function useWorkflowPersistence() {
         'lifecycleState' in parsed &&
         'lastSavedAt' in parsed
       ) {
+        // Ensure researchId exists, generate if missing (backwards compatibility)
+        if (!parsed.researchId) {
+          parsed.researchId = generateUUID();
+        }
+        // Ensure topicId field exists (backwards compatibility)
+        if (!('topicId' in parsed)) {
+          parsed.topicId = null;
+        }
         return parsed;
       }
 

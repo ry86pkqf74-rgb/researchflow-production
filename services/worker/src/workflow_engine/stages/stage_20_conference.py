@@ -33,7 +33,6 @@ from ...conference_prep.generate_materials import (
 )
 from ...conference_prep.export_bundle import (
     orchestrate_full_export,
-    ExportBundleInput,
 )
 from ...conference_prep.registry import ConferenceFormat
 
@@ -295,24 +294,63 @@ class Stage20ConferencePreparation:
 
                     logger.info(f"[Stage 20.4] Creating export bundle for {conf.name}/{format_str}")
 
-                    bundle_input = ExportBundleInput(
-                        conference_name=conf.name,
-                        format_type=format_str,
-                        material_directory=material_dir,
-                        include_validation=True,
-                        include_compliance_checklist=True,
-                    )
+                    # Determine which material types to include based on format
+                    include_poster = format_str.lower() == "poster"
+                    include_slides = format_str.lower() == "slides" or format_str.lower() == "oral"
+
+                    # Load guidelines for the conference if available
+                    guideline_path = guidelines_paths[i] if i < len(guidelines_paths) else None
+                    guidelines_data = None
+                    if guideline_path and guideline_path.exists():
+                        with open(guideline_path, "r") as f:
+                            guidelines_data = json.load(f)
+
+                    # Generate appropriate content for the export
+                    poster_content = None
+                    slide_content = None
+
+                    if offline_mode:
+                        if include_poster:
+                            poster_content = get_demo_poster_content()
+                        if include_slides:
+                            slide_content = get_demo_slide_content()
+                    else:
+                        if include_poster:
+                            poster_content = self._create_content_from_manuscript(
+                                format_type=MaterialType.POSTER,
+                                manuscript_abstract=manuscript_abstract,
+                                research_title=research_title,
+                            )
+                        if include_slides:
+                            slide_content = self._create_content_from_manuscript(
+                                format_type=MaterialType.SLIDES,
+                                manuscript_abstract=manuscript_abstract,
+                                research_title=research_title,
+                            )
 
                     try:
-                        bundle_result = orchestrate_full_export(bundle_input)
+                        # Call orchestrate_full_export with correct signature
+                        bundle_result = orchestrate_full_export(
+                            run_id=f"{run_id}_{conf.abbreviation.lower()}_{format_str.lower()}",
+                            conference_name=conf.name,
+                            blinded=conference_config.get("blinded", False),
+                            poster_content=poster_content,
+                            slide_content=slide_content,
+                            guidelines=guidelines_data,
+                            output_dir=material_dir,
+                            include_validation=True,
+                            include_poster=include_poster,
+                            include_slides=include_slides,
+                        )
 
-                        if bundle_result.success and bundle_result.bundle_path:
+                        if bundle_result.status in ("success", "partial") and bundle_result.bundle_path:
                             bundle_paths.append(bundle_result.bundle_path)
                             artifacts.append(str(bundle_result.bundle_path))
                             bundles_created += 1
                             logger.info(f"[Stage 20.4] Created bundle: {bundle_result.bundle_path.name}")
                         else:
-                            errors.append(f"Bundle export failed for {conf.name}/{format_str}: {bundle_result.error}")
+                            error_msgs = bundle_result.errors if bundle_result.errors else ["Unknown error"]
+                            errors.append(f"Bundle export failed for {conf.name}/{format_str}: {'; '.join(error_msgs)}")
 
                     except Exception as e:
                         errors.append(f"Exception creating bundle for {conf.name}/{format_str}: {str(e)}")

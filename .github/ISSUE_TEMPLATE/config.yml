@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/ry86pkqf74-rgb/researchflow-production/tree/main/docs
+    about: Check out our documentation for guides and API references
+  - name: Security Issues
+    url: https://github.com/ry86pkqf74-rgb/researchflow-production/security/advisories/new
+    about: Report security vulnerabilities privately here
+  - name: Discussions
+    url: https://github.com/ry86pkqf74-rgb/researchflow-production/discussions
+    about: Ask questions and discuss ideas with the community

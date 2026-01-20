@@ -1,5 +1,11 @@
 # ResearchFlow Production
 
+[![CI](https://github.com/ry86pkqf74-rgb/researchflow-production/actions/workflows/ci.yml/badge.svg)](https://github.com/ry86pkqf74-rgb/researchflow-production/actions/workflows/ci.yml)
+[![Security Scan](https://github.com/ry86pkqf74-rgb/researchflow-production/actions/workflows/security-scan.yaml/badge.svg)](https://github.com/ry86pkqf74-rgb/researchflow-production/actions/workflows/security-scan.yaml)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://ry86pkqf74-rgb.github.io/researchflow-production/)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ry86pkqf74-rgb/researchflow-production/HEAD?labpath=notebooks%2Fdemo.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ry86pkqf74-rgb/researchflow-production/blob/main/notebooks/demo.ipynb)
+
 Docker-first deployment architecture for ResearchFlow with clean Node.js/Python separation.
 
 ## Architecture
