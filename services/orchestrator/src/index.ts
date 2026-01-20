@@ -26,6 +26,8 @@ import customFieldsRoutes from './routes/custom-fields';
 import searchRoutes from './routes/search';
 import semanticSearchRoutes from './routes/semanticSearch';
 import tutorialsRoutes from './routes/tutorials';
+// Phase G Routes (Tasks 116-135)
+import phaseGRoutes from './routes/phaseG';
 // Phase H Routes (Tasks 136-150)
 import helpRoutes from './routes/help';
 import pluginsRoutes from './routes/plugins';
@@ -104,6 +106,9 @@ app.use('/api/embeddings', semanticSearchRoutes);  // Embedding generation endpo
 // Note: These routes have their own body parsing for signature verification
 app.use('/api/webhooks', webhooksRoutes);
 
+// Phase G Routes (Tasks 116-135: Scalability, Performance, Monitoring)
+app.use('/api/monitoring', phaseGRoutes);  // All Phase G endpoints
+
 // Phase H Routes (Tasks 136-150)
 app.use('/api/help', helpRoutes);  // Task 136: Interactive API docs + Task 140: Community links
 app.use('/api/plugins', pluginsRoutes);  // Task 137: Plugin marketplace
@@ -167,6 +172,22 @@ httpServer.listen(PORT, () => {
   console.log('  ✓ Feature Flags & A/B Experiments');
   console.log('  ✓ Custom Fields (Org-level schemas)');
   console.log('  ✓ Frontend Hooks (useFeatureFlag, useExperiment)');
+  console.log('='.repeat(60));
+  console.log('Phase G Features: SCALABILITY & MONITORING');
+  console.log('  ✓ Real-Time Cluster Monitoring');
+  console.log('  ✓ Predictive Scaling');
+  console.log('  ✓ Resource Heatmaps & Metrics');
+  console.log('  ✓ Data Sharding');
+  console.log('  ✓ Edge Computing Toggles');
+  console.log('  ✓ Vertical Scaling Controls');
+  console.log('  ✓ High-Availability Mode');
+  console.log('  ✓ Performance Analyzer');
+  console.log('  ✓ Optimization Suggestions');
+  console.log('  ✓ Chaos Engineering Tools');
+  console.log('  ✓ Scheduler Simulator');
+  console.log('  ✓ Multi-Cloud Deployment');
+  console.log('  ✓ Serverless Triggers');
+  console.log('  ✓ Cost Monitoring');
   console.log('='.repeat(60));
   console.log('Phase H Features: ECOSYSTEM');
   console.log('  ✓ Interactive API Documentation (Swagger/OpenAPI)');
