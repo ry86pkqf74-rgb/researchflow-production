@@ -11,10 +11,13 @@ import { SafetyBanner } from "@/components/safety/safety-banner";
 import { ModeBanner } from "@/components/mode/ModeBanner";
 import { DemoWatermark } from "@/components/governance/DemoWatermark";
 import { AuthGate } from "@/components/mode/AuthGate";
+import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
 import { useModeStore } from "@/stores/mode-store";
 import { useOrgStore } from "@/stores/org-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { useAppShortcuts } from "@/hooks/useGlobalShortcuts";
 import { Loader2 } from "lucide-react";
+import '@/i18n'; // Initialize i18n
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import DemoLanding from "@/pages/demo-landing";
@@ -117,10 +120,21 @@ function ModeLoader() {
 }
 
 /**
+ * Global Shortcuts Initializer
+ *
+ * Installs global keyboard shortcuts (Task 17)
+ */
+function ShortcutsInitializer() {
+  useAppShortcuts();
+  return null;
+}
+
+/**
  * Main Layout with Adaptive Navigation (Task 102)
  *
  * Provides sidebar with org selector and role-adaptive navigation
  * for authenticated pages in LIVE mode.
+ * Includes breadcrumbs for deep navigation (Task 11).
  */
 function MainLayout({ children }: { children: React.ReactNode }) {
   const { isLive } = useModeStore();
@@ -146,6 +160,10 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main content area */}
       <main className="flex-1 overflow-auto">
+        {/* Breadcrumb navigation (Task 11) */}
+        <div className="border-b bg-muted/5 px-4 py-2">
+          <Breadcrumbs showHome />
+        </div>
         {children}
       </main>
     </div>
@@ -287,6 +305,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ModeInitializer />
         <OrgInitializer />
+        <ShortcutsInitializer />
         <AIApprovalGateProvider initialMode="REQUIRE_EACH">
           <PhiGateProvider>
             <TooltipProvider>

@@ -145,5 +145,60 @@
     "serverError": "Server error",
     "networkError": "Network error",
     "tryAgain": "Try Again"
+  },
+  "workflow": {
+    "title": "Workflow",
+    "stages": {
+      "1": { "name": "Hypothesis Generation", "description": "Generate and refine research hypotheses using AI assistance" },
+      "2": { "name": "Literature Review", "description": "Search and summarize relevant literature" },
+      "3": { "name": "Experimental Design", "description": "Design experiments with schema-validated parameters" },
+      "4": { "name": "Data Collection", "description": "Collect and manage research data with manifests" },
+      "5": { "name": "Data Preprocessing", "description": "Clean, validate, and scan data for PHI" },
+      "6": { "name": "Analysis", "description": "Run computational analysis with progress tracking" },
+      "7": { "name": "Statistical Modeling", "description": "Build and validate statistical models" },
+      "8": { "name": "Visualization", "description": "Create figures and data visualizations" },
+      "9": { "name": "Interpretation", "description": "Collaborate on interpreting results" },
+      "10": { "name": "Validation", "description": "Review and validate findings" },
+      "11": { "name": "Iteration", "description": "Refine analysis with AI routing options" },
+      "12": { "name": "Documentation", "description": "Generate reports and documentation" },
+      "13": { "name": "Internal Review", "description": "Simulate peer review feedback" },
+      "14": { "name": "Ethical Review", "description": "Verify compliance and ethical standards" },
+      "15": { "name": "Artifact Bundling", "description": "Package artifacts for sharing" },
+      "16": { "name": "Collaboration Handoff", "description": "Share with collaborators and reviewers" },
+      "17": { "name": "Archiving", "description": "Archive project with audit trail" },
+      "18": { "name": "Impact Assessment", "description": "Track research impact metrics" },
+      "19": { "name": "Dissemination", "description": "Prepare for publication and sharing" },
+      "20": { "name": "Conference Preparation", "description": "Generate materials for conferences" }
+    }
+  },
+  "dialogs": {
+    "confirm": {
+      "title": "Confirm Action",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "deleteTitle": "Delete Confirmation",
+      "deleteDescription": "This action cannot be undone. Are you sure you want to proceed?",
+      "phiTitle": "PHI Access Request",
+      "phiDescription": "You are requesting access to data that may contain Protected Health Information (PHI). This action will be logged.",
+      "exportTitle": "Export Confirmation",
+      "exportDescription": "You are about to export data. Please ensure all PHI has been properly redacted.",
+      "typeToConfirm": "Type \"{{text}}\" to confirm"
+    }
+  },
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "navigation": "Navigation",
+    "editing": "Editing",
+    "actions": "Actions",
+    "general": "General"
+  },
+  "breadcrumbs": {
+    "home": "Home"
+  },
+  "governance": {
+    "demoMode": "Demo Mode",
+    "liveMode": "Live Mode",
+    "demoRestriction": "This action is restricted in Demo mode",
+    "phiRequired": "PHI scan required before proceeding"
   }
 }
