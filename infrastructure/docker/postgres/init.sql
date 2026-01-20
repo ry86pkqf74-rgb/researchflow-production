@@ -253,6 +253,81 @@ CREATE INDEX idx_governance_log_event_type ON governance_log(event_type);
 CREATE INDEX idx_governance_log_created_at ON governance_log(created_at);
 
 -- ====================
+-- Phase F: Observability + Feature Flags
+-- ====================
+
+-- Governance Config (DB-backed mode configuration)
+CREATE TABLE IF NOT EXISTS governance_config (
+    key VARCHAR(100) PRIMARY KEY,
+    value JSONB NOT NULL DEFAULT '{}',
+    updated_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Feature Flags
+CREATE TABLE IF NOT EXISTS feature_flags (
+    key VARCHAR(100) PRIMARY KEY,
+    enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    description TEXT,
+    scope VARCHAR(50) NOT NULL DEFAULT 'product',
+    required_modes JSONB DEFAULT '[]',
+    rollout_percent INTEGER NOT NULL DEFAULT 100 CHECK (rollout_percent >= 0 AND rollout_percent <= 100),
+    updated_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_feature_flags_scope ON feature_flags(scope);
+CREATE INDEX idx_feature_flags_enabled ON feature_flags(enabled) WHERE enabled = TRUE;
+
+-- Experiments (A/B Testing)
+CREATE TABLE IF NOT EXISTS experiments (
+    key VARCHAR(100) PRIMARY KEY,
+    enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    description TEXT,
+    variants JSONB NOT NULL DEFAULT '{}',
+    allocation JSONB NOT NULL DEFAULT '{}',
+    required_modes JSONB DEFAULT '[]',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_experiments_enabled ON experiments(enabled) WHERE enabled = TRUE;
+
+-- Experiment Assignments
+CREATE TABLE IF NOT EXISTS experiment_assignments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    experiment_key VARCHAR(100) NOT NULL REFERENCES experiments(key) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    session_id VARCHAR(255),
+    variant VARCHAR(50) NOT NULL,
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (experiment_key, user_id, session_id)
+);
+
+CREATE INDEX idx_experiment_assignments_experiment ON experiment_assignments(experiment_key);
+CREATE INDEX idx_experiment_assignments_user ON experiment_assignments(user_id);
+
+-- Analytics Events (PHI-safe, opt-in only)
+CREATE TABLE IF NOT EXISTS analytics_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_name VARCHAR(120) NOT NULL,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    session_id VARCHAR(255),
+    research_id VARCHAR(255),
+    mode VARCHAR(20) NOT NULL,
+    properties JSONB DEFAULT '{}',
+    ip_hash VARCHAR(64),
+    user_agent TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_analytics_events_name_created ON analytics_events(event_name, created_at);
+CREATE INDEX idx_analytics_events_user_created ON analytics_events(user_id, created_at);
+CREATE INDEX idx_analytics_events_research_created ON analytics_events(research_id, created_at);
+
+-- ====================
 -- Functions and Triggers
 -- ====================
 

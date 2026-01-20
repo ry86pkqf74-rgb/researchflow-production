@@ -92,6 +92,9 @@ import manuscriptBranchesRouter from "./src/routes/manuscript-branches";
 import claimsRouter from "./src/routes/claims";
 import sharesRouter from "./src/routes/shares";
 import submissionsRouter from "./src/routes/submissions";
+// Phase F: Observability + Feature Flags routes
+import analyticsRouter from "./src/routes/analytics";
+import streamRouter from "./src/routes/stream";
 import { scan as scanPhi } from "@researchflow/phi-engine";
 
 // ROS Backend API URL (Python FastAPI server)
@@ -940,6 +943,10 @@ export async function registerRoutes(
   app.use("/api/ros", claimsRouter);
   app.use("/api/ros", sharesRouter);
   app.use("/api/ros", submissionsRouter);
+
+  // Phase F: Observability + Feature Flags
+  app.use("/api/analytics", analyticsRouter);
+  app.use("/api/stream", streamRouter);
 
   // Mode information endpoint - publicly accessible
   app.get("/api/mode", (_req, res) => {

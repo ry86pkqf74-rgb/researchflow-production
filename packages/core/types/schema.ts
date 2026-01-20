@@ -2129,3 +2129,130 @@ export const insertManuscriptYjsUpdateSchema = createInsertSchema(manuscriptYjsU
 
 export type ManuscriptYjsUpdate = typeof manuscriptYjsUpdates.$inferSelect;
 export type InsertManuscriptYjsUpdate = z.infer<typeof insertManuscriptYjsUpdateSchema>;
+
+// =====================
+// PHASE F: OBSERVABILITY + FEATURE FLAGS
+// =====================
+
+// Governance Mode Types
+export const GOVERNANCE_MODES = ['STANDBY', 'DEMO', 'LIVE'] as const;
+export type GovernanceMode = (typeof GOVERNANCE_MODES)[number];
+
+// Feature Flag Scope Types
+export const FEATURE_FLAG_SCOPES = ['product', 'governance'] as const;
+export type FeatureFlagScope = (typeof FEATURE_FLAG_SCOPES)[number];
+
+// Governance Config Table (DB-backed mode configuration)
+export const governanceConfig = pgTable("governance_config", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  value: jsonb("value").notNull().default({}),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertGovernanceConfigSchema = createInsertSchema(governanceConfig).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type GovernanceConfig = typeof governanceConfig.$inferSelect;
+export type InsertGovernanceConfig = z.infer<typeof insertGovernanceConfigSchema>;
+
+// Feature Flags Table
+export const featureFlags = pgTable("feature_flags", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  description: text("description"),
+  scope: varchar("scope", { length: 50 }).notNull().default('product'),
+  requiredModes: jsonb("required_modes").default([]),
+  rolloutPercent: integer("rollout_percent").notNull().default(100),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertFeatureFlagSchema = createInsertSchema(featureFlags).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type FeatureFlag = typeof featureFlags.$inferSelect;
+export type InsertFeatureFlag = z.infer<typeof insertFeatureFlagSchema>;
+
+// Experiments Table (A/B Testing)
+export const experiments = pgTable("experiments", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  description: text("description"),
+  variants: jsonb("variants").notNull().default({}),
+  allocation: jsonb("allocation").notNull().default({}),
+  requiredModes: jsonb("required_modes").default([]),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertExperimentSchema = createInsertSchema(experiments).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Experiment = typeof experiments.$inferSelect;
+export type InsertExperiment = z.infer<typeof insertExperimentSchema>;
+
+// Experiment Assignments Table (Deterministic assignment tracking)
+export const experimentAssignments = pgTable("experiment_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  experimentKey: varchar("experiment_key", { length: 100 }).notNull().references(() => experiments.key, { onDelete: "cascade" }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  sessionId: varchar("session_id"),
+  variant: varchar("variant", { length: 50 }).notNull(),
+  assignedAt: timestamp("assigned_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertExperimentAssignmentSchema = createInsertSchema(experimentAssignments).omit({
+  id: true,
+  assignedAt: true,
+});
+
+export type ExperimentAssignment = typeof experimentAssignments.$inferSelect;
+export type InsertExperimentAssignment = z.infer<typeof insertExperimentAssignmentSchema>;
+
+// Analytics Events Table (PHI-safe, opt-in only)
+// PHI-safe by design: only stores IDs, counts, booleans, timings, feature identifiers
+// No raw dataset values, no manuscript content, no user-entered free text
+export const analyticsEvents = pgTable("analytics_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventName: varchar("event_name", { length: 120 }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  sessionId: varchar("session_id"),
+  researchId: varchar("research_id"),
+  mode: varchar("mode", { length: 20 }).notNull(),
+  properties: jsonb("properties").default({}),
+  ipHash: varchar("ip_hash", { length: 64 }), // SHA256(ip + salt), never raw IP
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;
+
+// Allowed analytics event names (PHI-safe allowlist)
+export const ANALYTICS_EVENT_NAMES = [
+  'ui.page_view',
+  'ui.button_click',
+  'governance.console_view',
+  'governance.mode_changed',
+  'governance.flag_changed',
+  'job.started',
+  'job.progress',
+  'job.completed',
+  'job.failed',
+  'experiment.assigned',
+] as const;
+export type AnalyticsEventName = (typeof ANALYTICS_EVENT_NAMES)[number];

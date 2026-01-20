@@ -5,6 +5,9 @@
  * Protected by RBAC middleware - only STEWARD+ can access.
  *
  * Priority: P0 - CRITICAL (Phase 2 Integration)
+ *
+ * Updated: Phase F - Now uses DB-backed state via GovernanceConfigService
+ * and FeatureFlagsService instead of in-memory mocks.
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
@@ -13,6 +16,9 @@ import { validateAuditChain } from '../services/auditService.js';
 import { db } from '../../db.js';
 import { auditLogs } from '@researchflow/core/schema';
 import { desc, gte, lte, eq, and, sql } from 'drizzle-orm';
+import { governanceConfigService } from '../services/governance-config.service';
+import { featureFlagsService } from '../services/feature-flags.service';
+import { eventBus } from '../services/event-bus';
 
 // Simple async handler wrapper
 function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) {
@@ -23,100 +29,99 @@ function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => P
 
 const router = Router();
 
-// Mock governance state for development
-const mockGovernanceState = {
-  mode: (process.env.GOVERNANCE_MODE as 'DEMO' | 'STANDBY' | 'LIVE') || 'DEMO',
-  flags: [
-    {
-      name: 'ALLOW_UPLOADS',
-      enabled: true,
-      description: 'Allow dataset uploads to the system'
-    },
-    {
-      name: 'ALLOW_EXPORTS',
-      enabled: false,
-      description: 'Allow result exports (requires steward approval)'
-    },
-    {
-      name: 'ALLOW_LLM_CALLS',
-      enabled: true,
-      description: 'Allow LLM API calls for draft generation'
-    },
-    {
-      name: 'REQUIRE_PHI_SCAN',
-      enabled: true,
-      description: 'Require PHI scanning for all uploaded data'
-    }
-  ],
-  approvals: [
-    {
-      id: 'apr-001',
-      type: 'DATA_UPLOAD',
-      artifactId: 'thyroid-clinical-2024',
-      artifactName: 'Thyroid Clinical Dataset',
-      requestorId: 'researcher-001',
-      requestorName: 'Dr. Sarah Chen',
-      status: 'APPROVED',
-      createdAt: new Date('2024-01-15T10:30:00Z').toISOString(),
-      resolvedAt: new Date('2024-01-15T11:00:00Z').toISOString(),
-      resolvedBy: 'steward@researchflow.dev',
-      reason: 'Upload thyroid clinical dataset (synthetic)'
-    },
-    {
-      id: 'apr-002',
-      type: 'DATA_EXPORT',
-      artifactId: 'export-draft-001',
-      artifactName: 'Draft Results Export',
-      requestorId: 'researcher-001',
-      requestorName: 'Dr. Sarah Chen',
-      status: 'PENDING',
-      createdAt: new Date('2024-01-16T14:20:00Z').toISOString(),
-      reason: 'Export draft results for review'
-    },
-    {
-      id: 'apr-003',
-      type: 'PHI_OVERRIDE',
-      artifactId: 'stage-9-summary',
-      artifactName: 'Summary Characteristics - Stage 9',
-      requestorId: 'researcher-002',
-      requestorName: 'Dr. Michael Lee',
-      status: 'REJECTED',
-      createdAt: new Date('2024-01-14T09:15:00Z').toISOString(),
-      resolvedAt: new Date('2024-01-14T10:00:00Z').toISOString(),
-      resolvedBy: 'admin@researchflow.dev',
-      reason: 'PHI override request - insufficient justification'
-    },
-    {
-      id: 'apr-004',
-      type: 'CONFIG_CHANGE',
-      artifactId: 'governance-mode',
-      artifactName: 'Governance Mode Change',
-      requestorId: 'steward-001',
-      requestorName: 'Dr. Emily Wang',
-      status: 'APPROVED',
-      createdAt: new Date('2024-01-13T08:00:00Z').toISOString(),
-      resolvedAt: new Date('2024-01-13T08:30:00Z').toISOString(),
-      resolvedBy: 'admin@researchflow.dev',
-      reason: 'Change governance mode to DEMO for testing'
-    }
-  ],
-  stats: {
-    totalApprovals: 12,
-    pendingApprovals: 1,
-    approvedToday: 2,
-    deniedToday: 0
+// Mock approvals state for development (approval workflow is separate from flags/mode)
+const mockApprovals = [
+  {
+    id: 'apr-001',
+    type: 'DATA_UPLOAD',
+    artifactId: 'thyroid-clinical-2024',
+    artifactName: 'Thyroid Clinical Dataset',
+    requestorId: 'researcher-001',
+    requestorName: 'Dr. Sarah Chen',
+    status: 'APPROVED',
+    createdAt: new Date('2024-01-15T10:30:00Z').toISOString(),
+    resolvedAt: new Date('2024-01-15T11:00:00Z').toISOString(),
+    resolvedBy: 'steward@researchflow.dev',
+    reason: 'Upload thyroid clinical dataset (synthetic)'
+  },
+  {
+    id: 'apr-002',
+    type: 'DATA_EXPORT',
+    artifactId: 'export-draft-001',
+    artifactName: 'Draft Results Export',
+    requestorId: 'researcher-001',
+    requestorName: 'Dr. Sarah Chen',
+    status: 'PENDING',
+    createdAt: new Date('2024-01-16T14:20:00Z').toISOString(),
+    reason: 'Export draft results for review'
+  },
+  {
+    id: 'apr-003',
+    type: 'PHI_OVERRIDE',
+    artifactId: 'stage-9-summary',
+    artifactName: 'Summary Characteristics - Stage 9',
+    requestorId: 'researcher-002',
+    requestorName: 'Dr. Michael Lee',
+    status: 'REJECTED',
+    createdAt: new Date('2024-01-14T09:15:00Z').toISOString(),
+    resolvedAt: new Date('2024-01-14T10:00:00Z').toISOString(),
+    resolvedBy: 'admin@researchflow.dev',
+    reason: 'PHI override request - insufficient justification'
+  },
+  {
+    id: 'apr-004',
+    type: 'CONFIG_CHANGE',
+    artifactId: 'governance-mode',
+    artifactName: 'Governance Mode Change',
+    requestorId: 'steward-001',
+    requestorName: 'Dr. Emily Wang',
+    status: 'APPROVED',
+    createdAt: new Date('2024-01-13T08:00:00Z').toISOString(),
+    resolvedAt: new Date('2024-01-13T08:30:00Z').toISOString(),
+    resolvedBy: 'admin@researchflow.dev',
+    reason: 'Change governance mode to DEMO for testing'
   }
+];
+
+const mockStats = {
+  totalApprovals: 12,
+  pendingApprovals: 1,
+  approvedToday: 2,
+  deniedToday: 0
 };
 
 /**
  * GET /api/governance/state
  * Get current governance state (mode, flags, approvals)
  * Public endpoint - viewable by all users for dashboard display
+ *
+ * Response format updated for Phase F:
+ * - mode: string - Current governance mode
+ * - flags: Record<string, boolean> - Evaluated flag values
+ * - flagsMeta: Array<FlagMeta> - Flag metadata for admin UI
+ * - approvals: Array - Pending/recent approvals
+ * - timestamp: string - Response timestamp
  */
 router.get(
   '/state',
   asyncHandler(async (req, res) => {
-    res.json(mockGovernanceState);
+    // Get DB-backed mode
+    const mode = await governanceConfigService.getMode();
+
+    // Get evaluated flags for current mode
+    const flags = await featureFlagsService.getFlags({ mode });
+
+    // Get flag metadata for admin display
+    const flagsMeta = await featureFlagsService.listFlags();
+
+    res.json({
+      mode,
+      flags,
+      flagsMeta,
+      approvals: mockApprovals,
+      stats: mockStats,
+      timestamp: new Date().toISOString(),
+    });
   })
 );
 
@@ -124,12 +129,23 @@ router.get(
  * POST /api/governance/mode
  * Change governance mode (STANDBY, DEMO, LIVE)
  * Requires: ADMIN role
+ *
+ * Phase F: Now persists to database and publishes realtime event
  */
 router.post(
   '/mode',
   requireRole('ADMIN'),
   asyncHandler(async (req, res) => {
     const { mode } = req.body;
+    const user = req.user;
+
+    if (!user) {
+      res.status(401).json({
+        error: 'AUTHENTICATION_REQUIRED',
+        message: 'Authentication required',
+      });
+      return;
+    }
 
     if (!['STANDBY', 'DEMO', 'LIVE'].includes(mode)) {
       res.status(400).json({
@@ -140,49 +156,94 @@ router.post(
       return;
     }
 
-    // In production, would update database
-    mockGovernanceState.mode = mode;
+    try {
+      // Use DB-backed service to set mode (handles audit + event publishing)
+      await governanceConfigService.setMode(mode, user.id);
 
-    res.json({
-      message: 'Governance mode updated',
-      mode: mode,
-      changedBy: req.user?.email,
-      timestamp: new Date()
-    });
+      // Get updated flags for response
+      const flags = await featureFlagsService.getFlags({ mode });
+      const flagsMeta = await featureFlagsService.listFlags();
+
+      res.json({
+        message: 'Governance mode updated',
+        mode,
+        flags,
+        flagsMeta,
+        changedBy: user.email,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[Governance] Error setting mode:', error);
+      res.status(500).json({
+        error: 'Failed to update governance mode',
+        code: 'UPDATE_FAILED',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   })
 );
 
 /**
- * POST /api/governance/flags/:flagName
- * Toggle a feature flag
+ * POST /api/governance/flags/:flagKey
+ * Update a feature flag
  * Requires: ADMIN role
+ *
+ * Phase F: Now supports full flag configuration
+ * Body: { enabled: boolean, description?: string, scope?: string, rolloutPercent?: number, requiredModes?: string[] }
  */
 router.post(
-  '/flags/:flagName',
+  '/flags/:flagKey',
   requireRole('ADMIN'),
   asyncHandler(async (req, res) => {
-    const { flagName } = req.params;
-    const { enabled } = req.body;
+    const { flagKey } = req.params;
+    const { enabled, description, scope, rolloutPercent, requiredModes } = req.body;
+    const user = req.user;
 
-    const flag = mockGovernanceState.flags.find(f => f.name === flagName);
-
-    if (!flag) {
-      res.status(404).json({
-        error: 'Feature flag not found',
-        code: 'FLAG_NOT_FOUND',
-        flagName
+    if (!user) {
+      res.status(401).json({
+        error: 'AUTHENTICATION_REQUIRED',
+        message: 'Authentication required',
       });
       return;
     }
 
-    flag.enabled = enabled;
+    if (typeof enabled !== 'boolean') {
+      res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'enabled (boolean) is required',
+      });
+      return;
+    }
 
-    res.json({
-      message: 'Feature flag updated',
-      flag: flag,
-      changedBy: req.user?.email,
-      timestamp: new Date()
-    });
+    try {
+      // Use DB-backed service to set flag (handles audit + event publishing)
+      await featureFlagsService.setFlag(
+        flagKey,
+        { enabled, description, scope, rolloutPercent, requiredModes },
+        user.id
+      );
+
+      // Get updated flags for response
+      const mode = await governanceConfigService.getMode();
+      const flags = await featureFlagsService.getFlags({ mode });
+      const flagsMeta = await featureFlagsService.listFlags();
+
+      res.json({
+        message: 'Feature flag updated',
+        flagKey,
+        flags,
+        flagsMeta,
+        changedBy: user.email,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[Governance] Error setting flag:', error);
+      res.status(500).json({
+        error: 'Failed to update feature flag',
+        code: 'UPDATE_FAILED',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   })
 );
 
@@ -344,7 +405,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const { status } = req.query;
 
-    let approvals = mockGovernanceState.approvals;
+    let approvals = mockApprovals;
 
     if (status && typeof status === 'string') {
       approvals = approvals.filter(a => a.status === status.toUpperCase());
@@ -368,7 +429,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const { approvalId } = req.params;
 
-    const approval = mockGovernanceState.approvals.find(a => a.id === approvalId);
+    const approval = mockApprovals.find(a => a.id === approvalId);
 
     if (!approval) {
       res.status(404).json({
@@ -410,7 +471,7 @@ router.post(
     const { approvalId } = req.params;
     const { reason } = req.body;
 
-    const approval = mockGovernanceState.approvals.find(a => a.id === approvalId);
+    const approval = mockApprovals.find(a => a.id === approvalId);
 
     if (!approval) {
       res.status(404).json({
@@ -444,14 +505,13 @@ router.post(
 /**
  * GET /api/governance/mode
  * Get current governance mode (public endpoint for frontend)
- * No authentication required - returns DEMO for unauthenticated users
+ * No authentication required - returns current mode from database
  */
 router.get(
   '/mode',
   asyncHandler(async (req, res) => {
-    res.json({
-      mode: mockGovernanceState.mode
-    });
+    const mode = await governanceConfigService.getMode();
+    res.json({ mode });
   })
 );
 
@@ -470,7 +530,8 @@ router.post(
     const { resourceType, resourceId, justification, fields } = req.body;
 
     // CRITICAL: Block PHI reveal in DEMO mode
-    if (mockGovernanceState.mode === 'DEMO') {
+    const currentMode = await governanceConfigService.getMode();
+    if (currentMode === 'DEMO') {
       res.status(403).json({
         error: 'PHI reveal blocked',
         code: 'DEMO_MODE_BLOCKED',
@@ -511,7 +572,7 @@ router.post(
       resourceId,
       fields: fields || ['all'],
       justification,
-      governanceMode: mockGovernanceState.mode,
+      governanceMode: currentMode,
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
       timestamp: new Date().toISOString(),
@@ -627,9 +688,20 @@ router.get(
 
 /**
  * Export governance state for use by middleware
+ * Phase F: Now returns DB-backed state
  */
-export function getGovernanceState() {
-  return mockGovernanceState;
+export async function getGovernanceState() {
+  const mode = await governanceConfigService.getMode();
+  const flags = await featureFlagsService.getFlags({ mode });
+  const flagsMeta = await featureFlagsService.listFlags();
+
+  return {
+    mode,
+    flags,
+    flagsMeta,
+    approvals: mockApprovals,
+    stats: mockStats,
+  };
 }
 
 export default router;

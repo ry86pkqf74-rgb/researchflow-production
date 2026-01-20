@@ -4,16 +4,20 @@
  * Central dashboard for governance, compliance, and audit management.
  * Only accessible to STEWARD and ADMIN roles.
  *
+ * Uses SSE for realtime updates with polling fallback.
+ *
  * Priority: P0 - CRITICAL
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Shield,
   CheckCircle,
   AlertTriangle,
   Settings,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,13 +31,10 @@ import {
   DemoModeBanner,
   DemoWatermark
 } from '@/components/governance';
+import { useGovernanceStore, type FlagMeta, type ServerGovernanceState } from '@/stores/governance-store';
 
-interface FeatureFlag {
-  name: string;
-  enabled: boolean;
-  description: string;
-  requiredMode?: GovernanceMode[];
-}
+// Use FlagMeta from store instead of local interface
+type FeatureFlag = FlagMeta;
 
 const ALLOWED_OPERATIONS: Record<GovernanceMode, string[]> = {
   STANDBY: [
@@ -151,46 +152,150 @@ function QuickLinks() {
   );
 }
 
-export function GovernanceConsole() {
-  const { mode, isLoading } = useGovernanceMode();
-  const [flags, setFlags] = useState<FeatureFlag[]>([]);
+// Default flags for fallback
+const DEFAULT_FLAGS: FeatureFlag[] = [
+  { name: 'ALLOW_UPLOADS', enabled: true, description: 'Allow dataset uploads to the system' },
+  { name: 'ALLOW_EXPORTS', enabled: false, description: 'Allow result exports (requires steward approval)' },
+  { name: 'ALLOW_LLM_CALLS', enabled: true, description: 'Allow LLM API calls for draft generation' },
+  { name: 'REQUIRE_PHI_SCAN', enabled: true, description: 'Require PHI scanning for all uploaded data' },
+];
+
+/**
+ * Custom hook for SSE connection with polling fallback
+ */
+function useGovernanceSSE() {
+  const { hydrateFromServer, setSseConnected, sseConnected, flagsMeta } = useGovernanceStore();
   const [loading, setLoading] = useState(true);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    const fetchGovernanceState = async () => {
-      try {
-        const response = await fetch('/api/governance/state', {
-          credentials: 'include'
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setFlags(data.flags || []);
-        } else {
-          setFlags([
-            { name: 'ALLOW_UPLOADS', enabled: true, description: 'Allow dataset uploads to the system' },
-            { name: 'ALLOW_EXPORTS', enabled: false, description: 'Allow result exports (requires steward approval)' },
-            { name: 'ALLOW_LLM_CALLS', enabled: true, description: 'Allow LLM API calls for draft generation' },
-            { name: 'REQUIRE_PHI_SCAN', enabled: true, description: 'Require PHI scanning for all uploaded data' },
-          ]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch governance state:', error);
-        setFlags([
-          { name: 'ALLOW_UPLOADS', enabled: true, description: 'Allow dataset uploads to the system' },
-          { name: 'ALLOW_EXPORTS', enabled: false, description: 'Allow result exports (requires steward approval)' },
-          { name: 'ALLOW_LLM_CALLS', enabled: true, description: 'Allow LLM API calls for draft generation' },
-          { name: 'REQUIRE_PHI_SCAN', enabled: true, description: 'Require PHI scanning for all uploaded data' },
-        ]);
-      } finally {
-        setLoading(false);
+  // Fetch governance state (used for initial load and polling fallback)
+  const fetchGovernanceState = useCallback(async () => {
+    try {
+      const response = await fetch('/api/governance/state', {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data: ServerGovernanceState = await response.json();
+        hydrateFromServer(data);
       }
-    };
+    } catch (error) {
+      console.error('[GovernanceConsole] Failed to fetch governance state:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [hydrateFromServer]);
 
+  // Start polling fallback (30s interval)
+  const startPolling = useCallback(() => {
+    if (pollingIntervalRef.current) return;
+    console.log('[GovernanceConsole] Starting polling fallback');
+    pollingIntervalRef.current = setInterval(fetchGovernanceState, 30000);
+  }, [fetchGovernanceState]);
+
+  // Stop polling
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  }, []);
+
+  // Connect to SSE
+  const connectSSE = useCallback(() => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+
+    try {
+      const eventSource = new EventSource('/api/stream?topic=governance');
+      eventSourceRef.current = eventSource;
+
+      eventSource.onopen = () => {
+        console.log('[GovernanceConsole] SSE connected');
+        setSseConnected(true);
+        stopPolling(); // Stop polling when SSE connects
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          // Handle different event types
+          if (data.type === 'hello') {
+            // Initial state from server
+            if (data.state) {
+              hydrateFromServer(data.state);
+              setLoading(false);
+            }
+          } else if (data.type === 'governance.mode_changed') {
+            // Mode changed event
+            hydrateFromServer({
+              mode: data.newMode,
+              flags: flagsMeta,
+              timestamp: new Date().toISOString(),
+            });
+          } else if (data.type === 'governance.flag_changed') {
+            // Flag changed - refetch full state for consistency
+            fetchGovernanceState();
+          }
+        } catch (error) {
+          console.error('[GovernanceConsole] SSE parse error:', error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('[GovernanceConsole] SSE error:', error);
+        setSseConnected(false);
+        eventSource.close();
+
+        // Start polling fallback
+        startPolling();
+
+        // Try to reconnect SSE after 5 seconds
+        reconnectTimeoutRef.current = setTimeout(() => {
+          console.log('[GovernanceConsole] Attempting SSE reconnect...');
+          connectSSE();
+        }, 5000);
+      };
+    } catch (error) {
+      console.error('[GovernanceConsole] Failed to create EventSource:', error);
+      setSseConnected(false);
+      startPolling();
+    }
+  }, [hydrateFromServer, setSseConnected, stopPolling, startPolling, fetchGovernanceState, flagsMeta]);
+
+  // Initialize on mount
+  useEffect(() => {
+    // Initial fetch
     fetchGovernanceState();
 
-    const interval = setInterval(fetchGovernanceState, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    // Try SSE connection
+    connectSSE();
+
+    // Cleanup
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+      stopPolling();
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+    };
+  }, [fetchGovernanceState, connectSSE, stopPolling]);
+
+  return { loading, sseConnected };
+}
+
+export function GovernanceConsole() {
+  const { mode, isLoading } = useGovernanceMode();
+  const { flagsMeta } = useGovernanceStore();
+  const { loading, sseConnected } = useGovernanceSSE();
+
+  // Use flagsMeta from store, fallback to defaults
+  const flags = flagsMeta.length > 0 ? flagsMeta : DEFAULT_FLAGS;
 
   if (loading || isLoading) {
     return (
@@ -221,6 +326,20 @@ export function GovernanceConsole() {
                   <p className="text-muted-foreground mt-2">
                     System governance, compliance monitoring, and audit management
                   </p>
+                </div>
+                {/* SSE Connection Status Indicator */}
+                <div className="flex items-center gap-2">
+                  {sseConnected ? (
+                    <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 gap-1">
+                      <Wifi className="h-3 w-3" />
+                      Live Updates
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/30 gap-1">
+                      <WifiOff className="h-3 w-3" />
+                      Polling
+                    </Badge>
+                  )}
                 </div>
               </div>
             </CardContent>

@@ -123,7 +123,7 @@ router.post(
     }
 
     // Validate consent type
-    const validConsentTypes = ['data_processing', 'ai_usage', 'phi_access', 'marketing', 'research_participation', 'data_sharing'];
+    const validConsentTypes = ['data_processing', 'ai_usage', 'phi_access', 'marketing', 'research_participation', 'data_sharing', 'analytics'];
     if (!validConsentTypes.includes(consentType)) {
       return res.status(400).json({
         error: 'VALIDATION_ERROR',
