@@ -1600,8 +1600,47 @@ async def validate_conference_bundle(run_id: str):
             }
 
 
+# ============ Metrics Endpoint (Phase 08) ============
+
+@app.get("/metrics")
+async def prometheus_metrics():
+    """
+    Prometheus metrics endpoint.
+
+    Returns metrics in Prometheus text format for scraping.
+    Phase 08: Observability + Worker Parallelism
+    """
+    from fastapi.responses import PlainTextResponse
+
+    try:
+        from src.metrics import get_metrics_text
+        metrics_text = get_metrics_text()
+        return PlainTextResponse(
+            content=metrics_text,
+            media_type="text/plain; version=0.0.4; charset=utf-8"
+        )
+    except ImportError:
+        # Fallback if metrics module not available
+        return PlainTextResponse(
+            content="# Metrics module not loaded\n",
+            media_type="text/plain; version=0.0.4; charset=utf-8"
+        )
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("ROS_API_PORT", 8000))
-    print(f"[ROS] Starting API server on port {port}")
+    workers = int(os.environ.get("UVICORN_WORKERS", 1))
+    print(f"[ROS] Starting API server on port {port} with {workers} worker(s)")
     print(f"[ROS] Runtime mode: {config.ros_mode}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+
+    if workers > 1:
+        # Multi-worker mode
+        uvicorn.run(
+            "api_server:app",
+            host="0.0.0.0",
+            port=port,
+            workers=workers,
+        )
+    else:
+        # Single worker mode (default)
+        uvicorn.run(app, host="0.0.0.0", port=port)
