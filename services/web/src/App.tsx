@@ -20,6 +20,20 @@ import GovernancePage from "@/pages/governance";
 import GovernanceConsole from "@/pages/governance-console";
 import PipelineDashboard from "@/pages/pipeline-dashboard";
 import SAPBuilder from "@/pages/SAPBuilder";
+import OfflinePage from "@/pages/offline";
+import { lazy, Suspense } from "react";
+
+// Feature-gated lazy imports
+const CommunityPage = lazy(() => import("@/pages/community"));
+const AnalyticsPage = lazy(() => import("@/pages/analytics"));
+const ProfilePage = lazy(() => import("@/pages/profile"));
+const SearchPage = lazy(() => import("@/pages/search"));
+const OnboardingPage = lazy(() => import("@/pages/onboarding"));
+const ThemeSettingsPage = lazy(() => import("@/pages/settings/theme"));
+
+// Feature flags from env
+const FEATURE_FORUM = import.meta.env.VITE_FEATURE_FORUM === 'true';
+const FEATURE_XR = import.meta.env.VITE_FEATURE_XR === 'true';
 
 function ModeInitializer() {
   const setMode = useModeStore((state) => state.setMode);
@@ -100,13 +114,25 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   return <Component />;
 }
 
+function LazyRoute({ component: Component }: { component: React.LazyExoticComponent<React.ComponentType> }) {
+  return (
+    <Suspense fallback={<ModeLoader />}>
+      <Component />
+    </Suspense>
+  );
+}
+
 function Router() {
   return (
     <Switch>
       {/* Public routes - accessible in both DEMO and LIVE modes */}
       <Route path="/" component={Home} />
       <Route path="/demo" component={DemoLanding} />
-      
+      <Route path="/offline" component={OfflinePage} />
+      <Route path="/onboarding">
+        {() => <LazyRoute component={OnboardingPage} />}
+      </Route>
+
       {/* Protected routes - require auth in LIVE mode */}
       <Route path="/governance">
         {() => <ProtectedRoute component={GovernancePage} />}
@@ -120,7 +146,26 @@ function Router() {
       <Route path="/sap/:topicId/:researchId">
         {() => <ProtectedRoute component={SAPBuilder} />}
       </Route>
-      
+      <Route path="/analytics">
+        {() => <ProtectedRoute component={() => <LazyRoute component={AnalyticsPage} />} />}
+      </Route>
+      <Route path="/profile">
+        {() => <ProtectedRoute component={() => <LazyRoute component={ProfilePage} />} />}
+      </Route>
+      <Route path="/search">
+        {() => <ProtectedRoute component={() => <LazyRoute component={SearchPage} />} />}
+      </Route>
+      <Route path="/settings/theme">
+        {() => <ProtectedRoute component={() => <LazyRoute component={ThemeSettingsPage} />} />}
+      </Route>
+
+      {/* Feature-gated routes */}
+      {FEATURE_FORUM && (
+        <Route path="/community">
+          {() => <ProtectedRoute component={() => <LazyRoute component={CommunityPage} />} />}
+        </Route>
+      )}
+
       <Route component={NotFound} />
     </Switch>
   );
