@@ -1,4 +1,14 @@
+/**
+ * PHI Protection Service
+ *
+ * Provides PHI detection, redaction, and encryption utilities.
+ * Uses @researchflow/phi-engine for pattern definitions - SINGLE SOURCE OF TRUTH.
+ *
+ * CRITICAL: All findings return hash + location only (no raw PHI).
+ */
+
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto';
+import { PHI_PATTERNS, type PatternDefinition } from '@researchflow/phi-engine';
 
 export interface PhiDetectionResult {
   detected: boolean;
@@ -19,46 +29,8 @@ export interface PhiIdentifier {
   valueLength: number;
   position: { start: number; end: number };
   confidence: 'LOW' | 'MEDIUM' | 'HIGH';
-  hipaaCategory: number; // 1-18
+  hipaaCategory: string;
 }
-
-const PHI_PATTERNS = {
-  // 1. Names - partial pattern (full names require NER)
-  NAME: /\b[A-Z][a-z]+ [A-Z][a-z]+\b/g,
-
-  // 2. Geographic - ZIP codes, addresses
-  ZIP_CODE: /\b\d{5}(?:-\d{4})?\b/g,
-  ADDRESS: /\b\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Court|Ct)\b/gi,
-
-  // 3. Dates (specific dates, not just years)
-  DATE_MDY: /\b(?:0?[1-9]|1[0-2])[-/](?:0?[1-9]|[12]\d|3[01])[-/](?:19|20)?\d{2}\b/g,
-  DATE_DMY: /\b(?:0?[1-9]|[12]\d|3[01])[-/](?:0?[1-9]|1[0-2])[-/](?:19|20)?\d{2}\b/g,
-  DATE_ISO: /\b(?:19|20)\d{2}-(?:0?[1-9]|1[0-2])-(?:0?[1-9]|[12]\d|3[01])\b/g,
-
-  // 4-5. Phone and Fax
-  PHONE: /\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g,
-
-  // 6. Email
-  EMAIL: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
-
-  // 7. SSN
-  SSN: /\b\d{3}-\d{2}-\d{4}\b/g,
-
-  // 8. Medical Record Numbers (MRN)
-  MRN: /\b(?:MRN|mrn)[\s:]*(\d{6,10})\b/gi,
-
-  // 9. Health Plan Numbers
-  HEALTH_PLAN: /\b(?:Member|Policy|Plan)[\s#:]*([A-Z0-9]{6,15})\b/gi,
-
-  // 10. Account Numbers
-  ACCOUNT: /\b(?:Account|Acct)[\s#:]*(\d{6,15})\b/gi,
-
-  // 14. URLs
-  URL: /https?:\/\/[^\s]+/g,
-
-  // 15. IP Addresses
-  IP_ADDRESS: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
-};
 
 /**
  * Compute SHA256 hash of matched text, returning first 12 hex chars.
@@ -69,35 +41,47 @@ function hashValue(text: string): string {
 }
 
 /**
- * Scan text for PHI identifiers
+ * Map phi-engine type to confidence level
+ */
+function getConfidence(type: string, baseConfidence: number): 'LOW' | 'MEDIUM' | 'HIGH' {
+  if (baseConfidence >= 0.8) return 'HIGH';
+  if (baseConfidence >= 0.7) return 'MEDIUM';
+  return 'LOW';
+}
+
+/**
+ * Scan text for PHI identifiers using phi-engine patterns
  */
 export function scanForPhi(text: string): PhiDetectionResult {
   const identifiers: PhiIdentifier[] = [];
 
-  // Scan all patterns
-  for (const [type, pattern] of Object.entries(PHI_PATTERNS)) {
-    const matches = text.matchAll(pattern);
+  // Use phi-engine patterns (single source of truth)
+  for (const patternDef of PHI_PATTERNS) {
+    // Clone regex to reset lastIndex
+    const regex = new RegExp(patternDef.regex.source, patternDef.regex.flags);
 
-    for (const match of matches) {
+    let match;
+    while ((match = regex.exec(text)) !== null) {
       const matchedValue = match[0];
       const valueLength = matchedValue.length;
       // Hash immediately, discard raw value
       const valueHash = hashValue(matchedValue);
 
       identifiers.push({
-        type,
+        type: patternDef.type,
         valueHash,
         valueLength,
-        position: { start: match.index!, end: match.index! + valueLength },
-        confidence: getConfidence(type),
-        hipaaCategory: getHipaaCategory(type)
+        position: { start: match.index, end: match.index + valueLength },
+        confidence: getConfidence(patternDef.type, patternDef.baseConfidence),
+        hipaaCategory: patternDef.hipaaCategory,
       });
     }
   }
 
   const uniqueTypes = new Set(identifiers.map(i => i.type)).size;
+  const criticalTypes = ['SSN', 'MRN', 'HEALTH_PLAN'];
   const criticalCount = identifiers.filter(i =>
-    ['SSN', 'MRN', 'HEALTH_PLAN'].includes(i.type)
+    criticalTypes.includes(i.type)
   ).length;
 
   const riskLevel = calculateRiskLevel(identifiers.length, criticalCount);
@@ -249,37 +233,6 @@ export function calculateRiskScore(phiFields: string[], classification: string):
   score += Math.min(phiFields.length * 5, 20);
 
   return Math.min(score, 100);
-}
-
-// Helper functions
-function getConfidence(type: string): 'LOW' | 'MEDIUM' | 'HIGH' {
-  const highConfidence = ['SSN', 'EMAIL', 'IP_ADDRESS', 'URL'];
-  const mediumConfidence = ['PHONE', 'MRN', 'HEALTH_PLAN'];
-
-  if (highConfidence.includes(type)) return 'HIGH';
-  if (mediumConfidence.includes(type)) return 'MEDIUM';
-  return 'LOW';
-}
-
-function getHipaaCategory(type: string): number {
-  const mapping: Record<string, number> = {
-    'NAME': 1,
-    'ZIP_CODE': 2,
-    'ADDRESS': 2,
-    'DATE_MDY': 3,
-    'DATE_DMY': 3,
-    'DATE_ISO': 3,
-    'PHONE': 4,
-    'EMAIL': 6,
-    'SSN': 7,
-    'MRN': 8,
-    'HEALTH_PLAN': 9,
-    'ACCOUNT': 10,
-    'URL': 14,
-    'IP_ADDRESS': 15,
-  };
-
-  return mapping[type] || 18; // 18 = other unique identifier
 }
 
 function calculateRiskLevel(

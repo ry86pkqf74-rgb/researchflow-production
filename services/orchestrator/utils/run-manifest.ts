@@ -10,6 +10,7 @@
 
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import { containsPhi } from '@researchflow/phi-engine';
 import type {
   RunManifest,
   ManifestEntry,
@@ -132,25 +133,12 @@ export function createManifestEntry(
 
 /**
  * Validates that a manifest contains only metadata (no PHI/content)
- * Checks for common PHI patterns in string values
+ * Uses phi-engine for comprehensive PHI detection (single source of truth)
  */
 export function validateManifestMetadataOnly(manifest: RunManifest): boolean {
   // Manifest should never contain actual content
   const stringified = JSON.stringify(manifest);
 
-  // Check for common PHI patterns (simple checks)
-  // These are basic patterns and not comprehensive
-  const phi_patterns = [
-    /\b\d{3}-\d{2}-\d{4}\b/, // SSN-like
-    /\b\d{10,}\b/, // Phone-like
-    /MRN[:\s]*\d+/, // Medical record numbers
-  ];
-
-  for (const pattern of phi_patterns) {
-    if (pattern.test(stringified)) {
-      return false;
-    }
-  }
-
-  return true;
+  // Use phi-engine's containsPhi for comprehensive detection
+  return !containsPhi(stringified);
 }
