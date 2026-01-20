@@ -2,6 +2,9 @@
 node_modules/
 .npm/
 .pnpm-store/
+__pycache__/
+*.pyc
+.pytest_cache/
 
 # Build outputs
 dist/
@@ -12,10 +15,24 @@ build/
 .idea/
 .vscode/
 *.swp
+*.swo
 
 # Git
 .git/
 .gitignore
+.gitattributes
+
+# CI/CD (not needed in container)
+.github/
+.gitlab-ci.yml
+.circleci/
+
+# Documentation (not needed in container)
+docs/
+*.md
+!README.md
+CHANGELOG*
+LICENSE*
 
 # Environment (HIPAA - never include)
 .env

@@ -1,6 +1,25 @@
+# ============================================
+# ResearchFlow - Production Docker Compose
+# ============================================
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+#
+# This configuration is optimized for production with:
+# - Nginx reverse proxy (HTTP/HTTPS)
+# - Production build targets
+# - Resource limits and reservations
+# - Service health dependencies
+# - Externalized secrets (via .env)
+#
+# Prerequisites:
+# 1. Copy .env.example to .env and configure all required variables
+# 2. (Optional) Configure SSL certificates in infrastructure/docker/nginx/ssl/
+
 version: '3.8'
 
 services:
+  # ===================
+  # Nginx Reverse Proxy
+  # ===================
   nginx:
     image: nginx:alpine
     ports:
@@ -15,11 +34,20 @@ services:
     networks:
       - researchflow
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
+  # ===================
+  # Orchestrator - Node.js API
+  # ===================
   orchestrator:
     build:
-      context: ./services/orchestrator
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
       target: production
     expose:
       - "3001"
@@ -30,6 +58,7 @@ services:
       - REDIS_URL=${REDIS_URL}
       - WORKER_CALLBACK_URL=http://worker:8000
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
       # Mode configuration (ROS_MODE takes precedence over GOVERNANCE_MODE)
       - ROS_MODE=${ROS_MODE:-}
@@ -58,6 +87,9 @@ services:
           cpus: '0.5'
           memory: 512M
 
+  # ===================
+  # Worker - Python FastAPI
+  # ===================
   worker:
     build:
       context: ./services/worker
@@ -68,6 +100,7 @@ services:
       - REDIS_URL=${REDIS_URL}
       - ARTIFACT_PATH=/data/artifacts
       - LOG_PATH=/data/logs
+      - UVICORN_WORKERS=${UVICORN_WORKERS:-2}
       # Mode configuration (ROS_MODE takes precedence over GOVERNANCE_MODE)
       - ROS_MODE=${ROS_MODE:-}
       - GOVERNANCE_MODE=${GOVERNANCE_MODE:-LIVE}
@@ -76,6 +109,9 @@ services:
       - MOCK_ONLY=${MOCK_ONLY:-false}
       - ALLOW_UPLOADS=${ALLOW_UPLOADS:-true}
       - STRICT_PHI_ON_UPLOAD=${STRICT_PHI_ON_UPLOAD:-true}
+      # API Keys
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,10 +131,13 @@ services:
           cpus: '1'
           memory: 2G
 
+  # ===================
+  # Web - React Frontend (Nginx)
+  # ===================
   web:
     build:
-      context: ./services/web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/web/Dockerfile
       target: production
     expose:
       - "80"
@@ -106,6 +145,8 @@ services:
       # Mode configuration (for frontend display)
       - ROS_MODE=${ROS_MODE:-}
       - GOVERNANCE_MODE=${GOVERNANCE_MODE:-LIVE}
+    depends_on:
+      - orchestrator
     networks:
       - researchflow
     restart: unless-stopped
@@ -115,6 +156,44 @@ services:
           cpus: '0.5'
           memory: 256M
 
+  # ===================
+  # Collab - Real-time Collaboration Server (Optional)
+  # ===================
+  collab:
+    build:
+      context: .
+      dockerfile: services/collab/Dockerfile
+      target: production
+    expose:
+      - "1234"
+    environment:
+      - NODE_ENV=production
+      - PORT=1234
+      - HOST=0.0.0.0
+      - APP_MODE=${APP_MODE:-LIVE}
+      - REDIS_URL=${REDIS_URL}
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - researchflow
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # ===================
+  # PostgreSQL Database
+  # ===================
   postgres:
     image: postgres:16-alpine
     environment:
@@ -132,12 +211,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 15s
     deploy:
       resources:
         limits:
           cpus: '2'
           memory: 4G
 
+  # ===================
+  # Redis Cache
+  # ===================
   redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
@@ -151,6 +234,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
     deploy:
       resources:
         limits:

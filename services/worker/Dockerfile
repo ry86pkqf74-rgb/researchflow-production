@@ -1,9 +1,21 @@
 # ============================================
 # ResearchFlow Worker - Python Compute Service
 # ============================================
+# Build context: services/worker/
+# Stages: base → deps → development | production
+#
+# Usage:
+#   Development: docker build --target development -t worker:dev .
+#   Production:  docker build --target production -t worker:prod .
 
 # Base stage
 FROM python:3.11-slim AS base
+
+# OCI Image Labels
+LABEL org.opencontainers.image.title="ResearchFlow Worker"
+LABEL org.opencontainers.image.description="Python FastAPI compute service for AI/ML processing"
+LABEL org.opencontainers.image.vendor="ResearchFlow"
+LABEL org.opencontainers.image.source="https://github.com/ry86pkqf74-rgb/researchflow-production"
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -63,10 +75,16 @@ USER worker
 
 ENV PYTHONPATH=/app/src:/app
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Uvicorn workers can be configured via UVICORN_WORKERS env var (default: 1)
+ENV UVICORN_WORKERS=1
 
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
 
+# Run via uvicorn for production with configurable workers
+# Override UVICORN_WORKERS at runtime for scaling
 CMD ["python", "api_server.py"]

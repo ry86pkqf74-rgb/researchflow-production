@@ -1,10 +1,26 @@
+# ============================================
+# ResearchFlow - Development Docker Compose
+# ============================================
+# Usage: docker-compose up -d
+#
+# This configuration is optimized for local development with:
+# - Hot-reload via volume mounts
+# - Service health dependencies
+# - Shared data volumes
+#
+# For production, use: docker-compose -f docker-compose.prod.yml up -d
+
 version: '3.8'
 
 services:
+  # ===================
+  # Orchestrator - Node.js API
+  # ===================
   orchestrator:
     build:
       context: .
       dockerfile: services/orchestrator/Dockerfile
+      target: development
     ports:
       - "3001:3001"
     environment:
@@ -18,19 +34,26 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - CLAUDE_API_KEY=${CLAUDE_API_KEY}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - shared-data:/data
       - ./services/orchestrator:/app
       - /app/node_modules
     networks:
       - researchflow
+    restart: unless-stopped
 
+  # ===================
+  # Worker - Python FastAPI
+  # ===================
   worker:
     build:
       context: ./services/worker
       dockerfile: Dockerfile
+      target: development
     environment:
       - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
       - REDIS_URL=redis://redis:6379
@@ -41,29 +64,41 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - CLAUDE_API_KEY=${CLAUDE_API_KEY}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - shared-data:/data
       - ./services/worker:/app
     networks:
       - researchflow
+    restart: unless-stopped
 
+  # ===================
+  # Web - React Frontend (Nginx)
+  # ===================
   web:
     build:
       context: .
       dockerfile: services/web/Dockerfile
+      target: production
     ports:
       - "5173:80"
     depends_on:
       - orchestrator
     networks:
       - researchflow
+    restart: unless-stopped
 
+  # ===================
+  # Collab - Real-time Collaboration Server
+  # ===================
   collab:
     build:
       context: .
       dockerfile: services/collab/Dockerfile
+      target: development
     ports:
       - "1234:1234"
     environment:
@@ -75,19 +110,26 @@ services:
       - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
       - JWT_SECRET=${JWT_SECRET:-development-secret}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - ./services/collab:/app
       - /app/node_modules
     networks:
       - researchflow
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:1234/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
 
+  # ===================
+  # PostgreSQL Database
+  # ===================
   postgres:
     image: postgres:16-alpine
     environment:
@@ -101,12 +143,17 @@ services:
       - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - researchflow
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ros -d ros"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
+  # ===================
+  # Redis Cache
+  # ===================
   redis:
     image: redis:7-alpine
     ports:
@@ -115,11 +162,13 @@ services:
       - redis-data:/data
     networks:
       - researchflow
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
 
 volumes:
   shared-data:

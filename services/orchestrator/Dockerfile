@@ -2,9 +2,20 @@
 # ResearchFlow Orchestrator - Node.js Service
 # ============================================
 # Build context: repository root (.)
+# Stages: base → deps → development | production
+#
+# Usage:
+#   Development: docker build --target development -t orchestrator:dev .
+#   Production:  docker build --target production -t orchestrator:prod .
 
 # Base stage
 FROM node:20-alpine AS base
+
+# OCI Image Labels
+LABEL org.opencontainers.image.title="ResearchFlow Orchestrator"
+LABEL org.opencontainers.image.description="Node.js API orchestrator for ResearchFlow research workflow platform"
+LABEL org.opencontainers.image.vendor="ResearchFlow"
+LABEL org.opencontainers.image.source="https://github.com/ry86pkqf74-rgb/researchflow-production"
 WORKDIR /app
 
 # Install build dependencies

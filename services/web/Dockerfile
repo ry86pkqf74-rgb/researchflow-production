@@ -2,9 +2,19 @@
 # ResearchFlow Web - React Frontend
 # ============================================
 # Build context: repository root (.)
+# Stages: base → deps → build → production
+#
+# Usage:
+#   Production: docker build --target production -t web:prod .
 
 # Base stage
 FROM node:20-alpine AS base
+
+# OCI Image Labels
+LABEL org.opencontainers.image.title="ResearchFlow Web"
+LABEL org.opencontainers.image.description="React frontend for ResearchFlow research workflow platform"
+LABEL org.opencontainers.image.vendor="ResearchFlow"
+LABEL org.opencontainers.image.source="https://github.com/ry86pkqf74-rgb/researchflow-production"
 WORKDIR /app
 
 # Dependencies stage
@@ -39,33 +49,20 @@ RUN npm run build
 # Production stage - Nginx
 FROM nginx:alpine AS production
 
+# OCI Image Labels (repeated for final stage)
+LABEL org.opencontainers.image.title="ResearchFlow Web"
+LABEL org.opencontainers.image.description="React frontend for ResearchFlow research workflow platform"
+LABEL org.opencontainers.image.vendor="ResearchFlow"
+
 # Copy built assets
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Create nginx config for SPA routing
-RUN echo 'server { \
-    listen 80; \
-    server_name localhost; \
-    root /usr/share/nginx/html; \
-    index index.html; \
-    location / { \
-        try_files $uri $uri/ /index.html; \
-    } \
-    location /api { \
-        proxy_pass http://orchestrator:3001; \
-        proxy_http_version 1.1; \
-        proxy_set_header Upgrade $http_upgrade; \
-        proxy_set_header Connection "upgrade"; \
-        proxy_set_header Host $host; \
-        proxy_cache_bypass $http_upgrade; \
-    } \
-    gzip on; \
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml; \
-}' > /etc/nginx/conf.d/default.conf
+# Copy external nginx config (maintainable, with security headers)
+COPY services/web/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
