@@ -934,6 +934,151 @@ async def export_conference_materials(input_data: ConferenceExportInput):
     )
 
 
+# ============ Conference Discovery Endpoints ============
+
+class ConferenceDiscoverInput(BaseModel):
+    keywords: List[str] = []
+    year_range: Optional[List[int]] = None  # [start_year, end_year]
+    location_pref: Optional[str] = None
+    formats: List[str] = []  # ["poster", "oral", "symposium", etc.]
+    max_results: int = 10
+    target_month: Optional[int] = None  # 1-12
+    min_score: float = 0.0
+
+class RankedConferenceOutput(BaseModel):
+    conference: Dict[str, Any]
+    score: float
+    why: str
+    score_breakdown: Dict[str, Any]
+
+class ConferenceDiscoverOutput(BaseModel):
+    ranked_conferences: List[RankedConferenceOutput]
+    total_matched: int
+    query_info: Dict[str, Any]
+    generated_at: str
+    status: str
+
+@app.post("/api/ros/conference/discover", response_model=ConferenceDiscoverOutput)
+async def discover_conferences_endpoint(input_data: ConferenceDiscoverInput):
+    """
+    Discover and rank conferences based on research keywords and preferences.
+
+    Supports DEMO mode with offline-only curated registry of major surgical conferences.
+
+    Ranking criteria (deterministic):
+    - keyword_overlap: 40% - Topic relevance to conference tags/keywords
+    - format_match: 25% - Availability of requested presentation formats
+    - timing_relevance: 20% - Abstract deadline timing relative to target month
+    - location_pref: 10% - Geographic preference matching
+    - impact_score: 5% - Conference prestige/importance
+    """
+    try:
+        from conference_prep import (
+            discover_conferences,
+            ConferenceDiscoveryInput,
+        )
+
+        # Build discovery input
+        discovery_input = ConferenceDiscoveryInput(
+            keywords=input_data.keywords,
+            year_range=tuple(input_data.year_range) if input_data.year_range and len(input_data.year_range) == 2 else None,
+            location_pref=input_data.location_pref,
+            formats=input_data.formats,
+            max_results=input_data.max_results,
+            target_month=input_data.target_month,
+            min_score=input_data.min_score,
+        )
+
+        # Run discovery
+        result = discover_conferences(discovery_input)
+
+        return ConferenceDiscoverOutput(
+            ranked_conferences=[
+                RankedConferenceOutput(
+                    conference=rc.conference.to_dict(),
+                    score=rc.score,
+                    why=rc.why,
+                    score_breakdown=rc.score_breakdown,
+                )
+                for rc in result.ranked_conferences
+            ],
+            total_matched=result.total_matched,
+            query_info=result.query_info,
+            generated_at=result.generated_at,
+            status="success",
+        )
+    except ImportError as e:
+        # Fallback mock response for when module isn't loaded
+        return ConferenceDiscoverOutput(
+            ranked_conferences=[
+                RankedConferenceOutput(
+                    conference={
+                        "name": "SAGES Annual Meeting",
+                        "abbreviation": "SAGES",
+                        "url": "https://www.sages.org/meetings/annual-meeting/",
+                        "typical_month": 4,
+                        "supported_formats": ["poster", "oral", "video"],
+                        "tags": ["minimally_invasive", "laparoscopy", "robotics"],
+                    },
+                    score=0.85,
+                    why="Excellent match; matches: robotics, minimally_invasive; supports: poster, oral",
+                    score_breakdown={
+                        "keyword_overlap": {"score": 0.9, "weight": 0.4},
+                        "format_match": {"score": 0.8, "weight": 0.25},
+                    },
+                ),
+            ],
+            total_matched=1,
+            query_info={"keywords": input_data.keywords, "note": "fallback_mock"},
+            generated_at=datetime.utcnow().isoformat() + "Z",
+            status="success",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ros/conference/registry")
+async def get_conference_registry():
+    """
+    Get the full curated conference registry.
+
+    Returns all conferences in the offline registry with their metadata.
+    Useful for browsing available conferences without specific search criteria.
+    """
+    try:
+        from conference_prep import get_all_conferences
+
+        conferences = get_all_conferences()
+        return {
+            "status": "success",
+            "conferences": [c.to_dict() for c in conferences],
+            "count": len(conferences),
+            "mode": config.ros_mode,
+        }
+    except ImportError:
+        # Fallback with sample data
+        return {
+            "status": "success",
+            "conferences": [
+                {
+                    "name": "SAGES Annual Meeting",
+                    "abbreviation": "SAGES",
+                    "typical_month": 4,
+                    "tags": ["minimally_invasive", "laparoscopy", "robotics"],
+                },
+                {
+                    "name": "ACS Clinical Congress",
+                    "abbreviation": "ACS",
+                    "typical_month": 10,
+                    "tags": ["general_surgery", "trauma", "oncology"],
+                },
+            ],
+            "count": 2,
+            "mode": config.ros_mode,
+            "note": "fallback_mock",
+        }
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("ROS_API_PORT", 8000))
     print(f"[ROS] Starting API server on port {port}")
