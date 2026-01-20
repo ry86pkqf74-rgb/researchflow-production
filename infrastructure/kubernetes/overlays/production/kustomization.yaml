@@ -43,8 +43,12 @@ configMapGenerator:
   - name: researchflow-config
     behavior: merge
     literals:
+      # Mode configuration (ROS_MODE takes precedence; set for emergency override)
+      # - ROS_MODE=STANDBY  # Uncomment during emergencies
       - GOVERNANCE_MODE=LIVE
       - LOG_LEVEL=warn
+      # Production safety settings
+      - STRICT_PHI_ON_UPLOAD=true
 
 images:
   - name: researchflow/orchestrator

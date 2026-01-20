@@ -6,7 +6,15 @@ metadata:
   labels:
     app.kubernetes.io/name: researchflow
 data:
+  # Mode configuration (ROS_MODE takes precedence over GOVERNANCE_MODE)
+  # ROS_MODE: ""  # Set for emergency override; leave empty for normal operation
   GOVERNANCE_MODE: "DEMO"
+  # Safety flags
+  NO_NETWORK: "false"
+  MOCK_ONLY: "false"
+  ALLOW_UPLOADS: "true"
+  STRICT_PHI_ON_UPLOAD: "true"
+  # System paths
   LOG_LEVEL: "info"
   ARTIFACT_PATH: "/data/artifacts"
   LOG_PATH: "/data/logs"

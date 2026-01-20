@@ -8,12 +8,34 @@ import { AppMode, MODE_CONFIGS } from '@researchflow/core';
 
 /**
  * Get current mode from environment or default to DEMO for safety
+ *
+ * Mode precedence (fail-closed):
+ * 1. ROS_MODE - highest priority, explicit override
+ * 2. GOVERNANCE_MODE - standard configuration
+ * 3. Default to DEMO - safest fallback
+ *
+ * This ensures operators can quickly switch modes in emergencies
+ * by setting ROS_MODE without modifying deployment configs.
  */
 export const getCurrentMode = (): AppMode => {
-  const mode = process.env.GOVERNANCE_MODE as AppMode;
-  if (mode === AppMode.STANDBY) return AppMode.STANDBY;
-  if (mode === AppMode.LIVE) return AppMode.LIVE;
-  return AppMode.DEMO; // Default to DEMO for safety
+  // ROS_MODE takes precedence (allows emergency override)
+  const rosMode = process.env.ROS_MODE as AppMode;
+  if (rosMode) {
+    if (rosMode === AppMode.STANDBY) return AppMode.STANDBY;
+    if (rosMode === AppMode.LIVE) return AppMode.LIVE;
+    if (rosMode === AppMode.DEMO) return AppMode.DEMO;
+    // Invalid ROS_MODE value - log warning and continue to fallback
+    console.warn(`[MODE-GUARD] Invalid ROS_MODE value: ${rosMode}, falling back to GOVERNANCE_MODE`);
+  }
+
+  // Fallback to GOVERNANCE_MODE
+  const govMode = process.env.GOVERNANCE_MODE as AppMode;
+  if (govMode === AppMode.STANDBY) return AppMode.STANDBY;
+  if (govMode === AppMode.LIVE) return AppMode.LIVE;
+  if (govMode === AppMode.DEMO) return AppMode.DEMO;
+
+  // Default to DEMO for safety (fail-closed)
+  return AppMode.DEMO;
 };
 
 /**

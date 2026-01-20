@@ -31,7 +31,14 @@ services:
       - WORKER_CALLBACK_URL=http://worker:8000
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
+      # Mode configuration (ROS_MODE takes precedence over GOVERNANCE_MODE)
+      - ROS_MODE=${ROS_MODE:-}
       - GOVERNANCE_MODE=${GOVERNANCE_MODE:-LIVE}
+      # Safety flags
+      - NO_NETWORK=${NO_NETWORK:-false}
+      - MOCK_ONLY=${MOCK_ONLY:-false}
+      - ALLOW_UPLOADS=${ALLOW_UPLOADS:-true}
+      - STRICT_PHI_ON_UPLOAD=${STRICT_PHI_ON_UPLOAD:-true}
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,7 +68,14 @@ services:
       - REDIS_URL=${REDIS_URL}
       - ARTIFACT_PATH=/data/artifacts
       - LOG_PATH=/data/logs
+      # Mode configuration (ROS_MODE takes precedence over GOVERNANCE_MODE)
+      - ROS_MODE=${ROS_MODE:-}
       - GOVERNANCE_MODE=${GOVERNANCE_MODE:-LIVE}
+      # Safety flags
+      - NO_NETWORK=${NO_NETWORK:-false}
+      - MOCK_ONLY=${MOCK_ONLY:-false}
+      - ALLOW_UPLOADS=${ALLOW_UPLOADS:-true}
+      - STRICT_PHI_ON_UPLOAD=${STRICT_PHI_ON_UPLOAD:-true}
     depends_on:
       postgres:
         condition: service_healthy
@@ -88,6 +102,10 @@ services:
       target: production
     expose:
       - "80"
+    environment:
+      # Mode configuration (for frontend display)
+      - ROS_MODE=${ROS_MODE:-}
+      - GOVERNANCE_MODE=${GOVERNANCE_MODE:-LIVE}
     networks:
       - researchflow
     restart: unless-stopped

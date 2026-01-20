@@ -2,7 +2,8 @@
 # ================================
 
 .PHONY: help dev dev-build dev-logs dev-down build test test-unit test-integration test-e2e \
-        lint format db-migrate db-seed deploy-staging deploy-production clean
+        lint format db-migrate db-seed db-backup db-backup-prod db-restore db-backup-retention \
+        db-backup-list deploy-staging deploy-production clean
 
 # Colors
 BLUE := \033[34m
@@ -41,6 +42,11 @@ help:
 	@echo "  make db-migrate   - Run database migrations"
 	@echo "  make db-seed      - Seed database with test data"
 	@echo "  make db-reset     - Reset database (WARNING: destroys data)"
+	@echo "  make db-backup    - Create database backup"
+	@echo "  make db-backup-prod - Create production database backup"
+	@echo "  make db-restore BACKUP_FILE=path - Restore from backup"
+	@echo "  make db-backup-retention - Clean up backups older than 30 days"
+	@echo "  make db-backup-list - List available backups"
 	@echo ""
 	@echo "$(GREEN)Deployment:$(NC)"
 	@echo "  make deploy-staging    - Deploy to staging"
@@ -158,9 +164,43 @@ db-reset:
 
 db-backup:
 	@echo "$(BLUE)Creating database backup...$(NC)"
+	@mkdir -p backups
 	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
-	docker-compose exec postgres pg_dump -U ros ros | gzip > backups/backup_$$TIMESTAMP.sql.gz
+	docker-compose exec -T postgres pg_dump -U $${POSTGRES_USER:-ros} $${POSTGRES_DB:-ros} | gzip > backups/backup_$$TIMESTAMP.sql.gz
 	@echo "$(GREEN)Backup created in backups/$(NC)"
+
+db-backup-prod:
+	@echo "$(BLUE)Creating production database backup...$(NC)"
+	@mkdir -p backups
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	docker-compose -f docker-compose.prod.yml exec -T postgres pg_dump -U $${POSTGRES_USER:-ros} $${POSTGRES_DB:-ros} | gzip > backups/backup_prod_$$TIMESTAMP.sql.gz
+	@echo "$(GREEN)Production backup created in backups/$(NC)"
+
+db-restore:
+	@echo "$(YELLOW)Restoring database from backup...$(NC)"
+	@if [ -z "$(BACKUP_FILE)" ]; then \
+		echo "$(RED)ERROR: BACKUP_FILE not specified$(NC)"; \
+		echo "Usage: make db-restore BACKUP_FILE=backups/backup_YYYYMMDD_HHMMSS.sql.gz"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(BACKUP_FILE)" ]; then \
+		echo "$(RED)ERROR: Backup file not found: $(BACKUP_FILE)$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)WARNING: This will overwrite the current database!$(NC)"
+	@read -p "Are you sure? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	gunzip -c $(BACKUP_FILE) | docker-compose exec -T postgres psql -U $${POSTGRES_USER:-ros} $${POSTGRES_DB:-ros}
+	@echo "$(GREEN)Database restored from $(BACKUP_FILE)$(NC)"
+
+db-backup-retention:
+	@echo "$(BLUE)Cleaning up old backups (keeping last 30 days)...$(NC)"
+	@mkdir -p backups
+	@find backups -name "backup_*.sql.gz" -type f -mtime +30 -print -delete 2>/dev/null || true
+	@echo "$(GREEN)Backup retention cleanup complete$(NC)"
+
+db-backup-list:
+	@echo "$(BLUE)Available backups:$(NC)"
+	@ls -lh backups/*.sql.gz 2>/dev/null || echo "No backups found in backups/"
 
 # ===================
 # Deployment
