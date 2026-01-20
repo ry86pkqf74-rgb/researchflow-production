@@ -1079,6 +1079,184 @@ async def get_conference_registry():
         }
 
 
+# ============ Conference Guidelines Extraction Endpoints ============
+
+class GuidelineExtractInput(BaseModel):
+    conference_url: str
+    formats: List[str] = []  # ["poster", "oral", "symposium"]
+    conference_name: Optional[str] = None
+
+
+class ExtractedGuidelinesOutput(BaseModel):
+    raw_text_sha256: str
+    raw_text: str
+    abstract_word_limit: Optional[int] = None
+    abstract_char_limit: Optional[int] = None
+    poster_size: Optional[str] = None
+    slide_limits: Optional[Dict[str, Any]] = None
+    file_types: List[str] = []
+    blinding_rules: Optional[str] = None
+    abstract_deadline: Optional[str] = None
+    full_paper_deadline: Optional[str] = None
+    formatting_hints: List[str] = []
+    required_sections: List[str] = []
+    source_url: str = ""
+    conference_name: str = ""
+    extraction_timestamp: str = ""
+    sanitization_summary: Dict[str, int] = {}
+
+
+class GuidelineExtractOutput(BaseModel):
+    status: str
+    guidelines: Optional[ExtractedGuidelinesOutput] = None
+    error_message: Optional[str] = None
+    mode: str
+
+
+@app.post("/api/ros/conference/guidelines/extract", response_model=GuidelineExtractOutput)
+async def extract_conference_guidelines(input_data: GuidelineExtractInput):
+    """
+    Extract and parse conference submission guidelines from a URL.
+
+    CRITICAL: This endpoint sanitizes all scraped content before returning it.
+    PII/PHI patterns (emails, phone numbers, addresses) are redacted with
+    category-specific placeholders like [REDACTED:EMAIL].
+
+    In DEMO mode (default), returns fixture guideline data for known conferences:
+    - SAGES, ACS, ASCRS, ASMBS, and a generic fallback
+
+    In LIVE mode, would fetch actual web content (not yet implemented).
+
+    Sanitization patterns applied:
+    - Email addresses -> [REDACTED:EMAIL]
+    - Phone numbers -> [REDACTED:PHONE]
+    - Street addresses -> [REDACTED:ADDRESS]
+    - PO Boxes -> [REDACTED:PO_BOX]
+    - Contact names -> [REDACTED:CONTACT_NAME]
+    - SSNs, MRNs -> [REDACTED:SSN], [REDACTED:MRN]
+
+    The response includes:
+    - raw_text: Sanitized guideline text (PII/PHI redacted)
+    - raw_text_sha256: Hash of sanitized text for integrity verification
+    - Extracted structured fields: word limits, poster sizes, slide limits, etc.
+    - sanitization_summary: Count of each PII/PHI type that was redacted
+    """
+    try:
+        from conference_prep import (
+            extract_guidelines,
+            GuidelineExtractionInput,
+        )
+
+        # Build extraction input
+        extraction_input = GuidelineExtractionInput(
+            conference_url=input_data.conference_url,
+            formats=input_data.formats,
+            conference_name=input_data.conference_name,
+        )
+
+        # Determine demo mode based on runtime config
+        demo_mode = config.ros_mode == "DEMO" or config.mock_only
+
+        # Run extraction (with sanitization built-in)
+        result = extract_guidelines(extraction_input, demo_mode=demo_mode)
+
+        # Convert to output model
+        guidelines_output = None
+        if result.guidelines:
+            guidelines_output = ExtractedGuidelinesOutput(
+                raw_text_sha256=result.guidelines.raw_text_sha256,
+                raw_text=result.guidelines.raw_text,
+                abstract_word_limit=result.guidelines.abstract_word_limit,
+                abstract_char_limit=result.guidelines.abstract_char_limit,
+                poster_size=result.guidelines.poster_size,
+                slide_limits=result.guidelines.slide_limits,
+                file_types=result.guidelines.file_types,
+                blinding_rules=result.guidelines.blinding_rules,
+                abstract_deadline=result.guidelines.abstract_deadline,
+                full_paper_deadline=result.guidelines.full_paper_deadline,
+                formatting_hints=result.guidelines.formatting_hints,
+                required_sections=result.guidelines.required_sections,
+                source_url=result.guidelines.source_url,
+                conference_name=result.guidelines.conference_name,
+                extraction_timestamp=result.guidelines.extraction_timestamp,
+                sanitization_summary=result.guidelines.sanitization_summary,
+            )
+
+        return GuidelineExtractOutput(
+            status=result.status,
+            guidelines=guidelines_output,
+            error_message=result.error_message,
+            mode=result.mode,
+        )
+    except ImportError as e:
+        # Fallback mock response if module not available
+        return GuidelineExtractOutput(
+            status="success",
+            guidelines=ExtractedGuidelinesOutput(
+                raw_text_sha256="fallback_sha256_placeholder",
+                raw_text="Conference guidelines (demo fallback). Contact: [REDACTED:EMAIL]",
+                abstract_word_limit=350,
+                poster_size="48x36 inches",
+                slide_limits={"max_slides": 15, "duration_minutes": 10},
+                file_types=["PDF", "PPTX"],
+                blinding_rules="Blind review required",
+                formatting_hints=["Structured format recommended"],
+                required_sections=["Background", "Methods", "Results", "Conclusions"],
+                source_url=input_data.conference_url,
+                conference_name=input_data.conference_name or "Generic Conference",
+                extraction_timestamp=datetime.utcnow().isoformat() + "Z",
+                sanitization_summary={"EMAIL": 1},
+            ),
+            mode="DEMO",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ros/conference/guidelines/demo-conferences")
+async def list_demo_guideline_conferences():
+    """
+    List available demo conferences with fixture guideline data.
+
+    Returns the conference keys that can be used with the extract endpoint
+    in DEMO mode to get sample guideline data.
+    """
+    try:
+        from conference_prep import list_demo_conferences, get_demo_guidelines
+
+        demo_keys = list_demo_conferences()
+        conferences = []
+        for key in demo_keys:
+            guidelines = get_demo_guidelines(key)
+            if guidelines:
+                conferences.append({
+                    "key": key,
+                    "name": guidelines.conference_name,
+                    "abstract_word_limit": guidelines.abstract_word_limit,
+                    "poster_size": guidelines.poster_size,
+                    "file_types": guidelines.file_types,
+                })
+
+        return {
+            "status": "success",
+            "demo_conferences": conferences,
+            "count": len(conferences),
+            "mode": config.ros_mode,
+        }
+    except ImportError:
+        return {
+            "status": "success",
+            "demo_conferences": [
+                {"key": "sages", "name": "SAGES Annual Meeting"},
+                {"key": "acs", "name": "ACS Clinical Congress"},
+                {"key": "default", "name": "Generic Conference"},
+            ],
+            "count": 3,
+            "mode": config.ros_mode,
+            "note": "fallback_mock",
+        }
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("ROS_API_PORT", 8000))
     print(f"[ROS] Starting API server on port {port}")

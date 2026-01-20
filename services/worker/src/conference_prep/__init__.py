@@ -1,8 +1,9 @@
 """
 Conference Preparation Module
 
-Provides conference discovery and ranking for surgical research conferences.
-Supports DEMO mode with offline-only curated registry.
+Provides conference discovery, ranking, and guideline extraction for
+surgical research conferences. Supports DEMO mode with offline-only
+curated registry and fixture guideline data.
 """
 
 from .registry import (
@@ -21,6 +22,18 @@ from .discovery import (
     RankedConference,
 )
 
+from .guidelines import (
+    extract_guidelines,
+    extract_guidelines_from_text,
+    sanitize_text,
+    ExtractedGuidelines,
+    GuidelineExtractionInput,
+    GuidelineExtractionResult,
+    get_demo_guidelines,
+    list_demo_conferences,
+    DEMO_GUIDELINES,
+)
+
 __all__ = [
     # Registry
     "CONFERENCE_REGISTRY",
@@ -34,4 +47,14 @@ __all__ = [
     "ConferenceDiscoveryInput",
     "ConferenceDiscoveryResult",
     "RankedConference",
+    # Guidelines
+    "extract_guidelines",
+    "extract_guidelines_from_text",
+    "sanitize_text",
+    "ExtractedGuidelines",
+    "GuidelineExtractionInput",
+    "GuidelineExtractionResult",
+    "get_demo_guidelines",
+    "list_demo_conferences",
+    "DEMO_GUIDELINES",
 ]
