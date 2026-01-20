@@ -6,6 +6,7 @@ Runs in LIVE mode with full functionality enabled
 import os
 import sys
 from pathlib import Path
+from datetime import datetime
 
 # Add ros-backend/src to Python path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -78,6 +79,84 @@ class SystemStatus(BaseModel):
     no_network: bool
     allow_uploads: bool
     status: str
+
+# ============ Health Check Endpoints ============
+
+@app.get("/health")
+async def health_check():
+    """Basic liveness probe - always returns healthy if server is running"""
+    return {
+        "status": "healthy",
+        "service": "ros-worker",
+        "version": "1.0.0",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "mode": {
+            "ros_mode": config.ros_mode,
+            "no_network": config.no_network,
+            "mock_only": config.mock_only,
+        }
+    }
+
+
+@app.get("/health/ready")
+async def readiness_check():
+    """Readiness probe with internal invariant checks"""
+    checks = {}
+    all_ok = True
+
+    # Check runtime config invariants
+    try:
+        # Verify config is properly initialized
+        if not hasattr(config, 'ros_mode'):
+            checks["config"] = "failed: ros_mode not set"
+            all_ok = False
+        elif config.ros_mode not in ("DEMO", "LIVE", "OFFLINE"):
+            checks["config"] = f"failed: invalid ros_mode '{config.ros_mode}'"
+            all_ok = False
+        else:
+            checks["config"] = "ok"
+    except Exception as e:
+        checks["config"] = f"failed: {str(e)}"
+        all_ok = False
+
+    # Check artifact path is accessible if configured
+    artifact_path = os.environ.get("ARTIFACT_PATH", "/data/artifacts")
+    try:
+        artifact_dir = Path(artifact_path)
+        if artifact_dir.exists() and artifact_dir.is_dir():
+            checks["artifacts"] = "ok"
+        else:
+            # Non-fatal: directory may not exist in minimal deployments
+            checks["artifacts"] = "warning: directory not found"
+    except Exception as e:
+        checks["artifacts"] = f"warning: {str(e)}"
+
+    # Check Python path is properly configured
+    try:
+        # Verify src directory is in path
+        src_in_path = any("src" in p for p in sys.path)
+        checks["python_path"] = "ok" if src_in_path else "warning: src not in PYTHONPATH"
+    except Exception as e:
+        checks["python_path"] = f"warning: {str(e)}"
+
+    response = {
+        "status": "ready" if all_ok else "not_ready",
+        "checks": checks,
+        "mode": {
+            "ros_mode": config.ros_mode,
+            "no_network": config.no_network,
+            "mock_only": config.mock_only,
+            "allow_uploads": config.allow_uploads,
+        },
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+
+    if all_ok:
+        return response
+    else:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=503, content=response)
+
 
 # ============ API Endpoints ============
 
