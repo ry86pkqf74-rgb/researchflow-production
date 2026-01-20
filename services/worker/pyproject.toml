@@ -44,7 +44,7 @@ web = [
 ]
 api = [
     "fastapi==0.128.0",            # API framework
-    "uvicorn[standard]==0.27.0",   # ASGI server
+    "uvicorn[standard]==0.40.0",   # ASGI server
     "python-multipart==0.0.21",    # File uploads
     "pydantic==2.12.5",            # Request/response validation
     "email-validator==2.2.0",      # Email validation (auth)
