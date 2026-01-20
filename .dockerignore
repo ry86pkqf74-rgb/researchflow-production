@@ -32,10 +32,13 @@ playwright-report/
 Thumbs.db
 
 # PHI/Sensitive (HIPAA compliance)
-**/phi/
+# Note: services/web/src/components/phi/ contains UI components, not PHI data
 **/patient-data/
 **/*.phi.*
 **/audit-logs/
+# Exclude actual PHI data directories (but not React component directories)
+data/phi/
+uploads/phi/
 
 # Large files
 *.zip

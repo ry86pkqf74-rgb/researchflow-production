@@ -12,6 +12,7 @@ const packagesPath = fs.existsSync(path.resolve(__dirname, './packages/core'))
 export default defineConfig({
   plugins: [react()] as any,
   resolve: {
+    extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'],
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@packages/core': path.resolve(__dirname, packagesPath, 'core'),
