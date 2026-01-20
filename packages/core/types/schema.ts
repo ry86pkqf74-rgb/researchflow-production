@@ -1290,3 +1290,374 @@ export const insertNotionMappingSchema = createInsertSchema(notionMappings).omit
 
 export type NotionMappingRecord = typeof notionMappings.$inferSelect;
 export type InsertNotionMapping = z.infer<typeof insertNotionMappingSchema>;
+
+// ============================================================
+// DOCS-FIRST PHASE 1 TABLES (Migration 010)
+// ============================================================
+
+// Ideas Table - Research idea backlog
+export const ideas = pgTable("ideas", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  researchId: varchar("research_id", { length: 255 }).notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  description: text("description"),
+  status: varchar("status", { length: 20 }).default("BACKLOG").notNull(),
+  createdBy: varchar("created_by", { length: 255 }).notNull(),
+  orgId: varchar("org_id", { length: 255 }),
+  metadata: jsonb("metadata").default({}).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  deletedAt: timestamp("deleted_at"),
+});
+
+export const insertIdeaSchema = createInsertSchema(ideas).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+});
+
+export type Idea = typeof ideas.$inferSelect;
+export type InsertIdea = z.infer<typeof insertIdeaSchema>;
+
+// Idea Scorecards Table - Scoring criteria for evaluating ideas
+export const ideaScorecards = pgTable("idea_scorecards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ideaId: varchar("idea_id").notNull().references(() => ideas.id, { onDelete: "cascade" }),
+  noveltyScore: integer("novelty_score"),
+  feasibilityScore: integer("feasibility_score"),
+  impactScore: integer("impact_score"),
+  alignmentScore: integer("alignment_score"),
+  totalScore: integer("total_score"),  // Computed by database trigger
+  notes: text("notes"),
+  createdBy: varchar("created_by", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertIdeaScorecardSchema = createInsertSchema(ideaScorecards).omit({
+  id: true,
+  totalScore: true,  // Computed field
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type IdeaScorecard = typeof ideaScorecards.$inferSelect;
+export type InsertIdeaScorecard = z.infer<typeof insertIdeaScorecardSchema>;
+
+// Topic Briefs Table - Structured research planning documents with PICO framework
+export const topicBriefs = pgTable("topic_briefs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  researchId: varchar("research_id", { length: 255 }).notNull(),
+  ideaId: varchar("idea_id").references(() => ideas.id, { onDelete: "set null" }),
+  title: varchar("title", { length: 500 }).notNull(),
+  versionNumber: integer("version_number").default(1).notNull(),
+
+  // PICO Framework
+  population: text("population"),
+  intervention: text("intervention"),
+  comparison: text("comparison"),
+  outcomes: text("outcomes").array(),
+
+  // Research structure
+  researchQuestion: text("research_question").notNull(),
+  hypothesis: text("hypothesis"),
+  background: text("background"),
+  methodsOverview: text("methods_overview"),
+  expectedFindings: text("expected_findings"),
+
+  status: varchar("status", { length: 20 }).default("DRAFT").notNull(),
+  frozenAt: timestamp("frozen_at"),
+  frozenBy: varchar("frozen_by", { length: 255 }),
+
+  createdBy: varchar("created_by", { length: 255 }).notNull(),
+  orgId: varchar("org_id", { length: 255 }),
+  metadata: jsonb("metadata").default({}).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  deletedAt: timestamp("deleted_at"),
+});
+
+export const insertTopicBriefSchema = createInsertSchema(topicBriefs).omit({
+  id: true,
+  versionNumber: true,  // Auto-managed
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+});
+
+export type TopicBrief = typeof topicBriefs.$inferSelect;
+export type InsertTopicBrief = z.infer<typeof insertTopicBriefSchema>;
+
+// Venues Table - Target publication/presentation venues
+export const venues = pgTable("venues", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 500 }).notNull(),
+  type: varchar("type", { length: 50 }).notNull(),
+  impactFactor: text("impact_factor"),  // Using text for DECIMAL compatibility
+  acceptanceRate: text("acceptance_rate"),
+
+  // Requirements
+  wordLimit: integer("word_limit"),
+  abstractLimit: integer("abstract_limit"),
+  guidelinesUrl: text("guidelines_url"),
+  submissionDeadline: timestamp("submission_deadline"),
+
+  metadata: jsonb("metadata").default({}).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  deletedAt: timestamp("deleted_at"),
+});
+
+export const insertVenueSchema = createInsertSchema(venues).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+});
+
+export type Venue = typeof venues.$inferSelect;
+export type InsertVenue = z.infer<typeof insertVenueSchema>;
+
+// Doc Kits Table - Document preparation kits per venue
+export const docKits = pgTable("doc_kits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  topicBriefId: varchar("topic_brief_id").notNull().references(() => topicBriefs.id, { onDelete: "cascade" }),
+  venueId: varchar("venue_id").notNull().references(() => venues.id, { onDelete: "cascade" }),
+  status: varchar("status", { length: 20 }).default("IN_PROGRESS").notNull(),
+
+  createdBy: varchar("created_by", { length: 255 }).notNull(),
+  orgId: varchar("org_id", { length: 255 }),
+  metadata: jsonb("metadata").default({}).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  deletedAt: timestamp("deleted_at"),
+});
+
+export const insertDocKitSchema = createInsertSchema(docKits).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+});
+
+export type DocKit = typeof docKits.$inferSelect;
+export type InsertDocKit = z.infer<typeof insertDocKitSchema>;
+
+// Doc Kit Items Table - Individual documents in a kit
+export const docKitItems = pgTable("doc_kit_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  docKitId: varchar("doc_kit_id").notNull().references(() => docKits.id, { onDelete: "cascade" }),
+  itemType: varchar("item_type", { length: 100 }).notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  description: text("description"),
+  content: text("content"),
+  artifactId: varchar("artifact_id").references(() => artifacts.id, { onDelete: "set null" }),
+  status: varchar("status", { length: 20 }).default("NOT_STARTED").notNull(),
+  required: boolean("required").default(true).notNull(),
+  displayOrder: integer("display_order").notNull(),
+  metadata: jsonb("metadata").default({}).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  deletedAt: timestamp("deleted_at"),
+});
+
+export const insertDocKitItemSchema = createInsertSchema(docKitItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+});
+
+export type DocKitItem = typeof docKitItems.$inferSelect;
+export type InsertDocKitItem = z.infer<typeof insertDocKitItemSchema>;
+
+// Doc Anchors Table - Hash chain for immutable scope freeze snapshots
+export const docAnchors = pgTable("doc_anchors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  topicBriefId: varchar("topic_brief_id").notNull().references(() => topicBriefs.id, { onDelete: "cascade" }),
+  versionNumber: integer("version_number").notNull(),
+  snapshotData: jsonb("snapshot_data").notNull(),
+  previousHash: varchar("previous_hash", { length: 64 }),
+  currentHash: varchar("current_hash", { length: 64 }).notNull(),
+  createdBy: varchar("created_by", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertDocAnchorSchema = createInsertSchema(docAnchors).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type DocAnchor = typeof docAnchors.$inferSelect;
+export type InsertDocAnchor = z.infer<typeof insertDocAnchorSchema>;
+
+// ============================================================
+// PHASE F: UI/UX ENHANCEMENTS TABLES (Migration 011, Tasks 101-110)
+// ============================================================
+
+// =====================
+// FEATURE FLAGS & EXPERIMENTS (Task 110)
+// =====================
+
+// Feature Flags Table
+export const featureFlags = pgTable("feature_flags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  flagKey: varchar("flag_key", { length: 100 }).unique().notNull(),
+  enabled: boolean("enabled").default(false).notNull(),
+  description: text("description"),
+  tierRequired: varchar("tier_required", { length: 20 }), // 'FREE', 'TEAM', 'ENTERPRISE'
+  metadata: jsonb("metadata").default({}).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertFeatureFlagSchema = createInsertSchema(featureFlags).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type FeatureFlag = typeof featureFlags.$inferSelect;
+export type InsertFeatureFlag = z.infer<typeof insertFeatureFlagSchema>;
+
+// Experiments Table (A/B Testing)
+export const EXPERIMENT_STATUSES = ["DRAFT", "RUNNING", "PAUSED", "COMPLETE"] as const;
+export type ExperimentStatus = (typeof EXPERIMENT_STATUSES)[number];
+
+export const experiments = pgTable("experiments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  experimentKey: varchar("experiment_key", { length: 100 }).unique().notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  variants: jsonb("variants").notNull(), // [{"key": "control", "weight": 50}, {"key": "variant_a", "weight": 50}]
+  status: varchar("status", { length: 20 }).default("DRAFT").notNull(),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  metadata: jsonb("metadata").default({}).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertExperimentSchema = createInsertSchema(experiments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Experiment = typeof experiments.$inferSelect;
+export type InsertExperiment = z.infer<typeof insertExperimentSchema>;
+
+// Experiment Assignments Table
+export const experimentAssignments = pgTable("experiment_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  experimentId: varchar("experiment_id").notNull().references(() => experiments.id, { onDelete: "cascade" }),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  variantKey: varchar("variant_key", { length: 100 }).notNull(),
+  assignedAt: timestamp("assigned_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertExperimentAssignmentSchema = createInsertSchema(experimentAssignments).omit({
+  id: true,
+  assignedAt: true,
+});
+
+export type ExperimentAssignment = typeof experimentAssignments.$inferSelect;
+export type InsertExperimentAssignment = z.infer<typeof insertExperimentAssignmentSchema>;
+
+// =====================
+// CUSTOM FIELDS (Task 101)
+// =====================
+
+// Org Custom Fields Schema Table
+export const orgCustomFields = pgTable("org_custom_fields", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id", { length: 255 }).notNull(),
+  entityType: varchar("entity_type", { length: 50 }).notNull(), // 'project', 'dataset', 'artifact'
+  schemaJson: jsonb("schema_json").notNull(), // Array of field definitions
+  version: integer("version").default(1).notNull(),
+  updatedBy: varchar("updated_by", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertOrgCustomFieldSchema = createInsertSchema(orgCustomFields).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type OrgCustomField = typeof orgCustomFields.$inferSelect;
+export type InsertOrgCustomField = z.infer<typeof insertOrgCustomFieldSchema>;
+
+// Entity Custom Field Values Table
+export const entityCustomFieldValues = pgTable("entity_custom_field_values", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityType: varchar("entity_type", { length: 50 }).notNull(),
+  entityId: varchar("entity_id", { length: 255 }).notNull(),
+  orgId: varchar("org_id", { length: 255 }).notNull(),
+  valuesJson: jsonb("values_json").notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertEntityCustomFieldValueSchema = createInsertSchema(entityCustomFieldValues).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type EntityCustomFieldValue = typeof entityCustomFieldValues.$inferSelect;
+export type InsertEntityCustomFieldValue = z.infer<typeof insertEntityCustomFieldValueSchema>;
+
+// =====================
+// SEMANTIC SEARCH (Task 107)
+// =====================
+
+// Artifact Embeddings Table (PHI-safe metadata embeddings)
+export const artifactEmbeddings = pgTable("artifact_embeddings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  artifactId: varchar("artifact_id").notNull().references(() => artifacts.id, { onDelete: "cascade" }),
+  orgId: varchar("org_id", { length: 255 }).notNull(),
+  embeddingVector: jsonb("embedding_vector").notNull(), // Store as JSON array (or use pgvector if available)
+  modelName: varchar("model_name", { length: 100 }).default("text-embedding-3-small").notNull(),
+  metadataHash: varchar("metadata_hash", { length: 64 }).notNull(), // SHA-256 of metadata
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertArtifactEmbeddingSchema = createInsertSchema(artifactEmbeddings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type ArtifactEmbedding = typeof artifactEmbeddings.$inferSelect;
+export type InsertArtifactEmbedding = z.infer<typeof insertArtifactEmbeddingSchema>;
+
+// =====================
+// TUTORIALS (Task 108)
+// =====================
+
+// Tutorial Assets Table
+export const tutorialAssets = pgTable("tutorial_assets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tutorialKey: varchar("tutorial_key", { length: 100 }).unique().notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  videoUrl: text("video_url"), // YouTube/Vimeo/self-hosted
+  steps: jsonb("steps").notNull(), // [{"title": "Step 1", "content": "...", "targetSelector": ".upload-button"}]
+  enabled: boolean("enabled").default(true),
+  orgId: varchar("org_id", { length: 255 }), // Null = global; set = org-specific override
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertTutorialAssetSchema = createInsertSchema(tutorialAssets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type TutorialAsset = typeof tutorialAssets.$inferSelect;
+export type InsertTutorialAsset = z.infer<typeof insertTutorialAssetSchema>;

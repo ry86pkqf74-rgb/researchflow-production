@@ -8,14 +8,23 @@
  */
 
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import governanceRoutes from './routes/governance.js';
 import datasetRoutes from './routes/datasets.js';
 import conferenceRoutes from './routes/conference.js';
 import orcidRoutes from './routes/orcid';
+import artifactsV2Routes from './routes/v2/artifacts.routes';
+import ideasRoutes from './routes/docs-first/ideas.js';
+import topicBriefsRoutes from './routes/docs-first/topic-briefs.js';
+import venuesRoutes from './routes/docs-first/venues.js';
+import docKitsRoutes from './routes/docs-first/doc-kits.js';
+import experimentsRoutes from './routes/experiments';
+import customFieldsRoutes from './routes/custom-fields';
 import { mockAuthMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { CollaborationWebSocketServer } from './collaboration/websocket-server';
 
 // Load environment variables
 dotenv.config();
@@ -60,6 +69,19 @@ app.use('/api/datasets', datasetRoutes);
 app.use('/api/ros/conference', conferenceRoutes);
 app.use('/api/orcid', orcidRoutes);
 
+// V2 API Routes (new collaboration + provenance features)
+app.use('/api/v2/artifacts', artifactsV2Routes);
+
+// Docs-First API Routes (Phase 1)
+app.use('/api/docs-first/ideas', ideasRoutes);
+app.use('/api/docs-first/topic-briefs', topicBriefsRoutes);
+app.use('/api/docs-first/venues', venuesRoutes);
+app.use('/api/docs-first/doc-kits', docKitsRoutes);
+
+// Phase F API Routes (UI/UX Enhancements)
+app.use('/api/experiments', experimentsRoutes);
+app.use('/api/custom-fields', customFieldsRoutes);
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
@@ -72,8 +94,20 @@ app.use((req, res) => {
 // Error handler (must be last)
 app.use(errorHandler);
 
+// Create HTTP server
+const httpServer = createServer(app);
+
+// Initialize WebSocket server for collaboration
+let wsServer: CollaborationWebSocketServer | null = null;
+try {
+  wsServer = new CollaborationWebSocketServer(httpServer);
+} catch (error) {
+  console.error('Failed to initialize WebSocket server:', error);
+  console.log('Continuing without collaboration features...');
+}
+
 // Start server
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log('='.repeat(60));
   console.log('ResearchFlow Canvas Server');
   console.log('='.repeat(60));
@@ -82,6 +116,7 @@ app.listen(PORT, () => {
   console.log(`Governance Mode:  ${process.env.GOVERNANCE_MODE || 'DEMO'}`);
   console.log(`Health Check:     http://localhost:${PORT}/health`);
   console.log(`API Base:         http://localhost:${PORT}/api`);
+  console.log(`WebSocket:        ws://localhost:${PORT}/collaboration`);
   console.log('='.repeat(60));
   console.log('Phase 1-2 Features: ACTIVE');
   console.log('  ✓ RBAC Middleware');
@@ -91,15 +126,40 @@ app.listen(PORT, () => {
   console.log('  ✓ PHI Scanning');
   console.log('  ✓ ORCID Integration');
   console.log('='.repeat(60));
+  console.log('Phase 3 Features: NEW');
+  console.log('  ✓ Artifact Provenance Graph');
+  console.log('  ✓ Real-time Collaboration (Yjs CRDT)');
+  console.log('  ✓ Version Control & Diff');
+  console.log('  ✓ Comment System');
+  console.log('='.repeat(60));
+  console.log('Phase F Features: FOUNDATION');
+  console.log('  ✓ Feature Flags & A/B Experiments');
+  console.log('  ✓ Custom Fields (Org-level schemas)');
+  console.log('  ✓ Frontend Hooks (useFeatureFlag, useExperiment)');
+  console.log('='.repeat(60));
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  process.exit(0);
-});
+const shutdown = async () => {
+  console.log('Shutdown signal received: cleaning up...');
 
-process.on('SIGINT', () => {
-  console.log('SIGINT signal received: closing HTTP server');
-  process.exit(0);
-});
+  // Shutdown WebSocket server
+  if (wsServer) {
+    await wsServer.shutdown();
+  }
+
+  // Close HTTP server
+  httpServer.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
+
+  // Force exit after 10 seconds
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

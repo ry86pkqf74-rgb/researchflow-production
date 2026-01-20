@@ -16,6 +16,7 @@ import { Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import DemoLanding from "@/pages/demo-landing";
+import WorkflowPage from "@/pages/workflow";
 import GovernancePage from "@/pages/governance";
 import GovernanceConsole from "@/pages/governance-console";
 import PipelineDashboard from "@/pages/pipeline-dashboard";
@@ -110,13 +111,48 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   return <Component />;
 }
 
+/**
+ * Home route that shows different content based on mode:
+ * - DEMO mode: Marketing landing page
+ * - LIVE mode: Workflow interface (requires auth)
+ */
+function HomeRoute() {
+  const { isLive, isLoading } = useModeStore();
+
+  if (isLoading) {
+    return <ModeLoader />;
+  }
+
+  // In LIVE mode, show the workflow interface with auth requirement
+  if (isLive) {
+    return (
+      <AuthGate requireAuth>
+        <WorkflowPage />
+      </AuthGate>
+    );
+  }
+
+  // In DEMO mode, show the marketing landing page
+  return <Home />;
+}
+
 function Router() {
   return (
     <Switch>
-      {/* Public routes - accessible in both DEMO and LIVE modes */}
-      <Route path="/" component={Home} />
+      {/* Home route - shows workflow in LIVE mode, landing page in DEMO mode */}
+      <Route path="/">
+        {() => <HomeRoute />}
+      </Route>
+
+      {/* Explicit workflow route - always shows workflow (protected in LIVE mode) */}
+      <Route path="/workflow">
+        {() => <ProtectedRoute component={WorkflowPage} />}
+      </Route>
+
+      {/* Marketing/demo landing page - always accessible */}
       <Route path="/demo" component={DemoLanding} />
-      
+      <Route path="/landing" component={Home} />
+
       {/* Protected routes - require auth in LIVE mode */}
       <Route path="/governance">
         {() => <ProtectedRoute component={GovernancePage} />}

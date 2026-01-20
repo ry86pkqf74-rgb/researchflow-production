@@ -87,7 +87,7 @@ import { scan as scanPhi } from "@researchflow/phi-engine";
 
 // ROS Backend API URL (Python FastAPI server)
 const ROS_API_URL = process.env.ROS_API_URL || "http://localhost:8000";
-const ROS_MODE = process.env.ROS_MODE || "STANDBY";
+const ROS_MODE = process.env.GOVERNANCE_MODE || process.env.ROS_MODE || "STANDBY";
 
 const workflowStageGroups = [
   {
