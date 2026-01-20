@@ -1,0 +1,183 @@
+# Database Backup CronJob for ResearchFlow Production
+#
+# Features:
+# - Daily backups at 2:00 AM UTC
+# - SHA256 checksums for integrity verification
+# - Retention pruning (keeps last 30 days)
+# - PersistentVolumeClaim for backup storage
+# - Non-blocking execution with proper resource limits
+#
+# Prerequisites:
+# - PersistentVolumeClaim 'backup-storage' must exist
+# - PostgreSQL credentials in 'postgres-credentials' secret
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-storage
+  namespace: researchflow-production
+  labels:
+    app: researchflow
+    component: backup
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard  # Adjust for your cluster
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+  namespace: researchflow-production
+  labels:
+    app: researchflow
+    component: backup
+spec:
+  # Run daily at 2:00 AM UTC
+  schedule: "0 2 * * *"
+  # Keep 3 successful and 1 failed job for debugging
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  # Don't run if previous job is still running
+  concurrencyPolicy: Forbid
+  # Allow up to 5 minutes delay before marking missed
+  startingDeadlineSeconds: 300
+
+  jobTemplate:
+    spec:
+      # Job timeout: 1 hour max
+      activeDeadlineSeconds: 3600
+      # No automatic retries - backup failures should be investigated
+      backoffLimit: 0
+
+      template:
+        metadata:
+          labels:
+            app: researchflow
+            component: backup
+        spec:
+          restartPolicy: Never
+
+          # Security context - run as non-root
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+
+          containers:
+            - name: backup
+              image: postgres:16-alpine
+              imagePullPolicy: IfNotPresent
+
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+
+                  echo "[$(date -Iseconds)] Starting database backup..."
+
+                  # Generate timestamp-based filename
+                  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                  BACKUP_FILE="/backups/backup_${TIMESTAMP}.sql.gz"
+                  CHECKSUM_FILE="/backups/backup_${TIMESTAMP}.sha256"
+
+                  # Create backup with compression
+                  echo "[$(date -Iseconds)] Creating backup: ${BACKUP_FILE}"
+                  PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump \
+                    -h "${POSTGRES_HOST}" \
+                    -U "${POSTGRES_USER}" \
+                    -d "${POSTGRES_DB}" \
+                    --no-password \
+                    --format=plain \
+                    --no-owner \
+                    --no-acl \
+                    | gzip > "${BACKUP_FILE}"
+
+                  # Generate SHA256 checksum
+                  echo "[$(date -Iseconds)] Generating checksum..."
+                  sha256sum "${BACKUP_FILE}" | awk '{print $1}' > "${CHECKSUM_FILE}"
+
+                  # Verify backup integrity
+                  BACKUP_SIZE=$(stat -f%z "${BACKUP_FILE}" 2>/dev/null || stat -c%s "${BACKUP_FILE}")
+                  CHECKSUM=$(cat "${CHECKSUM_FILE}")
+
+                  if [ "${BACKUP_SIZE}" -lt 1000 ]; then
+                    echo "[$(date -Iseconds)] ERROR: Backup file too small (${BACKUP_SIZE} bytes)"
+                    exit 1
+                  fi
+
+                  echo "[$(date -Iseconds)] Backup complete:"
+                  echo "  File: ${BACKUP_FILE}"
+                  echo "  Size: ${BACKUP_SIZE} bytes"
+                  echo "  SHA256: ${CHECKSUM}"
+
+                  # Retention pruning - keep last 30 days
+                  echo "[$(date -Iseconds)] Running retention cleanup (keeping last 30 days)..."
+                  find /backups -name "backup_*.sql.gz" -type f -mtime +30 -print -delete 2>/dev/null || true
+                  find /backups -name "backup_*.sha256" -type f -mtime +30 -print -delete 2>/dev/null || true
+
+                  # List current backups
+                  echo "[$(date -Iseconds)] Current backups:"
+                  ls -lh /backups/backup_*.sql.gz 2>/dev/null | tail -10 || echo "  No backups found"
+
+                  echo "[$(date -Iseconds)] Backup job completed successfully"
+
+              env:
+                - name: POSTGRES_HOST
+                  value: "postgres.researchflow-production.svc.cluster.local"
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: username
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: password
+                - name: POSTGRES_DB
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: database
+
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "500m"
+
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+
+              # Security hardening
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false  # Need to write to /tmp
+                capabilities:
+                  drop:
+                    - ALL
+
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: backup-storage
+
+---
+# ServiceAccount for backup job (optional, for RBAC if needed)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: db-backup
+  namespace: researchflow-production
+  labels:
+    app: researchflow
+    component: backup

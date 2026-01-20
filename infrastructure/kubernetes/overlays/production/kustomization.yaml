@@ -5,6 +5,7 @@ namespace: researchflow-production
 
 resources:
   - ../../base
+  - db-backup-cronjob.yaml
 
 patches:
   - patch: |-
@@ -48,6 +49,9 @@ configMapGenerator:
       - GOVERNANCE_MODE=LIVE
       - LOG_LEVEL=warn
       # Production safety settings
+      - NO_NETWORK=false
+      - MOCK_ONLY=false
+      - ALLOW_UPLOADS=true
       - STRICT_PHI_ON_UPLOAD=true
 
 images:
