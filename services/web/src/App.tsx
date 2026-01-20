@@ -33,6 +33,8 @@ import Onboarding from "@/pages/onboarding";
 import Settings from "@/pages/settings";
 import XRPage from "@/pages/xr";
 import ImportBundlePage from "@/pages/import-bundle";
+import WorkflowsPage from "@/pages/workflows";
+import WorkflowBuilderPage from "@/pages/workflow-builder";
 import { OrgSelector } from "@/components/org";
 import { AdaptiveNavigation } from "@/components/nav";
 
@@ -268,6 +270,12 @@ function Router() {
         {() => <ProtectedRoute component={ImportBundlePage} />}
       </Route>
 
+      <Route path="/workflows">
+        {() => <ProtectedRoute component={WorkflowsPage} />}
+      </Route>
+      <Route path="/workflows/:id">
+        {() => <ProtectedRoute component={WorkflowBuilderPage} />}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

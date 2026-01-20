@@ -11,6 +11,7 @@ import {
   Download,
   Users,
   Settings,
+  Workflow,
 } from 'lucide-react';
 
 /**
@@ -80,6 +81,12 @@ export function AdaptiveNavigation() {
       path: '/team',
       icon: Users,
       requireCapability: 'manage_members',
+    },
+    {
+      label: 'Workflows',
+      path: '/workflows',
+      icon: Workflow,
+      requireCapability: 'view_research',
     },
     {
       label: 'Settings',
