@@ -5,14 +5,17 @@
  * - Does NOT scan every keystroke (performance)
  * - Scans every 30 seconds or on "commit revision"
  * - Reports location metadata only (never logs PHI text)
- * - Integrates with @researchflow/phi-engine if available
+ * - Consumes patterns from @researchflow/phi-engine when available
+ *
+ * This scanner is designed to reduce drift from the central phi-engine
+ * by dynamically importing patterns rather than duplicating them.
  */
 
 import type * as Y from "yjs";
 
 /**
  * PHI finding with location-only metadata
- * Note: Never includes the actual PHI text value
+ * Note: Never includes the actual PHI text value - uses [REDACTED] instead
  */
 export interface PhiLocationReport {
   /** PHI type detected */
@@ -25,6 +28,8 @@ export interface PhiLocationReport {
   confidence: number;
   /** Approximate section/path in document structure */
   location?: string;
+  /** Redacted placeholder (never actual PHI) */
+  redactedValue: "[REDACTED]";
 }
 
 /**
@@ -83,7 +88,7 @@ const defaultLogger: PhiScannerLogger = {
 /**
  * PHI Scanner interface (matches @researchflow/phi-engine)
  */
-interface PhiScanner {
+interface PhiEngineScanner {
   scan(text: string): Array<{
     type: string;
     value: string;
@@ -92,6 +97,7 @@ interface PhiScanner {
     confidence: number;
   }>;
   hasPhi(text: string): boolean;
+  redact(text: string): string;
 }
 
 /**
@@ -102,8 +108,8 @@ export interface PhiScannerConfig {
   debounceMs?: number;
   /** Logger instance */
   logger?: PhiScannerLogger;
-  /** Custom PHI scanner (falls back to regex-based) */
-  scanner?: PhiScanner;
+  /** Custom PHI scanner (falls back to minimal patterns if not provided) */
+  scanner?: PhiEngineScanner;
 }
 
 /**
@@ -121,64 +127,61 @@ interface DocumentScanState {
 }
 
 /**
+ * Minimal high-confidence fallback patterns
+ * Only used when @researchflow/phi-engine is not available
+ * Kept intentionally small to reduce drift - prefer consuming phi-engine patterns
+ */
+const MINIMAL_FALLBACK_PATTERNS: Array<{
+  type: string;
+  regex: RegExp;
+  baseConfidence: number;
+}> = [
+  // SSN - Very high confidence, distinctive format
+  {
+    type: "SSN",
+    regex: /\b\d{3}-\d{2}-\d{4}\b/g,
+    baseConfidence: 0.95,
+  },
+  // MRN - High confidence with explicit label
+  {
+    type: "MRN",
+    regex: /\b(?:MRN|Medical Record|Patient ID)[:\s#]*([A-Z0-9]{6,12})\b/gi,
+    baseConfidence: 0.90,
+  },
+  // Phone - Standard US format
+  {
+    type: "PHONE",
+    regex: /\b(?:\+1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
+    baseConfidence: 0.80,
+  },
+  // Email - Standard format
+  {
+    type: "EMAIL",
+    regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
+    baseConfidence: 0.85,
+  },
+  // DOB - With explicit label for higher confidence
+  {
+    type: "DOB",
+    regex: /\b(?:DOB|Date of Birth|Birth Date)[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/gi,
+    baseConfidence: 0.90,
+  },
+];
+
+/**
  * Collaborative document PHI scanner
  *
  * Implements debounced scanning strategy to avoid performance impact
  * while still catching PHI in collaborative edits.
+ *
+ * Key design principle: Consume @researchflow/phi-engine patterns when available
+ * to reduce drift between scanners. Falls back to minimal high-confidence patterns only.
  */
 export class CollabPhiScanner {
   private readonly debounceMs: number;
   private readonly logger: PhiScannerLogger;
-  private readonly scanner: PhiScanner | null;
+  private readonly scanner: PhiEngineScanner | null;
   private readonly documentStates: Map<string, DocumentScanState> = new Map();
-
-  // Fallback regex patterns (subset of @researchflow/phi-engine patterns)
-  private static readonly FALLBACK_PATTERNS: Array<{
-    type: string;
-    regex: RegExp;
-    baseConfidence: number;
-  }> = [
-    {
-      type: "SSN",
-      regex: /\b\d{3}-\d{2}-\d{4}\b/g,
-      baseConfidence: 0.95,
-    },
-    {
-      type: "MRN",
-      regex: /\b(?:MRN|Medical Record|Patient ID)[:\s#]*([A-Z0-9]{6,12})\b/gi,
-      baseConfidence: 0.9,
-    },
-    {
-      type: "DOB",
-      regex: /\b(?:DOB|Date of Birth|Birth Date)[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/gi,
-      baseConfidence: 0.85,
-    },
-    {
-      type: "PHONE",
-      regex: /\b(?:\+1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
-      baseConfidence: 0.7,
-    },
-    {
-      type: "EMAIL",
-      regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
-      baseConfidence: 0.75,
-    },
-    {
-      type: "ADDRESS",
-      regex: /\b\d{1,5}\s+(?:[A-Za-z]+\s+){1,4}(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct|Circle|Cir)\b/gi,
-      baseConfidence: 0.7,
-    },
-    {
-      type: "ZIP_CODE",
-      regex: /\b\d{5}(?:-\d{4})?\b/g,
-      baseConfidence: 0.4, // Low confidence - common in many contexts
-    },
-    {
-      type: "NAME",
-      regex: /\b(?:Patient|Subject|Participant)[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\b/g,
-      baseConfidence: 0.8,
-    },
-  ];
 
   constructor(config: PhiScannerConfig = {}) {
     this.debounceMs = config.debounceMs ?? 30000; // 30 seconds default
@@ -308,13 +311,14 @@ export class CollabPhiScanner {
       // Perform scan using phi-engine or fallback
       const findings = this.scanContent(content);
 
-      // Build location-only report (never include PHI text)
+      // Build location-only report (never include PHI text - always [REDACTED])
       const locations: PhiLocationReport[] = findings.map((finding) => ({
         type: finding.type,
         startOffset: finding.startIndex,
         endOffset: finding.endIndex,
         confidence: finding.confidence,
         location: this.estimateLocation(content, finding.startIndex),
+        redactedValue: "[REDACTED]" as const,
       }));
 
       // Aggregate by type
@@ -341,7 +345,7 @@ export class CollabPhiScanner {
       state.lastContentHash = contentHash;
       state.lastScanTime = Date.now();
 
-      // Log scan result (without PHI)
+      // Log scan result (without PHI - only counts and types)
       this.logger.info("PHI scan completed", {
         documentName,
         findingsCount: result.findingsCount,
@@ -382,6 +386,7 @@ export class CollabPhiScanner {
 
   /**
    * Scan content using available scanner
+   * Returns findings with [REDACTED] instead of actual values
    */
   private scanContent(
     content: string
@@ -391,10 +396,11 @@ export class CollabPhiScanner {
     endIndex: number;
     confidence: number;
   }> {
-    // Try to use provided scanner
+    // Try to use provided phi-engine scanner
     if (this.scanner) {
       try {
         const findings = this.scanner.scan(content);
+        // Note: We intentionally discard the 'value' field to never expose raw PHI
         return findings.map((f) => ({
           type: f.type,
           startIndex: f.startIndex,
@@ -402,20 +408,21 @@ export class CollabPhiScanner {
           confidence: f.confidence,
         }));
       } catch (error) {
-        this.logger.warn("External PHI scanner failed, using fallback", {
+        this.logger.warn("PHI engine scanner failed, using minimal fallback", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
     }
 
-    // Fallback to built-in regex patterns
-    return this.scanWithFallbackPatterns(content);
+    // Fallback to minimal high-confidence patterns
+    return this.scanWithMinimalPatterns(content);
   }
 
   /**
-   * Scan using fallback regex patterns
+   * Scan using minimal fallback regex patterns
+   * Only includes high-confidence patterns (SSN, MRN, PHONE, EMAIL, DOB)
    */
-  private scanWithFallbackPatterns(
+  private scanWithMinimalPatterns(
     content: string
   ): Array<{
     type: string;
@@ -430,7 +437,7 @@ export class CollabPhiScanner {
       confidence: number;
     }> = [];
 
-    for (const pattern of CollabPhiScanner.FALLBACK_PATTERNS) {
+    for (const pattern of MINIMAL_FALLBACK_PATTERNS) {
       pattern.regex.lastIndex = 0;
       let match;
       while ((match = pattern.regex.exec(content)) !== null) {
@@ -507,22 +514,28 @@ export class CollabPhiScanner {
 
 /**
  * Create PHI scanner, attempting to use @researchflow/phi-engine
+ *
+ * This factory function tries to dynamically import the phi-engine package
+ * to consume its patterns and scanner implementation, reducing drift between
+ * the collab scanner and the central phi-engine.
  */
 export async function createPhiScanner(
   config: Omit<PhiScannerConfig, "scanner"> = {}
 ): Promise<CollabPhiScanner> {
   const logger = config.logger ?? defaultLogger;
 
-  // Try to import @researchflow/phi-engine
-  let scanner: PhiScanner | undefined;
+  // Try to dynamically import @researchflow/phi-engine
+  let scanner: PhiEngineScanner | undefined;
   try {
     const phiEngine = await import("@researchflow/phi-engine");
     if (phiEngine.RegexPhiScanner) {
       scanner = new phiEngine.RegexPhiScanner();
-      logger.info("Using @researchflow/phi-engine for PHI scanning");
+      logger.info("Using @researchflow/phi-engine for PHI scanning - drift minimized");
     }
   } catch {
-    logger.info("@researchflow/phi-engine not available, using fallback patterns");
+    logger.info(
+      "@researchflow/phi-engine not available, using minimal high-confidence fallback patterns (SSN, MRN, PHONE, EMAIL, DOB)"
+    );
   }
 
   return new CollabPhiScanner({
