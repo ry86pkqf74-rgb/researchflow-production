@@ -10,8 +10,6 @@
 #
 # For production, use: docker-compose -f docker-compose.prod.yml up -d
 
-version: '3.8'
-
 services:
   # ===================
   # Orchestrator - Node.js API
@@ -23,6 +21,8 @@ services:
       target: development
     ports:
       - "3001:3001"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=development
       - PORT=3001
@@ -42,6 +42,7 @@ services:
       - shared-data:/data
       - ./services/orchestrator:/app
       - /app/node_modules
+      - /app/packages
     networks:
       - researchflow
     restart: unless-stopped
@@ -54,6 +55,8 @@ services:
       context: ./services/worker
       dockerfile: Dockerfile
       target: development
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
       - REDIS_URL=redis://redis:6379
@@ -117,6 +120,7 @@ services:
     volumes:
       - ./services/collab:/app
       - /app/node_modules
+      - /app/packages
     networks:
       - researchflow
     restart: unless-stopped

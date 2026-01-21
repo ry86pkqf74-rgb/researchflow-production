@@ -25,12 +25,33 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 const BCRYPT_SALT_ROUNDS = 12;
 
+// Admin emails - these users get ADMIN role automatically on registration/login
+// Can be set via ADMIN_EMAILS env var (comma-separated) or defaults to known admins
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'logan.glosser@gmail.com')
+  .split(',')
+  .map(email => email.trim().toLowerCase());
+
+/**
+ * Determine role based on email
+ * Admin emails get 'ADMIN' role, others get 'RESEARCHER' by default
+ * Uses uppercase to match core RBAC types (RoleName)
+ */
+function getRoleForEmail(email: string): 'ADMIN' | 'RESEARCHER' | 'STEWARD' | 'VIEWER' {
+  const normalizedEmail = email.toLowerCase();
+  if (ADMIN_EMAILS.includes(normalizedEmail)) {
+    return 'ADMIN';
+  }
+  // Default to RESEARCHER for new users (not VIEWER) so they can use the app
+  return 'RESEARCHER';
+}
+
 // Warn if using default secret in production
 if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'development-jwt-secret-change-in-production') {
   console.error('[AUTH] WARNING: Using default JWT secret in production. Set JWT_SECRET environment variable!');
 }
 
 // User schema for validation
+// Uses uppercase roles to match core RBAC types (RoleName)
 export const UserSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
@@ -38,7 +59,7 @@ export const UserSchema = z.object({
   lastName: z.string().optional(),
   displayName: z.string().optional(),
   profileImageUrl: z.string().url().optional(),
-  role: z.enum(['admin', 'researcher', 'reviewer', 'viewer']).default('viewer'),
+  role: z.enum(['ADMIN', 'RESEARCHER', 'STEWARD', 'VIEWER']).default('VIEWER'),
   orgId: z.string().uuid().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
@@ -246,8 +267,9 @@ export async function registerUser(input: RegisterInput): Promise<{
   // Hash password
   const passwordHash = await hashPassword(input.password);
 
-  // Create user
+  // Create user with appropriate role based on email
   const now = new Date().toISOString();
+  const assignedRole = getRoleForEmail(normalizedEmail);
   const user: User = {
     id: crypto.randomUUID(),
     email: normalizedEmail,
@@ -256,10 +278,12 @@ export async function registerUser(input: RegisterInput): Promise<{
     displayName: input.firstName && input.lastName
       ? `${input.firstName} ${input.lastName}`
       : input.firstName || normalizedEmail.split('@')[0],
-    role: 'viewer',
+    role: assignedRole,
     createdAt: now,
     updatedAt: now
   };
+
+  console.log(`[AUTH] User registered: ${normalizedEmail} with role: ${assignedRole}`);
 
   // Store user
   userStore.set(normalizedEmail, {
@@ -422,7 +446,7 @@ export const devFallbackUser: User = {
   firstName: 'Development',
   lastName: 'User',
   displayName: 'Development User',
-  role: 'admin',
+  role: 'ADMIN',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString()
 };

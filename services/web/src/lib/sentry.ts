@@ -1,18 +1,16 @@
 /**
- * Sentry Error Tracking Configuration
+ * Sentry Error Tracking Configuration (Stub)
  *
- * This module initializes Sentry for frontend error tracking with PHI/PII scrubbing.
+ * This is a stub implementation that provides the Sentry API interface
+ * without requiring @sentry/react to be installed.
  *
- * IMPORTANT: Before enabling Sentry in production:
- * 1. Create a Sentry project at https://sentry.io
+ * To enable Sentry:
+ * 1. Install: npm install @sentry/react
  * 2. Set VITE_SENTRY_DSN environment variable
- * 3. Optionally set VITE_SENTRY_ENVIRONMENT (defaults to import.meta.env.MODE)
+ * 3. Replace this file with the full implementation from sentry.ts.full
  *
- * PHI Safety: All potentially sensitive user data is scrubbed before sending to Sentry.
+ * PHI Safety: When enabled, all potentially sensitive user data is scrubbed before sending to Sentry.
  */
-
-// Note: Install @sentry/react when enabling Sentry:
-// npm install @sentry/react
 
 interface SentryConfig {
   dsn: string | undefined;
@@ -32,7 +30,6 @@ export function getSentryConfig(): SentryConfig {
   return {
     dsn,
     environment,
-    // Lower sample rate in production to reduce costs
     tracesSampleRate: isProduction ? 0.2 : 1.0,
     enabled: Boolean(dsn),
   };
@@ -42,17 +39,11 @@ export function getSentryConfig(): SentryConfig {
  * PHI/PII scrubbing patterns for error payloads
  */
 const PHI_PATTERNS = [
-  // Email addresses
   /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
-  // Phone numbers
   /(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,
-  // SSN
   /\d{3}[-.\s]?\d{2}[-.\s]?\d{4}/g,
-  // Medical Record Numbers (common formats)
   /MRN[:\s]?\d{6,}/gi,
-  // Patient IDs
   /patient[_-]?id[:\s]?\w+/gi,
-  // Date of birth patterns
   /\b(?:DOB|birth[_\s]?date)[:\s]?\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/gi,
 ];
 
@@ -68,80 +59,9 @@ export function scrubPHI(text: string): string {
 }
 
 /**
- * Sentry beforeSend hook for PHI/PII scrubbing
- * This function is called before every event is sent to Sentry
- */
-export function beforeSendScrubber(event: any): any {
-  // Scrub user data
-  if (event.user) {
-    delete event.user.email;
-    delete event.user.username;
-    delete event.user.ip_address;
-    // Keep only anonymized user ID if present
-    if (event.user.id) {
-      event.user.id = `user_${String(event.user.id).slice(0, 8)}`;
-    }
-  }
-
-  // Scrub exception messages
-  if (event.exception?.values) {
-    event.exception.values = event.exception.values.map((ex: any) => ({
-      ...ex,
-      value: ex.value ? scrubPHI(String(ex.value)) : ex.value,
-    }));
-  }
-
-  // Scrub breadcrumbs
-  if (event.breadcrumbs) {
-    event.breadcrumbs = event.breadcrumbs.map((breadcrumb: any) => ({
-      ...breadcrumb,
-      message: breadcrumb.message ? scrubPHI(String(breadcrumb.message)) : breadcrumb.message,
-      data: breadcrumb.data ? scrubBreadcrumbData(breadcrumb.data) : breadcrumb.data,
-    }));
-  }
-
-  // Scrub request data
-  if (event.request) {
-    if (event.request.data) {
-      event.request.data = '[SCRUBBED]';
-    }
-    if (event.request.cookies) {
-      event.request.cookies = '[SCRUBBED]';
-    }
-  }
-
-  return event;
-}
-
-/**
- * Scrub breadcrumb data object
- */
-function scrubBreadcrumbData(data: Record<string, any>): Record<string, any> {
-  const scrubbed: Record<string, any> = {};
-  for (const [key, value] of Object.entries(data)) {
-    if (typeof value === 'string') {
-      scrubbed[key] = scrubPHI(value);
-    } else if (typeof value === 'object' && value !== null) {
-      scrubbed[key] = '[OBJECT]';
-    } else {
-      scrubbed[key] = value;
-    }
-  }
-  return scrubbed;
-}
-
-/**
- * Initialize Sentry (call this in main.tsx)
+ * Initialize Sentry (stub - logs message when DSN not configured)
  *
- * Usage:
- * ```tsx
- * import { initSentry } from './lib/sentry';
- *
- * // Initialize before rendering
- * initSentry();
- *
- * createRoot(document.getElementById("root")!).render(<App />);
- * ```
+ * To enable Sentry, install @sentry/react and update this file.
  */
 export async function initSentry(): Promise<void> {
   const config = getSentryConfig();
@@ -151,107 +71,34 @@ export async function initSentry(): Promise<void> {
     return;
   }
 
-  try {
-    // Dynamic import to avoid bundling Sentry when not configured
-    const Sentry = await import('@sentry/react');
-
-    Sentry.init({
-      dsn: config.dsn,
-      environment: config.environment,
-      tracesSampleRate: config.tracesSampleRate,
-
-      // PHI/PII scrubbing hook
-      beforeSend: beforeSendScrubber,
-
-      // Disable session tracking for privacy
-      autoSessionTracking: false,
-
-      // Disable default integrations that may capture sensitive data
-      defaultIntegrations: false,
-
-      // Only include essential integrations
-      integrations: [
-        Sentry.breadcrumbsIntegration({
-          console: true,
-          dom: false, // Disable DOM event tracking (may capture PHI)
-          fetch: true,
-          history: true,
-          xhr: true,
-        }),
-        Sentry.globalHandlersIntegration(),
-        Sentry.linkedErrorsIntegration(),
-        Sentry.dedupeIntegration(),
-      ],
-
-      // Don't send default PII
-      sendDefaultPii: false,
-
-      // Ignore common non-actionable errors
-      ignoreErrors: [
-        'ResizeObserver loop limit exceeded',
-        'ResizeObserver loop completed with undelivered notifications',
-        'Non-Error promise rejection captured',
-        /^Loading chunk \d+ failed/,
-        /^Network Error$/,
-        /^Request aborted$/,
-      ],
-    });
-
-    console.log(`[Sentry] Initialized (${config.environment})`);
-  } catch (error) {
-    // Sentry not installed - this is expected in development
-    console.log('[Sentry] Not available - install @sentry/react to enable');
-  }
+  // Sentry DSN is configured but @sentry/react is not installed
+  console.warn(
+    '[Sentry] DSN configured but @sentry/react not installed. ' +
+    'Run: npm install @sentry/react'
+  );
 }
 
 /**
- * Capture an error manually with PHI scrubbing
+ * Capture an error manually (stub - logs to console)
  */
 export async function captureError(error: Error, context?: Record<string, any>): Promise<void> {
   const config = getSentryConfig();
   if (!config.enabled) return;
 
-  try {
-    const Sentry = await import('@sentry/react');
-    Sentry.captureException(error, {
-      extra: context ? Object.fromEntries(
-        Object.entries(context).map(([k, v]) => [k, typeof v === 'string' ? scrubPHI(v) : '[OBJECT]'])
-      ) : undefined,
-    });
-  } catch {
-    // Sentry not available
-    console.error('[Error]', error);
-  }
+  // Fallback to console logging when Sentry not available
+  console.error('[Error]', scrubPHI(error.message), context ? '[context available]' : '');
 }
 
 /**
- * Set user context (anonymized)
+ * Set user context (stub - no-op)
  */
-export async function setUserContext(userId: string | number): Promise<void> {
-  const config = getSentryConfig();
-  if (!config.enabled) return;
-
-  try {
-    const Sentry = await import('@sentry/react');
-    Sentry.setUser({
-      id: `user_${String(userId).slice(0, 8)}`,
-    });
-  } catch {
-    // Sentry not available
-  }
+export async function setUserContext(_userId: string | number): Promise<void> {
+  // No-op when Sentry not installed
 }
 
 /**
- * Clear user context on logout
+ * Clear user context on logout (stub - no-op)
  */
 export async function clearUserContext(): Promise<void> {
-  const config = getSentryConfig();
-  if (!config.enabled) return;
-
-  try {
-    const Sentry = await import('@sentry/react');
-    Sentry.setUser(null);
-  } catch {
-    // Sentry not available
-  }
+  // No-op when Sentry not installed
 }

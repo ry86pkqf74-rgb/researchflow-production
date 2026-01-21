@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils";
 
 interface ThemeSettingsProps {
   variant?: "compact" | "full";
+  showAccentColors?: boolean;
 }
 
-export function ThemeSettings({ variant = "full" }: ThemeSettingsProps) {
+export function ThemeSettings({ variant = "full", showAccentColors = false }: ThemeSettingsProps) {
   const { theme, setTheme } = useTheme();
   const { accentKey, setAccentColor } = useAccentColor();
 
@@ -28,24 +29,26 @@ export function ThemeSettings({ variant = "full" }: ThemeSettingsProps) {
           <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           <span className="sr-only">Toggle theme</span>
         </Button>
-        <div className="flex items-center gap-1" data-testid="accent-color-swatches-compact">
-          {accentColors.map((color) => (
-            <button
-              key={color.key}
-              onClick={() => setAccentColor(color.key)}
-              className={cn(
-                "w-6 h-6 rounded-full border-2 transition-all hover-elevate",
-                accentKey === color.key
-                  ? "border-foreground scale-110"
-                  : "border-transparent"
-              )}
-              style={{ backgroundColor: color.hsl }}
-              title={color.name}
-              data-testid={`button-accent-${color.key}`}
-              aria-label={`Set accent color to ${color.name}`}
-            />
-          ))}
-        </div>
+        {showAccentColors && (
+          <div className="flex items-center gap-1" data-testid="accent-color-swatches-compact">
+            {accentColors.map((color) => (
+              <button
+                key={color.key}
+                onClick={() => setAccentColor(color.key)}
+                className={cn(
+                  "w-6 h-6 rounded-full border-2 transition-all hover-elevate",
+                  accentKey === color.key
+                    ? "border-foreground scale-110"
+                    : "border-transparent"
+                )}
+                style={{ backgroundColor: color.hsl }}
+                title={color.name}
+                data-testid={`button-accent-${color.key}`}
+                aria-label={`Set accent color to ${color.name}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
     );
   }

@@ -2159,64 +2159,8 @@ export const insertGovernanceConfigSchema = createInsertSchema(governanceConfig)
 export type GovernanceConfig = typeof governanceConfig.$inferSelect;
 export type InsertGovernanceConfig = z.infer<typeof insertGovernanceConfigSchema>;
 
-// Feature Flags Table
-export const featureFlags = pgTable("feature_flags", {
-  key: varchar("key", { length: 100 }).primaryKey(),
-  enabled: boolean("enabled").notNull().default(false),
-  description: text("description"),
-  scope: varchar("scope", { length: 50 }).notNull().default('product'),
-  requiredModes: jsonb("required_modes").default([]),
-  rolloutPercent: integer("rollout_percent").notNull().default(100),
-  updatedBy: varchar("updated_by").references(() => users.id),
-  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
-
-export const insertFeatureFlagSchema = createInsertSchema(featureFlags).omit({
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type FeatureFlag = typeof featureFlags.$inferSelect;
-export type InsertFeatureFlag = z.infer<typeof insertFeatureFlagSchema>;
-
-// Experiments Table (A/B Testing)
-export const experiments = pgTable("experiments", {
-  key: varchar("key", { length: 100 }).primaryKey(),
-  enabled: boolean("enabled").notNull().default(false),
-  description: text("description"),
-  variants: jsonb("variants").notNull().default({}),
-  allocation: jsonb("allocation").notNull().default({}),
-  requiredModes: jsonb("required_modes").default([]),
-  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
-
-export const insertExperimentSchema = createInsertSchema(experiments).omit({
-  createdAt: true,
-  updatedAt: true,
-});
-
-export type Experiment = typeof experiments.$inferSelect;
-export type InsertExperiment = z.infer<typeof insertExperimentSchema>;
-
-// Experiment Assignments Table (Deterministic assignment tracking)
-export const experimentAssignments = pgTable("experiment_assignments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  experimentKey: varchar("experiment_key", { length: 100 }).notNull().references(() => experiments.key, { onDelete: "cascade" }),
-  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
-  sessionId: varchar("session_id"),
-  variant: varchar("variant", { length: 50 }).notNull(),
-  assignedAt: timestamp("assigned_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
-
-export const insertExperimentAssignmentSchema = createInsertSchema(experimentAssignments).omit({
-  id: true,
-  assignedAt: true,
-});
-
-export type ExperimentAssignment = typeof experimentAssignments.$inferSelect;
-export type InsertExperimentAssignment = z.infer<typeof insertExperimentAssignmentSchema>;
+// Note: Feature Flags, Experiments, and Experiment Assignments tables are defined
+// in the "FEATURE FLAGS & EXPERIMENTS (Task 110)" section above (lines ~1507-1569)
 
 // Analytics Events Table (PHI-safe, opt-in only)
 // PHI-safe by design: only stores IDs, counts, booleans, timings, feature identifiers

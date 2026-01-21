@@ -33,6 +33,17 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true
+    sourcemap: true,
+    rollupOptions: {
+      // Mark optional dependencies as external to prevent build failures
+      // when they're not installed (Sentry is optional - only needed if VITE_SENTRY_DSN is set)
+      external: ['@sentry/react'],
+      output: {
+        // Handle external modules gracefully at runtime
+        globals: {
+          '@sentry/react': 'Sentry'
+        }
+      }
+    }
   }
 });
