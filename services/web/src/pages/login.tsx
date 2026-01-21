@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useLocation, Link } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, LogIn, AlertCircle, Mail, Lock } from 'lucide-react';
 
 export default function LoginPage() {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const { login, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,7 +34,7 @@ export default function LoginPage() {
     try {
       const result = await login({ email, password });
       if (result.success) {
-        navigate('/');
+        setLocation('/');
       } else {
         setError(result.error || 'Login failed. Please try again.');
       }
@@ -104,7 +104,7 @@ export default function LoginPage() {
 
               <div className="flex items-center justify-between">
                 <Link
-                  to="/forgot-password"
+                  href="/forgot-password"
                   className="text-sm text-blue-400 hover:text-blue-300"
                 >
                   Forgot password?
@@ -139,7 +139,7 @@ export default function LoginPage() {
                 <span className="bg-slate-800 px-2 text-slate-400">New to ResearchFlow?</span>
               </div>
             </div>
-            <Link to="/register" className="w-full">
+            <Link href="/register" className="w-full">
               <Button variant="outline" className="w-full border-slate-600 text-slate-200 hover:bg-slate-700">
                 Create an account
               </Button>
@@ -149,9 +149,9 @@ export default function LoginPage() {
 
         <p className="text-center text-sm text-slate-500 mt-4">
           By signing in, you agree to our{' '}
-          <Link to="/terms" className="text-blue-400 hover:text-blue-300">Terms of Service</Link>
+          <Link href="/terms" className="text-blue-400 hover:text-blue-300">Terms of Service</Link>
           {' '}and{' '}
-          <Link to="/privacy" className="text-blue-400 hover:text-blue-300">Privacy Policy</Link>
+          <Link href="/privacy" className="text-blue-400 hover:text-blue-300">Privacy Policy</Link>
         </p>
       </div>
     </div>

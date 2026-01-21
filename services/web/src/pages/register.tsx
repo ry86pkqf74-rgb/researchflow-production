@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useLocation, Link } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, UserPlus, AlertCircle, Mail, Lock, User } from 'lucide-react';
 
 export default function RegisterPage() {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const { register, isLoading } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
@@ -71,7 +71,7 @@ export default function RegisterPage() {
       });
 
       if (result.success) {
-        navigate('/onboarding');
+        setLocation('/onboarding');
       } else {
         setError(result.error || 'Registration failed. Please try again.');
       }
@@ -206,9 +206,9 @@ export default function RegisterPage() {
                   className="text-sm text-slate-300 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
                   I agree to the{' '}
-                  <Link to="/terms" className="text-blue-400 hover:text-blue-300">Terms of Service</Link>
+                  <Link href="/terms" className="text-blue-400 hover:text-blue-300">Terms of Service</Link>
                   {' '}and{' '}
-                  <Link to="/privacy" className="text-blue-400 hover:text-blue-300">Privacy Policy</Link>
+                  <Link href="/privacy" className="text-blue-400 hover:text-blue-300">Privacy Policy</Link>
                 </label>
               </div>
 
@@ -240,7 +240,7 @@ export default function RegisterPage() {
                 <span className="bg-slate-800 px-2 text-slate-400">Already have an account?</span>
               </div>
             </div>
-            <Link to="/login" className="w-full">
+            <Link href="/login" className="w-full">
               <Button variant="outline" className="w-full border-slate-600 text-slate-200 hover:bg-slate-700">
                 Sign in instead
               </Button>

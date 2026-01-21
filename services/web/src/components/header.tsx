@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ThemeSettings } from "@/components/ui/theme-settings";
 import { GovernanceBadge } from "@/components/governance";
@@ -254,14 +254,14 @@ export function Header() {
                   data-testid="button-login"
                   asChild
                 >
-                  <Link to="/login">Log In</Link>
+                  <Link href="/login">Log In</Link>
                 </Button>
                 <Button 
                   className="bg-ros-primary hover:bg-ros-primary/90"
                   data-testid="button-get-started"
                   asChild
                 >
-                  <Link to="/login">Get Started</Link>
+                  <Link href="/login">Get Started</Link>
                 </Button>
               </>
             )}
@@ -331,7 +331,7 @@ export function Header() {
                   data-testid="button-login-mobile"
                   asChild
                 >
-                  <Link to="/login">Log In</Link>
+                  <Link href="/login">Log In</Link>
                 </Button>
               )}
             </nav>
