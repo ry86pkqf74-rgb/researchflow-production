@@ -191,4 +191,30 @@ router.post('/export', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/user/onboarding/complete
+ * Mark user onboarding as complete
+ */
+router.post('/onboarding/complete', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id || (req as any).user?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Mark onboarding as complete (for now, just acknowledge)
+    // In a real implementation, this would update a database field
+    console.log(`User ${userId} completed onboarding`);
+
+    res.json({ 
+      success: true,
+      message: 'Onboarding completed successfully' 
+    });
+  } catch (error) {
+    console.error('Error completing onboarding:', error);
+    res.status(500).json({ error: 'Failed to complete onboarding' });
+  }
+});
+
 export default router;

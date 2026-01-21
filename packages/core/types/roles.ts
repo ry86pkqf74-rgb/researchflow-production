@@ -181,7 +181,15 @@ export function hasPermission(user: User, permission: Permission): boolean {
 }
 
 export function hasMinimumRole(user: User, minimumRole: RoleName): boolean {
-  return ROLE_HIERARCHY[user.role] >= ROLE_HIERARCHY[minimumRole];
+  if (!user || !user.role) {
+    return false;
+  }
+  const userLevel = ROLE_HIERARCHY[user.role];
+  const minimumLevel = ROLE_HIERARCHY[minimumRole];
+  if (userLevel === undefined || minimumLevel === undefined) {
+    return false;
+  }
+  return userLevel >= minimumLevel;
 }
 
 export function hasPermissionByRole(userRole: RoleName, permission: string): boolean {

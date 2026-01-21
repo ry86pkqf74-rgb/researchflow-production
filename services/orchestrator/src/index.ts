@@ -39,6 +39,9 @@ import futureProofingRoutes from './routes/futureProofing';
 // Audit Improvements: New modular routes
 import authRoutes from './routes/auth';
 import workflowStagesRoutes from './routes/workflow-stages';
+import workflowsRoutes from './routes/workflows';
+import organizationsRoutes from './routes/organizations';
+import userSettingsRoutes from './routes/user-settings';
 import { mockAuthMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { CollaborationWebSocketServer } from './collaboration/websocket-server';
@@ -124,6 +127,9 @@ app.use('/api/admin/upgrades', futureProofingRoutes);  // Task 150: Future-proof
 // Audit Improvements: Authentication and Workflow Routes
 app.use('/api/auth', authRoutes);  // JWT-based authentication (replaces Replit auth)
 app.use('/api/workflow', workflowStagesRoutes);  // Workflow stage management and lifecycle
+app.use('/api/workflows', workflowsRoutes);  // Workflow CRUD, versioning, templates
+app.use('/api/org', organizationsRoutes);  // Organization management (Task 81)
+app.use('/api/user', userSettingsRoutes);  // User settings and preferences
 
 // 404 handler
 app.use((req, res) => {

@@ -94,39 +94,33 @@ export function Onboarding() {
 
     // Validate current step
     if (step.id === 'organization') {
-      if (!orgName.trim()) {
-        setError('Organization name is required');
-        return;
-      }
-      if (!orgSlug.trim()) {
-        setError('Organization slug is required');
-        return;
-      }
+      // Organization creation is now optional - user can skip to continue
+      if (orgName.trim() && orgSlug.trim()) {
+        setLoading(true);
+        try {
+          const response = await fetch('/api/org', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              name: orgName,
+              slug: orgSlug,
+              description: orgDescription,
+            }),
+          });
 
-      setLoading(true);
-      try {
-        const response = await fetch('/api/org', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            name: orgName,
-            slug: orgSlug,
-            description: orgDescription,
-          }),
-        });
+          if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Failed to create organization');
+          }
 
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Failed to create organization');
+          setCompletedSteps([...completedSteps, step.id]);
+        } catch (err: any) {
+          setError(err.message);
+          return;
+        } finally {
+          setLoading(false);
         }
-
-        setCompletedSteps([...completedSteps, step.id]);
-      } catch (err: any) {
-        setError(err.message);
-        return;
-      } finally {
-        setLoading(false);
       }
     }
 
@@ -168,9 +162,11 @@ export function Onboarding() {
         method: 'POST',
         credentials: 'include',
       });
-      window.location.href = '/pipeline';
+      // Redirect to workflows page where user can create and execute pipelines
+      window.location.href = '/workflows';
     } catch (err) {
-      window.location.href = '/pipeline';
+      // If API fails, still redirect - onboarding is complete
+      window.location.href = '/workflows';
     }
   };
 
@@ -226,14 +222,14 @@ export function Onboarding() {
           <div className="space-y-6">
             <div className="text-center">
               <Building2 className="h-12 w-12 text-primary mx-auto mb-4" />
-              <h2 className="text-xl font-bold">Create Your Organization</h2>
+              <h2 className="text-xl font-bold">Create Your Organization (Optional)</h2>
               <p className="text-muted-foreground mt-2">
-                Set up your team's workspace for research collaboration
+                Set up your team's workspace for research collaboration, or skip to continue
               </p>
             </div>
             <div className="space-y-4 max-w-md mx-auto">
               <div className="space-y-2">
-                <Label htmlFor="orgName">Organization Name *</Label>
+                <Label htmlFor="orgName">Organization Name</Label>
                 <Input
                   id="orgName"
                   placeholder="My Research Lab"
@@ -242,7 +238,7 @@ export function Onboarding() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="orgSlug">URL Slug *</Label>
+                <Label htmlFor="orgSlug">URL Slug</Label>
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground text-sm">/org/</span>
                   <Input
@@ -377,7 +373,7 @@ export function Onboarding() {
               Back
             </Button>
             <div className="flex items-center gap-2">
-              {step.id !== 'welcome' && step.id !== 'organization' && (
+              {step.id !== 'welcome' && (
                 <Button variant="ghost" onClick={handleSkip} disabled={loading}>
                   Skip
                 </Button>

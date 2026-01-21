@@ -108,16 +108,40 @@ export function requireRole(minRole: RoleName) {
       return;
     }
 
+    // Check if user has role property
+    if (!req.user.role) {
+      console.error('[RBAC] User object missing role property:', req.user);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'User role not configured',
+        code: 'MISSING_ROLE'
+      });
+      return;
+    }
+
+    // Check if role is valid
+    if (!ROLE_CONFIGS[req.user.role]) {
+      console.error('[RBAC] Invalid role:', req.user.role);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Invalid user role',
+        code: 'INVALID_ROLE'
+      });
+      return;
+    }
+
     // Check if user has minimum required role
     if (!hasMinimumRole(req.user, minRole)) {
+      const userRole = req.user.role;
+      const userLevel = ROLE_CONFIGS[userRole]?.level ?? 0;
       res.status(403).json({
         error: 'Forbidden',
         message: `Insufficient role: ${minRole} or higher required`,
         code: 'INSUFFICIENT_ROLE',
         required: minRole,
         requiredLevel: ROLE_CONFIGS[minRole].level,
-        userRole: req.user.role,
-        userLevel: ROLE_CONFIGS[req.user.role].level
+        userRole,
+        userLevel
       });
       return;
     }
