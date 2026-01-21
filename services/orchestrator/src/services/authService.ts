@@ -23,7 +23,7 @@ import type { JwtPayload } from 'jsonwebtoken';
 import { jwt, bcrypt } from '../../lib/crypto-deps.js';
 
 // Import database connection
-import { db } from '../../db.js';
+import { pool } from '../../db.js';
 
 // Environment configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'development-jwt-secret-change-in-production';
@@ -299,13 +299,13 @@ export async function registerUser(input: RegisterInput): Promise<{
   });
 
   // Persist user to database
-  if (db) {
+  if (pool) {
     try {
-      await db.execute({
-        sql: `INSERT INTO users (id, email, name, role, created_at, updated_at) 
-              VALUES ($1, $2, $3, $4, $5, $6)
-              ON CONFLICT (email) DO NOTHING`,
-        params: [
+      await pool.query(
+        `INSERT INTO users (id, email, name, role, created_at, updated_at) 
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (email) DO NOTHING`,
+        [
           user.id,
           user.email,
           user.displayName || '',
@@ -313,7 +313,7 @@ export async function registerUser(input: RegisterInput): Promise<{
           user.createdAt,
           user.updatedAt
         ]
-      });
+      );
       console.log(`[AUTH] User persisted to database: ${user.id}`);
     } catch (error) {
       console.error(`[AUTH] Failed to persist user to database:`, error);
