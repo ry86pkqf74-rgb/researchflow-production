@@ -16,10 +16,16 @@
 import { z } from 'zod';
 import crypto from 'crypto';
 import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 
-// Use createRequire for CommonJS packages to ensure proper resolution in Docker
-const require = createRequire(import.meta.url);
+// Use createRequire anchored to /app/node_modules for CommonJS packages
+// This ensures proper resolution regardless of the importing file's location
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const appRoot = join(__dirname, '..', '..'); // Navigate from src/services to /app
+const require = createRequire(join(appRoot, 'node_modules', 'package.json'));
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
