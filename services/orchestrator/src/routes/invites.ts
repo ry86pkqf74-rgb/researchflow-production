@@ -21,7 +21,7 @@ import {
 } from "../middleware/org-context";
 import { inviteMemberSchema } from "@researchflow/core/types/organization";
 import { logAction } from "../services/audit-service";
-import { isAuthenticated } from "../../replit_integrations/auth/replitAuth";
+import { requireAuth as isAuthenticated } from "../services/authService";
 import {
   createInvite,
   validateInvite,

@@ -34,10 +34,11 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx scripts/seed.ts",
     "clean": "rm -rf node_modules packages/*/node_modules services/*/node_modules",
-    "replit:setup": "bash scripts/replit-setup.sh",
-    "replit:start": "bash scripts/replit-start.sh",
-    "replit:prod": "NODE_ENV=production bash scripts/replit-start.sh",
-    "start:prod": "NODE_ENV=production node services/orchestrator/index.ts"
+    "start:prod": "NODE_ENV=production node services/orchestrator/index.ts",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:rebuild": "docker compose build --no-cache && docker compose up -d",
+    "docker:logs": "docker compose logs -f"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",

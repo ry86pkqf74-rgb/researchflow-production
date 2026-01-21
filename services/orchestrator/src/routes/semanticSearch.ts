@@ -13,7 +13,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../middleware/asyncHandler';
-import { isAuthenticated } from '../../replit_integrations/auth/replitAuth';
+import { requireAuth as isAuthenticated } from '../services/authService';
 import { resolveOrgContext, requireOrgMember } from '../middleware/org-context';
 import { semanticSearchService } from '../services/semanticSearchService';
 import { hybridSearchService } from '../services/hybridSearchService';

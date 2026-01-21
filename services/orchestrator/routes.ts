@@ -9,7 +9,9 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { topics } from "@researchflow/core/schema";
 import { eq } from "drizzle-orm";
-import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+// JWT-based authentication (replaces Replit auth)
+import { requireAuth, optionalAuth, devOrRequireAuth } from "./src/services/authService";
+import jwtAuthRouter from "./src/routes/auth";
 import {
   requireRole,
   requirePermission,
@@ -841,32 +843,31 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Setup Replit Auth FIRST before other routes
-  await setupAuth(app);
-  registerAuthRoutes(app);
-  
+  // Mount JWT authentication routes (register, login, logout, refresh, etc.)
+  app.use('/api/auth', jwtAuthRouter);
+
   // Apply lifecycle state middleware to all routes
   app.use(lifecycleStateMiddleware);
 
   // Authentication middleware - sets user context for RBAC
-  // Uses authenticated user from Replit Auth or falls back to dev user for unauthenticated routes
+  // Uses JWT auth or falls back to dev user for unauthenticated routes
   app.use((req: Request, _res: Response, next: NextFunction) => {
     // Check for role override header (for testing) or default to RESEARCHER
     const roleHeader = req.headers['x-user-role'] as Role | undefined;
     const validRoles = ['VIEWER', 'RESEARCHER', 'STEWARD', 'ADMIN'] as const;
-    const role: Role = roleHeader && validRoles.includes(roleHeader as any) 
-      ? roleHeader as Role 
+    const role: Role = roleHeader && validRoles.includes(roleHeader as any)
+      ? roleHeader as Role
       : ROLES.RESEARCHER;
-    
-    // If user is authenticated via Replit Auth, use their info
-    if (req.user && 'claims' in req.user && (req.user as any).claims) {
-      const claims = (req.user as any).claims;
+
+    // If user is authenticated via JWT, use their info
+    if (req.user && (req.user as any).id && (req.user as any).email) {
+      const user = req.user as any;
       req.user = {
         ...req.user,
-        id: claims.sub,
-        username: claims.email || claims.sub,
-        role: role,
-        email: claims.email || claims.sub,
+        id: user.id,
+        username: user.email || user.displayName,
+        role: user.role || role,
+        email: user.email,
         isActive: true
       };
     } else {
@@ -879,7 +880,7 @@ export async function registerRoutes(
         isActive: true
       };
     }
-    
+
     next();
   });
 

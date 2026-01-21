@@ -53,6 +53,7 @@ COPY --from=deps /app/packages ./packages
 COPY services/orchestrator/ ./
 
 ENV NODE_ENV=development
+ENV NODE_PATH=/app/node_modules
 EXPOSE 3001
 
 CMD ["npm", "run", "dev"]

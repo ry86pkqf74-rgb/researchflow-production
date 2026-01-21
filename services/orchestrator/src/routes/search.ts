@@ -9,7 +9,7 @@
 import { Router, Request, Response } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { resolveOrgContext, requireOrgMember } from "../middleware/org-context";
-import { isAuthenticated } from "../../replit_integrations/auth/replitAuth";
+import { requireAuth as isAuthenticated } from "../services/authService";
 import {
   searchAll,
   searchArtifacts,
