@@ -1,118 +1,112 @@
 #!/bin/bash
-# Manuscript Engine Test Runner (Containerized with Auto-Approve)
-# Phase B E2E Test Entry Point
-
 set -e
 
+# Colors for output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
 RED='\033[0;31m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
-print_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+CONTAINER_NAME="manuscript-engine-test"
+IMAGE_NAME="manuscript-engine-test:latest"
 
-show_usage() {
-    cat << EOF
-Manuscript Engine Test Runner (Phase B Closeout)
-
-Usage: $0 [COMMAND]
-
-Commands:
-  test              Run all unit tests once (default)
-  smoke             Run Phase B smoke E2E tests
-  e2e               Run Playwright E2E tests
-  watch             Run tests in watch mode
-  coverage          Generate coverage report
-  build             Build the container
-  rebuild           Rebuild container from scratch
-  shell             Open interactive shell
-  clean             Clean up containers and volumes
-
-Examples:
-  $0 test           # Run unit tests
-  $0 smoke          # Run Phase B smoke E2E (fast)
-  $0 e2e            # Run Playwright UI E2E
-  $0 coverage       # Coverage report
-  $0 shell          # Debug in container
-
-Auto-Approve: Tests run automatically without prompts
-Container: Isolated environment with all dependencies
-
-EOF
+function print_usage() {
+    echo -e "${BLUE}Usage: ./test-manuscript-engine.sh [command]${NC}"
+    echo ""
+    echo "Commands:"
+    echo "  build    - Build the test container"
+    echo "  test     - Run all tests once"
+    echo "  watch    - Run tests in watch mode"
+    echo "  coverage - Generate coverage report"
+    echo "  shell    - Open interactive shell in container"
+    echo "  clean    - Remove container and image"
+    echo ""
 }
 
-COMPOSE_FILE="docker-compose.manuscript-test.yml"
-COMMAND=${1:-test}
+function build_container() {
+    echo -e "${BLUE}Building test container...${NC}"
+    docker build -f packages/manuscript-engine/Dockerfile.test -t $IMAGE_NAME .
+    echo -e "${GREEN}✓ Container built successfully${NC}"
+}
 
-case $COMMAND in
-    test)
-        print_info "Running manuscript-engine tests in container..."
-        docker-compose -f $COMPOSE_FILE run --rm manuscript-engine-test
-        print_success "Tests completed!"
-        ;;
+function run_tests() {
+    echo -e "${BLUE}Running tests in container...${NC}"
+    docker run --rm \
+        -v $(pwd)/packages/manuscript-engine:/app \
+        -v $(pwd)/packages/core:/workspace/packages/core \
+        -v $(pwd)/packages/ai-router:/workspace/packages/ai-router \
+        -w /app \
+        $IMAGE_NAME \
+        npm test
+}
 
-    smoke)
-        print_info "Running Phase B smoke E2E tests..."
-        print_info "This tests manuscript creation, generation, export, and governance gates."
-        ./scripts/test-phase-b-smoke.sh
-        print_success "Smoke E2E tests completed!"
-        ;;
+function run_watch() {
+    echo -e "${BLUE}Running tests in watch mode...${NC}"
+    docker run --rm -it \
+        -v $(pwd)/packages/manuscript-engine:/app \
+        -v $(pwd)/packages/core:/workspace/packages/core \
+        -v $(pwd)/packages/ai-router:/workspace/packages/ai-router \
+        -w /app \
+        $IMAGE_NAME \
+        npm run test:watch
+}
 
-    e2e)
-        print_info "Running Playwright E2E tests..."
-        print_info "Ensure services are running: docker-compose up -d"
-        npx playwright test tests/e2e/manuscripts.spec.ts
-        print_success "Playwright E2E tests completed!"
-        ;;
+function run_coverage() {
+    echo -e "${BLUE}Generating coverage report...${NC}"
+    docker run --rm \
+        -v $(pwd)/packages/manuscript-engine:/app \
+        -v $(pwd)/packages/core:/workspace/packages/core \
+        -v $(pwd)/packages/ai-router:/workspace/packages/ai-router \
+        -w /app \
+        $IMAGE_NAME \
+        npm run test:coverage
+    
+    echo -e "${GREEN}✓ Coverage report generated at packages/manuscript-engine/coverage/index.html${NC}"
+}
 
-    watch)
-        print_info "Starting test watcher..."
-        print_warning "Press Ctrl+C to stop"
-        docker-compose -f $COMPOSE_FILE run --rm manuscript-engine-watch
-        ;;
+function open_shell() {
+    echo -e "${BLUE}Opening interactive shell...${NC}"
+    docker run --rm -it \
+        -v $(pwd)/packages/manuscript-engine:/app \
+        -v $(pwd)/packages/core:/workspace/packages/core \
+        -v $(pwd)/packages/ai-router:/workspace/packages/ai-router \
+        -w /app \
+        $IMAGE_NAME \
+        /bin/sh
+}
 
-    coverage)
-        print_info "Generating coverage report..."
-        docker-compose -f $COMPOSE_FILE run --rm manuscript-engine-coverage
-        print_success "Coverage report generated in packages/manuscript-engine/coverage/"
-        print_info "View report: open packages/manuscript-engine/coverage/index.html"
-        ;;
+function clean_container() {
+    echo -e "${BLUE}Cleaning up...${NC}"
+    docker rmi $IMAGE_NAME 2>/dev/null || true
+    echo -e "${GREEN}✓ Cleanup complete${NC}"
+}
 
+# Main command router
+case "${1:-test}" in
     build)
-        print_info "Building container..."
-        docker-compose -f $COMPOSE_FILE build
-        print_success "Container built! ✓"
+        build_container
         ;;
-
-    rebuild)
-        print_info "Rebuilding container from scratch..."
-        docker-compose -f $COMPOSE_FILE build --no-cache
-        print_success "Container rebuilt! ✓"
+    test)
+        run_tests
         ;;
-
+    watch)
+        run_watch
+        ;;
+    coverage)
+        run_coverage
+        ;;
     shell)
-        print_info "Opening shell in container..."
-        docker-compose -f $COMPOSE_FILE run --rm manuscript-engine-shell
+        open_shell
         ;;
-
     clean)
-        print_warning "Cleaning up containers and volumes..."
-        docker-compose -f $COMPOSE_FILE down -v
-        print_success "Cleanup complete! ✓"
+        clean_container
         ;;
-
     help|--help|-h)
-        show_usage
+        print_usage
         ;;
-
     *)
-        print_error "Unknown command: $COMMAND"
-        echo ""
-        show_usage
+        echo -e "${RED}Unknown command: $1${NC}"
+        print_usage
         exit 1
         ;;
 esac

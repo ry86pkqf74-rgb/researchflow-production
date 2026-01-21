@@ -16,9 +16,10 @@
 import { z } from 'zod';
 import crypto from 'crypto';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
+import type { JwtPayload } from 'jsonwebtoken';
 
-// Import jwt and bcrypt from wrapper module at /app/lib/
-// This avoids tsx module resolution issues with CommonJS packages
+// Import jwt and bcrypt from wrapper module
+// This bypasses tsx module resolution issues with CommonJS packages
 import { jwt, bcrypt } from '../../lib/crypto-deps.js';
 
 // Environment configuration
