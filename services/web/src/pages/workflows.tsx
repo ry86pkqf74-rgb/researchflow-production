@@ -324,73 +324,67 @@ export default function WorkflowsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredWorkflows.map((workflow) => (
-              <Card key={workflow.id} className="hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">
-                        <Link href={`/workflows/${workflow.id}`} className="hover:underline">
+              <Link key={workflow.id} href={`/workflows/${workflow.id}`}>
+                <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1 flex-1">
+                        <CardTitle className="text-lg hover:underline">
                           {workflow.name}
-                        </Link>
-                      </CardTitle>
-                      <CardDescription className="line-clamp-2">
-                        {workflow.description || "No description"}
-                      </CardDescription>
+                        </CardTitle>
+                        <CardDescription className="line-clamp-2">
+                          {workflow.description || "No description"}
+                        </CardDescription>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Duplicate
+                          </DropdownMenuItem>
+                          {canEdit && (
+                            <>
+                              <DropdownMenuItem>
+                                <Archive className="mr-2 h-4 w-4" />
+                                Archive
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/workflows/${workflow.id}`}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Copy className="mr-2 h-4 w-4" />
-                          Duplicate
-                        </DropdownMenuItem>
-                        {canEdit && (
-                          <>
-                            <DropdownMenuItem>
-                              <Archive className="mr-2 h-4 w-4" />
-                              Archive
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <Badge className={`${STATUS_COLORS[workflow.status]} text-white`}>
+                        {STATUS_ICONS[workflow.status]}
+                        <span className="ml-1">{workflow.status}</span>
+                      </Badge>
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Clock className="mr-1 h-3 w-3" />
+                        v{workflow.current_version}
+                      </div>
+                    </div>
+                    {workflow.run_count !== undefined && (
+                      <div className="mt-3 text-sm text-muted-foreground">
+                        {workflow.run_count} runs
+                        {workflow.last_run_at && (
+                          <span> · Last run {new Date(workflow.last_run_at).toLocaleDateString()}</span>
                         )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <Badge className={`${STATUS_COLORS[workflow.status]} text-white`}>
-                      {STATUS_ICONS[workflow.status]}
-                      <span className="ml-1">{workflow.status}</span>
-                    </Badge>
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Clock className="mr-1 h-3 w-3" />
-                      v{workflow.current_version}
-                    </div>
-                  </div>
-                  {workflow.run_count !== undefined && (
-                    <div className="mt-3 text-sm text-muted-foreground">
-                      {workflow.run_count} runs
-                      {workflow.last_run_at && (
-                        <span> · Last run {new Date(workflow.last_run_at).toLocaleDateString()}</span>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
         )}
