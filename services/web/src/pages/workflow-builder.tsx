@@ -249,10 +249,11 @@ export default function WorkflowBuilderPage() {
     enabled: !!workflowId,
   });
 
-  const { data: version, isLoading: versionLoading } = useQuery({
+  const { data: version, isLoading: versionLoading, error: versionError } = useQuery({
     queryKey: ["workflow-version", workflowId],
     queryFn: () => fetchLatestVersion(workflowId!),
     enabled: !!workflowId,
+    retry: false, // Don't retry if no version exists
   });
 
   // Detect if this is a standard ROS pipeline workflow
@@ -471,6 +472,46 @@ export default function WorkflowBuilderPage() {
               Back to Workflows
             </Link>
           </Button>
+        </main>
+      </div>
+    );
+  }
+
+  // If workflow has no version (empty workflow), show a message
+  if (!isLoading && !version && versionError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto py-12 text-center">
+          <h1 className="text-2xl font-bold mb-4">No workflow definition</h1>
+          <p className="text-muted-foreground mb-6">
+            This workflow was created without a template and has no definition yet.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Button asChild variant="outline">
+              <Link href="/workflows">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Workflows
+              </Link>
+            </Button>
+            {canEdit && (
+              <Button onClick={() => {
+                // Create an empty initial version
+                const emptyDefinition: WorkflowDefinition = {
+                  nodes: [],
+                  edges: [],
+                  settings: {
+                    timeout_minutes: 60,
+                    retry_policy: "exponential",
+                    checkpoint_enabled: true,
+                  },
+                };
+                saveMutation.mutate("Initial empty version");
+              }}>
+                Create Empty Workflow
+              </Button>
+            )}
+          </div>
         </main>
       </div>
     );
