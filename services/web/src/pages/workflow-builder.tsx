@@ -233,6 +233,8 @@ export default function WorkflowBuilderPage() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [changeSummary, setChangeSummary] = useState("");
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [executeDialogOpen, setExecuteDialogOpen] = useState(false);
+  const [executionInputs, setExecutionInputs] = useState<Record<string, string>>({});
 
   const { user } = useAuthStore();
   const { toast } = useToast();
@@ -398,6 +400,33 @@ export default function WorkflowBuilderPage() {
     },
   });
 
+  const executeMutation = useMutation({
+    mutationFn: async (inputs: Record<string, string>) => {
+      const response = await fetch(`/api/workflows/${workflowId}/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ inputs }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to execute workflow");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setExecuteDialogOpen(false);
+      setExecutionInputs({});
+      toast({ 
+        title: "Workflow execution started", 
+        description: `Execution ID: ${data.executionId}` 
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to execute", description: error.message, variant: "destructive" });
+    },
+  });
+
   const isLoading = workflowLoading || versionLoading;
 
   if (isLoading) {
@@ -475,6 +504,16 @@ export default function WorkflowBuilderPage() {
                   >
                     <Play className="mr-2 h-4 w-4" />
                     Publish
+                  </Button>
+                )}
+                {workflow.status === "ACTIVE" && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => setExecuteDialogOpen(true)}
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Execute
                   </Button>
                 )}
               </>
@@ -669,6 +708,49 @@ export default function WorkflowBuilderPage() {
             >
               {publishMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Publish
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Execute dialog */}
+      <AlertDialog open={executeDialogOpen} onOpenChange={setExecuteDialogOpen}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Execute Workflow</AlertDialogTitle>
+            <AlertDialogDescription>
+              Provide input values for the workflow execution.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="input-param">Input Parameters (JSON format)</Label>
+              <Textarea
+                id="input-param"
+                placeholder='{"key": "value", "param2": "value2"}'
+                value={JSON.stringify(executionInputs, null, 2)}
+                onChange={(e) => {
+                  try {
+                    setExecutionInputs(JSON.parse(e.target.value || '{}'));
+                  } catch {
+                    // Invalid JSON, ignore
+                  }
+                }}
+                className="min-h-[200px] font-mono text-sm"
+              />
+              <p className="text-sm text-muted-foreground">
+                Enter workflow inputs as JSON. These will be passed to the workflow stages.
+              </p>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => executeMutation.mutate(executionInputs)}
+              disabled={executeMutation.isPending}
+            >
+              {executeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Execute
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
