@@ -40,6 +40,7 @@ help:
 	@echo ""
 	@echo "$(GREEN)Database:$(NC)"
 	@echo "  make db-migrate   - Run database migrations"
+	@echo "  make db-init      - Run init.sql (bootstrap only)"
 	@echo "  make db-seed      - Seed database with test data"
 	@echo "  make db-reset     - Reset database (WARNING: destroys data)"
 	@echo "  make db-backup    - Create database backup"
@@ -148,7 +149,15 @@ format:
 
 db-migrate:
 	@echo "$(BLUE)Running database migrations...$(NC)"
+	bash scripts/db-migrate.sh
+
+db-init:
+	@echo "$(BLUE)Running init.sql (bootstrap only)...$(NC)"
 	docker-compose exec postgres psql -U ros -d ros -f /docker-entrypoint-initdb.d/init.sql
+
+db-migrate-governance:
+	@echo "$(BLUE)Applying governance_config hotfix...$(NC)"
+	cat migrations/0012_governance_config_hotfix.sql | docker-compose exec -T postgres psql -U ros -d ros
 
 db-seed:
 	@echo "$(BLUE)Seeding database...$(NC)"

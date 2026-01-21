@@ -63,6 +63,9 @@ user_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE
 
 **Development (Docker)**:
 ```bash
+# Run the migration runner (tracks applied versions)
+make db-migrate
+
 # Migrations run automatically on container start
 docker compose down && docker compose up -d --build
 ```
@@ -74,6 +77,9 @@ docker compose exec postgres psql -U ros -d ros
 
 # Run migration
 \i /migrations/0006_phase_f_schema_alignment.sql
+
+# Bootstrap-only (init.sql) if you need a clean base schema
+make db-init
 ```
 
 **Via npm script** (if available):
