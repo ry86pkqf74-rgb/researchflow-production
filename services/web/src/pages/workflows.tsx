@@ -54,7 +54,7 @@ import {
   FileText,
   Loader2,
 } from "lucide-react";
-import { useAuthStore } from "@/stores/auth-store";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
 interface WorkflowSummary {
@@ -128,7 +128,7 @@ export default function WorkflowsPage() {
   const [newWorkflowDesc, setNewWorkflowDesc] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   
-  const { user } = useAuthStore();
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
