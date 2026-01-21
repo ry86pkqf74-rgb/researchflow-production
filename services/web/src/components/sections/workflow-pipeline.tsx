@@ -55,6 +55,9 @@ import { FairnessMetrics } from "@/components/ui/fairness-metrics";
 import { TopicBriefPanel } from "@/components/ui/topic-brief-panel";
 import { AIResearchBriefPanel } from "@/components/research-brief";
 import { WorkflowSidebar } from "@/components/sections/workflow-sidebar";
+import { AIConsentModal, type AIConsentResult } from "@/components/ui/ai-consent-modal";
+import { useAIAuthorizationStore } from "@/stores/ai-authorization-store";
+import { TopicCardRecommendations, type TopicRecommendationsData } from "@/components/ui/topic-card-recommendations";
 import { type PhaseGroupInfo, type WorkflowStageInfo } from "@/components/ui/progress-stepper";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
@@ -168,6 +171,12 @@ export function WorkflowPipeline() {
   // Research overview statement per stage (primary input for Topic Declaration)
   const [overviewByStage, setOverviewByStage] = useState<Record<number, string>>({});
   const [showPicoRefinement, setShowPicoRefinement] = useState(false);
+
+  // AI Recommendations State
+  const [aiRecommendations, setAiRecommendations] = useState<TopicRecommendationsData | null>(null);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const { isAuthorized, authorize } = useAIAuthorizationStore();
 
   // Governance lifecycle state management
   const [lifecycleState, setLifecycleState] = useState<LifecycleState>('DRAFT');
@@ -310,6 +319,101 @@ export function WorkflowPipeline() {
       ...prev,
       [selectedStage.id]: value
     }));
+  };
+
+  // Handle AI Insights Request
+  const handleRequestAIInsights = async () => {
+    if (!selectedStage || selectedStage.id !== 1) return;
+    
+    const overview = getCurrentOverview();
+    if (!overview || overview.trim().length < 20) {
+      alert('Please provide a more detailed research overview (at least 20 characters)');
+      return;
+    }
+
+    const scope = 'topic-declaration-recommendations';
+    
+    // Check if already authorized
+    if (!isAuthorized(scope)) {
+      setShowConsentModal(true);
+      return;
+    }
+
+    // Already authorized, fetch recommendations
+    await fetchRecommendations();
+  };
+
+  // Handle authorization from consent modal
+  const handleAuthorizeAI = async (result: AIConsentResult) => {
+    authorize(result);
+    addAuditEntry(createAuditEntry('AI_APPROVAL', {
+      stageId: 1,
+      stageName: 'Topic Declaration',
+      approvedBy: result.authorizedBy,
+      reason: `AI recommendations authorized for ${result.scope}`,
+    }));
+    
+    // Fetch recommendations after authorization
+    await fetchRecommendations();
+  };
+
+  // Fetch AI recommendations from API
+  const fetchRecommendations = async () => {
+    setIsLoadingRecommendations(true);
+    
+    try {
+      const overview = getCurrentOverview();
+      const currentValues = getCurrentScopeValues();
+      const authorization = useAIAuthorizationStore.getState().getAuthorization('topic-declaration-recommendations');
+
+      const response = await fetch('/api/ai/topic-recommendations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          researchOverview: overview,
+          currentValues,
+          authorizedBy: authorization?.authorizedBy || 'Unknown',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch recommendations');
+      }
+
+      const data = await response.json();
+      setAiRecommendations(data);
+      
+      addAuditEntry(createAuditEntry('AI_INTERACTION', {
+        stageId: 1,
+        stageName: 'Topic Declaration',
+        reason: `AI recommendations generated (strength: ${data.overallAssessment.strength})`,
+      }));
+    } catch (error) {
+      console.error('Error fetching AI recommendations:', error);
+      alert('Failed to generate AI recommendations. Please try again.');
+    } finally {
+      setIsLoadingRecommendations(false);
+    }
+  };
+
+  // Apply recommendation to field
+  const handleApplyRecommendation = (field: string, suggestion: string) => {
+    if (!selectedStage) return;
+    
+    handleScopeChange(field, suggestion);
+    
+    addAuditEntry(createAuditEntry('AI_INTERACTION', {
+      stageId: 1,
+      stageName: 'Topic Declaration',
+      reason: `Applied AI recommendation to ${field}`,
+    }));
+  };
+
+  // Dismiss recommendations
+  const handleDismissRecommendations = () => {
+    setAiRecommendations(null);
   };
 
   const getCurrentScopeValues = () => {
@@ -2312,6 +2416,39 @@ export function WorkflowPipeline() {
                                 </Card>
                               )}
 
+                              {/* AI Insights & Recommendations Button (Stage 1 only) */}
+                              {selectedStage.id === 1 && (
+                                <div className="space-y-4">
+                                  <Button
+                                    onClick={handleRequestAIInsights}
+                                    disabled={!getCurrentOverview() || getCurrentOverview().trim().length < 20 || isLoadingRecommendations}
+                                    className="w-full bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
+                                    data-testid="button-ai-insights"
+                                  >
+                                    {isLoadingRecommendations ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Generating AI Insights...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Bot className="h-4 w-4 mr-2" />
+                                        AI Insights & Recommendations
+                                      </>
+                                    )}
+                                  </Button>
+
+                                  {/* Display AI Recommendations */}
+                                  {aiRecommendations && (
+                                    <TopicCardRecommendations
+                                      data={aiRecommendations}
+                                      onApplyRecommendation={handleApplyRecommendation}
+                                      onDismiss={handleDismissRecommendations}
+                                    />
+                                  )}
+                                </div>
+                              )}
+
                               <div>
                                 <h4 className="font-medium mb-3">Expected Outputs:</h4>
                                 <div className="flex flex-wrap gap-2" data-testid="list-stage-outputs">
@@ -2509,6 +2646,15 @@ export function WorkflowPipeline() {
           onFail={handlePhiGateClose}
         />
       )}
+
+      {/* AI Consent Authorization Modal */}
+      <AIConsentModal
+        isOpen={showConsentModal}
+        onOpenChange={setShowConsentModal}
+        onAuthorize={handleAuthorizeAI}
+        scope="topic-declaration-recommendations"
+        scopeDescription="You are about to request AI-generated recommendations for refining your research topic declaration. The system will analyze your research overview and provide suggestions for each PICO field."
+      />
 
     </section>
     </>

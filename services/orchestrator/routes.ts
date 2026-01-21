@@ -3674,6 +3674,89 @@ export async function registerRoutes(
     }
   });
 
+  // AI Topic Declaration Recommendations
+  // Protected: Requires RESEARCHER role or higher
+  app.post("/api/ai/topic-recommendations",
+    requireRole(ROLES.RESEARCHER),
+    logAuditEvent('AI_TOPIC_RECOMMENDATIONS', 'topic-recommendations'),
+    async (req, res) => {
+    try {
+      const { researchOverview, currentValues, authorizedBy } = req.body;
+
+      if (!researchOverview || !researchOverview.trim()) {
+        return res.status(400).json({ error: "Research overview is required" });
+      }
+
+      if (!authorizedBy || !authorizedBy.trim()) {
+        return res.status(400).json({ error: "Authorization name is required" });
+      }
+
+      // Log authorization
+      console.log(`[AI Topic Recommendations] Authorized by: ${authorizedBy}`);
+
+      // Generate recommendations using OpenAI
+      const prompt = `You are a clinical research methodology expert. Analyze the following research overview and provide recommendations for refining the study design.
+
+Research Overview:
+${researchOverview}
+
+Current PICO Values:
+- Population: ${currentValues?.population || '(not specified)'}
+- Intervention/Exposure: ${currentValues?.intervention || '(not specified)'}
+- Comparator: ${currentValues?.comparator || '(not specified)'}
+- Outcomes: ${currentValues?.outcomes || '(not specified)'}
+- Timeframe: ${currentValues?.timeframe || '(not specified)'}
+
+Provide a comprehensive analysis in JSON format with:
+1. overallAssessment: Object with:
+   - strength: "weak" | "moderate" | "strong"
+   - summary: Brief assessment of current topic declaration (2-3 sentences)
+   - improvementPotential: What these recommendations will help achieve (1-2 sentences)
+
+2. recommendations: Object with a key for each PICO field (population, intervention, comparator, outcomes, timeframe), each containing an array of exactly 3 recommendation objects with:
+   - type: "refine" | "narrow" | "expand"
+   - suggestion: Specific, actionable recommendation text
+   - reasoning: Brief explanation of why this would improve the study (1 sentence)
+   - priority: "high" | "medium" | "low"
+
+Guidelines:
+- For EMPTY fields: Suggest specific content to add based on the research overview
+- For FILLED fields: Suggest refinements, narrowing scope, or strategic expansions
+- Focus on feasibility, statistical power, and clarity
+- Consider potential confounders and bias reduction
+- Ensure recommendations are specific and actionable
+- Prioritize recommendations that address the weakest aspects
+
+Return ONLY valid JSON, no markdown.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 3000,
+        temperature: 0.7,
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      const parsed = JSON.parse(content);
+
+      res.json({
+        status: "success",
+        overallAssessment: parsed.overallAssessment,
+        recommendations: parsed.recommendations,
+        authorizedBy,
+        generatedAt: new Date().toISOString(),
+        model: "gpt-4o"
+      });
+    } catch (error) {
+      console.error("Error generating topic recommendations:", error);
+      res.status(500).json({ 
+        error: "Failed to generate topic recommendations",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // AI Study Cards Generation (Manuscript Ideation)
   // Protected: Requires RESEARCHER role or higher
   app.post("/api/ai/study-cards", 
