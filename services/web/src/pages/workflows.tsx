@@ -96,13 +96,15 @@ async function fetchWorkflows(status?: string): Promise<WorkflowSummary[]> {
   if (status && status !== "all") params.set("status", status);
   const response = await fetch(`/api/workflows?${params}`, { credentials: "include" });
   if (!response.ok) throw new Error("Failed to fetch workflows");
-  return response.json();
+  const data = await response.json();
+  return data.workflows ?? [];
 }
 
 async function fetchTemplates(): Promise<WorkflowTemplate[]> {
   const response = await fetch("/api/workflows/templates", { credentials: "include" });
   if (!response.ok) throw new Error("Failed to fetch templates");
-  return response.json();
+  const data = await response.json();
+  return data.templates ?? [];
 }
 
 async function createWorkflow(data: { name: string; description?: string; template_id?: string }) {
@@ -116,7 +118,8 @@ async function createWorkflow(data: { name: string; description?: string; templa
     const error = await response.json();
     throw new Error(error.error || "Failed to create workflow");
   }
-  return response.json();
+  const payload = await response.json();
+  return payload.workflow ?? payload;
 }
 
 export default function WorkflowsPage() {
