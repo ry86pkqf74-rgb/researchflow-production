@@ -597,3 +597,340 @@ Return only valid JSON.`;
   const content = response.choices[0]?.message?.content || "{}";
   return JSON.parse(content);
 }
+
+// ====================================================================
+// STAGE 3: IRB PROPOSAL GENERATION
+// ====================================================================
+export interface IRBProposalResult {
+  protocolTitle: string;
+  studySummary: string;
+  background: string;
+  objectives: { primary: string; secondary: string[] };
+  studyDesign: string;
+  population: {
+    inclusion: string[];
+    exclusion: string[];
+    estimatedSize: string;
+  };
+  dataCollection: {
+    sources: string[];
+    variables: string[];
+    timeline: string;
+  };
+  riskAssessment: {
+    riskLevel: 'minimal' | 'moderate' | 'greater than minimal';
+    risks: string[];
+    mitigations: string[];
+  };
+  consentConsiderations: {
+    consentType: string;
+    waiverJustification?: string;
+    consentProcess: string;
+  };
+  privacyProtection: string[];
+  limitations: string[];
+}
+
+export async function generateIRBProposal(
+  topic: string,
+  population: string,
+  intervention: string,
+  outcomes: string,
+  timeframe?: string,
+  studyDesign?: string
+): Promise<IRBProposalResult> {
+  const prompt = `You are a clinical research ethics expert. Generate a comprehensive IRB proposal draft for this research study.
+
+Research Topic: ${topic}
+Population: ${population}
+Intervention/Exposure: ${intervention}
+Primary Outcomes: ${outcomes}
+${timeframe ? `Timeframe: ${timeframe}` : ""}
+${studyDesign ? `Study Design: ${studyDesign}` : "Study Design: Retrospective cohort study"}
+
+Generate a detailed IRB proposal in JSON format with these fields:
+- protocolTitle: formal protocol title
+- studySummary: 150-200 word summary of the study
+- background: 2-3 paragraph background section with rationale
+- objectives: object with "primary" (single statement) and "secondary" (array of 2-3 objectives)
+- studyDesign: detailed description of the study design and methodology
+- population: object with "inclusion" (array of 4-6 criteria), "exclusion" (array of 3-5 criteria), "estimatedSize" (sample size rationale)
+- dataCollection: object with "sources" (data sources), "variables" (key variables), "timeline" (data collection period)
+- riskAssessment: object with "riskLevel" (one of "minimal", "moderate", "greater than minimal"), "risks" (array of potential risks), "mitigations" (array of mitigation strategies)
+- consentConsiderations: object with "consentType" (e.g., "waiver of consent", "written consent"), "waiverJustification" (if applicable), "consentProcess" (description)
+- privacyProtection: array of 4-6 privacy/confidentiality protection measures
+- limitations: array of 3-4 study limitations
+
+Make the proposal realistic, comprehensive, and aligned with Common Rule (45 CFR 46) requirements.
+Return only valid JSON.`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+    max_tokens: 5000,
+  });
+
+  const contentIRB = response.choices[0]?.message?.content || "{}";
+  return JSON.parse(contentIRB);
+}
+
+// ====================================================================
+// STAGE 10: GAP ANALYSIS
+// ====================================================================
+export interface GapAnalysisResult {
+  populationGaps: { gap: string; explanation: string; opportunity: string }[];
+  methodologyGaps: { gap: string; explanation: string; opportunity: string }[];
+  outcomeGaps: { gap: string; explanation: string; opportunity: string }[];
+  temporalGaps: { gap: string; explanation: string; opportunity: string }[];
+  opportunityMatrix: {
+    area: string;
+    feasibility: 'high' | 'medium' | 'low';
+    novelty: 'high' | 'medium' | 'low';
+    impact: 'high' | 'medium' | 'low';
+    score: number;
+    recommendation: string;
+  }[];
+  strategicPositioning: string;
+  keyDifferentiators: string[];
+}
+
+export async function generateGapAnalysis(
+  topic: string,
+  population: string,
+  outcomes: string,
+  literatureSummary?: string
+): Promise<GapAnalysisResult> {
+  const prompt = `You are a research strategist and systematic review expert. Analyze the research gaps for this study topic.
+
+Research Topic: ${topic}
+Study Population: ${population}
+Primary Outcomes: ${outcomes}
+${literatureSummary ? `Literature Summary: ${literatureSummary}` : ""}
+
+Generate a comprehensive gap analysis in JSON format with these fields:
+- populationGaps: array of 2-3 population-related gaps, each with "gap", "explanation", "opportunity"
+- methodologyGaps: array of 2-3 methodology gaps, each with "gap", "explanation", "opportunity"
+- outcomeGaps: array of 2-3 outcome-related gaps, each with "gap", "explanation", "opportunity"
+- temporalGaps: array of 1-2 temporal/timeframe gaps, each with "gap", "explanation", "opportunity"
+- opportunityMatrix: array of 4-6 research opportunities, each with:
+  - area: research area/opportunity name
+  - feasibility: "high", "medium", or "low"
+  - novelty: "high", "medium", or "low"
+  - impact: "high", "medium", or "low"
+  - score: 0-100 overall priority score
+  - recommendation: specific recommendation
+- strategicPositioning: 2-3 sentences on how to position this research
+- keyDifferentiators: array of 3-4 unique aspects of this study
+
+Make the analysis actionable and specific to the research context.
+Return only valid JSON.`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+    max_tokens: 4000,
+  });
+
+  const contentGap = response.choices[0]?.message?.content || "{}";
+  return JSON.parse(contentGap);
+}
+
+// ====================================================================
+// STAGE 13: STATISTICAL ANALYSIS
+// ====================================================================
+export interface StatisticalAnalysisResult {
+  analysisOverview: string;
+  primaryAnalysis: {
+    method: string;
+    model: string;
+    results: string;
+    interpretation: string;
+  };
+  secondaryAnalyses: {
+    name: string;
+    method: string;
+    results: string;
+  }[];
+  subgroupAnalyses: {
+    subgroup: string;
+    result: string;
+    pInteraction: string;
+  }[];
+  sensitivityAnalyses: {
+    analysis: string;
+    result: string;
+    conclusion: string;
+  }[];
+  tables: {
+    tableNumber: number;
+    title: string;
+    content: string;
+  }[];
+  keyFindings: string[];
+  limitations: string[];
+}
+
+export async function generateStatisticalAnalysis(
+  topic: string,
+  population: string,
+  intervention: string,
+  comparator: string,
+  outcomes: string,
+  sampleSize?: number
+): Promise<StatisticalAnalysisResult> {
+  const prompt = `You are a biostatistician conducting analysis for a clinical research study. Generate realistic statistical analysis results.
+
+Research Topic: ${topic}
+Population: ${population}
+Exposure/Intervention: ${intervention}
+Comparator: ${comparator}
+Primary Outcomes: ${outcomes}
+${sampleSize ? `Sample Size: ${sampleSize}` : "Sample Size: Generate realistic N based on study type"}
+
+Generate statistical analysis results in JSON format with:
+- analysisOverview: 2-3 sentence summary of analytical approach
+- primaryAnalysis: object with "method" (e.g., Cox regression), "model" (model specification), "results" (effect estimate with 95% CI and p-value), "interpretation" (clinical interpretation)
+- secondaryAnalyses: array of 2-3 secondary analyses with "name", "method", "results"
+- subgroupAnalyses: array of 3-4 subgroup results with "subgroup", "result" (HR/OR with CI), "pInteraction"
+- sensitivityAnalyses: array of 3-4 sensitivity analyses with "analysis", "result", "conclusion"
+- tables: array of 2-3 results tables with "tableNumber", "title", "content" (formatted table as string)
+- keyFindings: array of 4-5 key statistical findings
+- limitations: array of 3-4 statistical limitations
+
+Generate realistic statistical results that would be plausible for this research question.
+Return only valid JSON.`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+    max_tokens: 5000,
+  });
+
+  const contentStats = response.choices[0]?.message?.content || "{}";
+  return JSON.parse(contentStats);
+}
+
+// ====================================================================
+// STAGE 14: MANUSCRIPT DRAFT
+// ====================================================================
+export interface ManuscriptDraftResult {
+  title: string;
+  abstract: {
+    background: string;
+    methods: string;
+    results: string;
+    conclusions: string;
+    wordCount: number;
+  };
+  introduction: string;
+  methods: string;
+  results: string;
+  discussion: string;
+  conclusions: string;
+  keywords: string[];
+  wordCount: number;
+  suggestedFigures: { number: number; title: string; description: string }[];
+  suggestedTables: { number: number; title: string; description: string }[];
+}
+
+export async function generateManuscriptDraft(
+  topic: string,
+  population: string,
+  intervention: string,
+  comparator: string,
+  outcomes: string,
+  statisticalResults?: string,
+  literatureSummary?: string
+): Promise<ManuscriptDraftResult> {
+  const prompt = `You are a medical writer drafting a research manuscript. Generate a complete first draft.
+
+Research Topic: ${topic}
+Population: ${population}
+Intervention/Exposure: ${intervention}
+Comparator: ${comparator}
+Outcomes: ${outcomes}
+${statisticalResults ? `Key Statistical Results: ${statisticalResults}` : ""}
+${literatureSummary ? `Literature Context: ${literatureSummary}` : ""}
+
+Generate a complete manuscript draft in JSON format with:
+- title: concise, descriptive title (15-20 words)
+- abstract: object with "background" (2-3 sentences), "methods" (3-4 sentences), "results" (3-4 sentences), "conclusions" (2-3 sentences), "wordCount" (should be 200-300)
+- introduction: 3-4 paragraph introduction with background, gap, and objectives (400-500 words)
+- methods: detailed methods section covering study design, population, exposures, outcomes, statistical analysis (500-700 words)
+- results: results section with baseline characteristics, primary analysis, secondary analyses (500-700 words)
+- discussion: 4-5 paragraph discussion with key findings, comparison to literature, implications, limitations, future directions (600-800 words)
+- conclusions: final conclusions paragraph (100-150 words)
+- keywords: array of 5-6 MeSH terms/keywords
+- wordCount: total manuscript word count (target 3000-4000)
+- suggestedFigures: array of 2-3 suggested figures with "number", "title", "description"
+- suggestedTables: array of 2-3 suggested tables with "number", "title", "description"
+
+Write in formal academic style appropriate for peer-reviewed publication.
+Return only valid JSON.`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",  // Use more capable model for manuscript writing
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+    max_tokens: 8000,
+  });
+
+  const contentDraft = response.choices[0]?.message?.content || "{}";
+  return JSON.parse(contentDraft);
+}
+
+// ====================================================================
+// STAGE 15: MANUSCRIPT POLISH
+// ====================================================================
+export interface ManuscriptPolishResult {
+  revisionSummary: string;
+  languageCorrections: { original: string; corrected: string; reason: string }[];
+  structuralImprovements: string[];
+  clarityEnhancements: string[];
+  consistencyChecks: { issue: string; resolution: string }[];
+  referenceFormatting: string;
+  readabilityScore: number;
+  wordCountFinal: number;
+  checklist: { item: string; status: 'complete' | 'needs attention'; notes: string }[];
+}
+
+export async function generateManuscriptPolish(
+  manuscriptDraft: string,
+  targetJournal?: string
+): Promise<ManuscriptPolishResult> {
+  const draftSummary = manuscriptDraft.length > 2000
+    ? manuscriptDraft.substring(0, 2000) + "..."
+    : manuscriptDraft;
+
+  const prompt = `You are a professional medical editor polishing a manuscript for submission.
+
+Manuscript Summary: ${draftSummary}
+${targetJournal ? `Target Journal: ${targetJournal}` : ""}
+
+Generate a manuscript polish report in JSON format with:
+- revisionSummary: overview of revisions made (100-150 words)
+- languageCorrections: array of 5-8 example corrections with "original", "corrected", "reason"
+- structuralImprovements: array of 4-6 structural improvements made
+- clarityEnhancements: array of 4-6 clarity improvements
+- consistencyChecks: array of 3-4 consistency issues with "issue", "resolution"
+- referenceFormatting: description of reference style applied
+- readabilityScore: Flesch-Kincaid grade level (typically 12-16 for academic writing)
+- wordCountFinal: final word count after editing
+- checklist: array of 8-10 submission checklist items with "item", "status" ("complete" or "needs attention"), "notes"
+
+Provide actionable feedback for manuscript improvement.
+Return only valid JSON.`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+    max_tokens: 3000,
+  });
+
+  const contentPolish = response.choices[0]?.message?.content || "{}";
+  return JSON.parse(contentPolish);
+}

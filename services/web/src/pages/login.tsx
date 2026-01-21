@@ -34,7 +34,8 @@ export default function LoginPage() {
     try {
       const result = await login({ email, password });
       if (result.success) {
-        setLocation('/');
+        // Redirect to onboarding for first-time setup
+        setLocation('/onboarding');
       } else {
         setError(result.error || 'Login failed. Please try again.');
       }

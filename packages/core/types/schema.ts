@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, type InferSelectModel } from "drizzle-orm";
 import { pgTable, text, varchar, serial, integer, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -59,9 +59,9 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   createdAt: true,
 });
 
-export type Conversation = typeof conversations.$inferSelect;
+export type Conversation = InferSelectModel<typeof conversations>;
 export type InsertConversation = z.infer<typeof insertConversationSchema>;
-export type Message = typeof messages.$inferSelect;
+export type Message = InferSelectModel<typeof messages>;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 
 // Artifact Type Enum
@@ -112,7 +112,7 @@ export const artifactSchema = z.object({
   createdAt: z.date(),
 });
 
-export type Artifact = typeof artifacts.$inferSelect;
+export type Artifact = InferSelectModel<typeof artifacts>;
 export type InsertArtifact = z.infer<typeof insertArtifactSchema>;
 
 // Artifact Versions Table (Database)
@@ -148,7 +148,7 @@ export const artifactVersionSchema = z.object({
   createdAt: z.date(),
 });
 
-export type ArtifactVersion = typeof artifactVersions.$inferSelect;
+export type ArtifactVersion = InferSelectModel<typeof artifactVersions>;
 export type InsertArtifactVersion = z.infer<typeof insertArtifactVersionSchema>;
 
 // Artifact Comparisons Table (Database)
@@ -169,7 +169,7 @@ export const insertArtifactComparisonSchema = createInsertSchema(artifactCompari
   comparedAt: true,
 });
 
-export type ArtifactComparison = typeof artifactComparisons.$inferSelect;
+export type ArtifactComparison = InferSelectModel<typeof artifactComparisons>;
 export type InsertArtifactComparison = z.infer<typeof insertArtifactComparisonSchema>;
 
 // File Uploads Table (for real file upload functionality)
@@ -194,7 +194,7 @@ export const insertFileUploadSchema = createInsertSchema(fileUploads).omit({
   createdAt: true,
 });
 
-export type FileUpload = typeof fileUploads.$inferSelect;
+export type FileUpload = InferSelectModel<typeof fileUploads>;
 export type InsertFileUpload = z.infer<typeof insertFileUploadSchema>;
 
 // Research Sessions Table (for workflow state persistence)
@@ -215,7 +215,7 @@ export const insertResearchSessionSchema = createInsertSchema(researchSessions).
   lastActiveAt: true,
 });
 
-export type ResearchSession = typeof researchSessions.$inferSelect;
+export type ResearchSession = InferSelectModel<typeof researchSessions>;
 export type InsertResearchSession = z.infer<typeof insertResearchSessionSchema>;
 
 // =====================
@@ -244,7 +244,7 @@ export const insertResearchProjectSchema = createInsertSchema(researchProjects).
   updatedAt: true,
 });
 
-export type ResearchProject = typeof researchProjects.$inferSelect;
+export type ResearchProject = InferSelectModel<typeof researchProjects>;
 export type InsertResearchProject = z.infer<typeof insertResearchProjectSchema>;
 
 // User Roles Table (for RBAC)
@@ -263,7 +263,7 @@ export const insertUserRoleSchema = createInsertSchema(userRoles).omit({
   grantedAt: true,
 });
 
-export type UserRoleRecord = typeof userRoles.$inferSelect;
+export type UserRoleRecord = InferSelectModel<typeof userRoles>;
 export type InsertUserRole = z.infer<typeof insertUserRoleSchema>;
 
 // Approval Mode Types
@@ -308,7 +308,7 @@ export const insertApprovalGateSchema = createInsertSchema(approvalGates).omit({
   requestedAt: true,
 });
 
-export type ApprovalGateRecord = typeof approvalGates.$inferSelect;
+export type ApprovalGateRecord = InferSelectModel<typeof approvalGates>;
 export type InsertApprovalGate = z.infer<typeof insertApprovalGateSchema>;
 
 // Approval Audit Entries Table (linked to approval gates)
@@ -336,7 +336,7 @@ export const insertApprovalAuditEntrySchema = createInsertSchema(approvalAuditEn
   performedAt: true,
 });
 
-export type ApprovalAuditEntryRecord = typeof approvalAuditEntries.$inferSelect;
+export type ApprovalAuditEntryRecord = InferSelectModel<typeof approvalAuditEntries>;
 export type InsertApprovalAuditEntry = z.infer<typeof insertApprovalAuditEntrySchema>;
 
 // Audit Logs Table (with hash chain for immutable audit trail)
@@ -362,7 +362,7 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   createdAt: true,
 });
 
-export type AuditLog = typeof auditLogs.$inferSelect;
+export type AuditLog = InferSelectModel<typeof auditLogs>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 
 // PHI Incidents Table
@@ -389,7 +389,7 @@ export const insertPhiIncidentSchema = createInsertSchema(phiIncidents).omit({
   updatedAt: true,
 });
 
-export type PhiIncident = typeof phiIncidents.$inferSelect;
+export type PhiIncident = InferSelectModel<typeof phiIncidents>;
 export type InsertPhiIncident = z.infer<typeof insertPhiIncidentSchema>;
 
 // Handoff Packs Table (for structured AI outputs)
@@ -431,7 +431,7 @@ export const insertHandoffPackSchema = createInsertSchema(handoffPacks).omit({
   generatedAt: true,
 });
 
-export type HandoffPackRecord = typeof handoffPacks.$inferSelect;
+export type HandoffPackRecord = InferSelectModel<typeof handoffPacks>;
 export type InsertHandoffPack = z.infer<typeof insertHandoffPackSchema>;
 
 // =====================
@@ -490,7 +490,7 @@ export const insertTopicSchema = createInsertSchema(topics).omit({
   updatedAt: true,
 });
 
-export type Topic = typeof topics.$inferSelect;
+export type Topic = InferSelectModel<typeof topics>;
 export type InsertTopic = z.infer<typeof insertTopicSchema>;
 
 // =====================
@@ -537,7 +537,7 @@ export const insertStatisticalPlanSchema = createInsertSchema(statisticalPlans).
   updatedAt: true,
 });
 
-export type StatisticalPlanRecord = typeof statisticalPlans.$inferSelect;
+export type StatisticalPlanRecord = InferSelectModel<typeof statisticalPlans>;
 export type InsertStatisticalPlan = z.infer<typeof insertStatisticalPlanSchema>;
 
 // =====================
@@ -596,7 +596,7 @@ export const insertResearchBriefSchema = createInsertSchema(researchBriefs).omit
   updatedAt: true,
 });
 
-export type ResearchBriefRecord = typeof researchBriefs.$inferSelect;
+export type ResearchBriefRecord = InferSelectModel<typeof researchBriefs>;
 export type InsertResearchBrief = z.infer<typeof insertResearchBriefSchema>;
 
 // =====================
@@ -637,7 +637,7 @@ export const insertConferenceRequirementsSchema = createInsertSchema(conferenceR
   updatedAt: true,
 });
 
-export type ConferenceRequirementsRecord = typeof conferenceRequirements.$inferSelect;
+export type ConferenceRequirementsRecord = InferSelectModel<typeof conferenceRequirements>;
 export type InsertConferenceRequirements = z.infer<typeof insertConferenceRequirementsSchema>;
 
 export const conferenceMaterials = pgTable("conference_materials", {
@@ -667,7 +667,7 @@ export const insertConferenceMaterialSchema = createInsertSchema(conferenceMater
   updatedAt: true,
 });
 
-export type ConferenceMaterialRecord = typeof conferenceMaterials.$inferSelect;
+export type ConferenceMaterialRecord = InferSelectModel<typeof conferenceMaterials>;
 export type InsertConferenceMaterial = z.infer<typeof insertConferenceMaterialSchema>;
 
 export const complianceChecklists = pgTable("compliance_checklists", {
@@ -691,7 +691,7 @@ export const insertComplianceChecklistSchema = createInsertSchema(complianceChec
   updatedAt: true,
 });
 
-export type ComplianceChecklistRecord = typeof complianceChecklists.$inferSelect;
+export type ComplianceChecklistRecord = InferSelectModel<typeof complianceChecklists>;
 export type InsertComplianceChecklist = z.infer<typeof insertComplianceChecklistSchema>;
 
 // =====================
@@ -725,7 +725,7 @@ export const insertPhiScanResultSchema = createInsertSchema(phiScanResults).omit
   scannedAt: true,
 });
 
-export type PhiScanResultRecord = typeof phiScanResults.$inferSelect;
+export type PhiScanResultRecord = InferSelectModel<typeof phiScanResults>;
 export type InsertPhiScanResult = z.infer<typeof insertPhiScanResultSchema>;
 
 // =====================
@@ -755,7 +755,7 @@ export const insertDatasetSchema = createInsertSchema(datasets).omit({
   uploadedAt: true,
 });
 
-export type Dataset = typeof datasets.$inferSelect;
+export type Dataset = InferSelectModel<typeof datasets>;
 export type InsertDataset = z.infer<typeof insertDatasetSchema>;
 
 // =====================
@@ -782,7 +782,7 @@ export const insertStorageFileSchema = createInsertSchema(storageFiles).omit({
   uploadedAt: true,
 });
 
-export type StorageFile = typeof storageFiles.$inferSelect;
+export type StorageFile = InferSelectModel<typeof storageFiles>;
 export type InsertStorageFile = z.infer<typeof insertStorageFileSchema>;
 
 // =====================
@@ -808,7 +808,7 @@ export const insertApprovalSchema = createInsertSchema(approvals).omit({
   requestedAt: true,
 });
 
-export type Approval = typeof approvals.$inferSelect;
+export type Approval = InferSelectModel<typeof approvals>;
 export type InsertApproval = z.infer<typeof insertApprovalSchema>;
 
 // =====================
@@ -846,7 +846,7 @@ export const insertEthicsApprovalSchema = createInsertSchema(ethicsApprovals).om
   createdAt: true,
 });
 
-export type EthicsApprovalRecord = typeof ethicsApprovals.$inferSelect;
+export type EthicsApprovalRecord = InferSelectModel<typeof ethicsApprovals>;
 export type InsertEthicsApproval = z.infer<typeof insertEthicsApprovalSchema>;
 
 // AI Invocations Table (Task 64 - Explainability)
@@ -892,7 +892,7 @@ export const insertAiInvocationSchema = createInsertSchema(aiInvocations).omit({
   createdAt: true,
 });
 
-export type AiInvocationRecord = typeof aiInvocations.$inferSelect;
+export type AiInvocationRecord = InferSelectModel<typeof aiInvocations>;
 export type InsertAiInvocation = z.infer<typeof insertAiInvocationSchema>;
 
 // AI Output Feedback Table (Task 65)
@@ -919,7 +919,7 @@ export const insertAiOutputFeedbackSchema = createInsertSchema(aiOutputFeedback)
   createdAt: true,
 });
 
-export type AiOutputFeedbackRecord = typeof aiOutputFeedback.$inferSelect;
+export type AiOutputFeedbackRecord = InferSelectModel<typeof aiOutputFeedback>;
 export type InsertAiOutputFeedback = z.infer<typeof insertAiOutputFeedbackSchema>;
 
 // User Consents Table (Task 73 - GDPR)
@@ -953,7 +953,7 @@ export const insertUserConsentSchema = createInsertSchema(userConsents).omit({
   createdAt: true,
 });
 
-export type UserConsentRecord = typeof userConsents.$inferSelect;
+export type UserConsentRecord = InferSelectModel<typeof userConsents>;
 export type InsertUserConsent = z.infer<typeof insertUserConsentSchema>;
 
 // User Quotas Table (Task 75)
@@ -985,7 +985,7 @@ export const insertUserQuotaSchema = createInsertSchema(userQuotas).omit({
   updatedAt: true,
 });
 
-export type UserQuotaRecord = typeof userQuotas.$inferSelect;
+export type UserQuotaRecord = InferSelectModel<typeof userQuotas>;
 export type InsertUserQuota = z.infer<typeof insertUserQuotaSchema>;
 
 // MFA Enrollments Table (Task 79)
@@ -1013,7 +1013,7 @@ export const insertMfaEnrollmentSchema = createInsertSchema(mfaEnrollments).omit
   enrolledAt: true,
 });
 
-export type MfaEnrollmentRecord = typeof mfaEnrollments.$inferSelect;
+export type MfaEnrollmentRecord = InferSelectModel<typeof mfaEnrollments>;
 export type InsertMfaEnrollment = z.infer<typeof insertMfaEnrollmentSchema>;
 
 // Security Anomalies Table (Task 67)
@@ -1046,7 +1046,7 @@ export const insertSecurityAnomalySchema = createInsertSchema(securityAnomalies)
   detectedAt: true,
 });
 
-export type SecurityAnomalyRecord = typeof securityAnomalies.$inferSelect;
+export type SecurityAnomalyRecord = InferSelectModel<typeof securityAnomalies>;
 export type InsertSecurityAnomaly = z.infer<typeof insertSecurityAnomalySchema>;
 
 // =====================
@@ -1087,7 +1087,7 @@ export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   updatedAt: true,
 });
 
-export type OrganizationRecord = typeof organizations.$inferSelect;
+export type OrganizationRecord = InferSelectModel<typeof organizations>;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
 
 // Org Memberships Table (Task 81)
@@ -1106,7 +1106,7 @@ export const insertOrgMembershipSchema = createInsertSchema(orgMemberships).omit
   joinedAt: true,
 });
 
-export type OrgMembershipRecord = typeof orgMemberships.$inferSelect;
+export type OrgMembershipRecord = InferSelectModel<typeof orgMemberships>;
 export type InsertOrgMembership = z.infer<typeof insertOrgMembershipSchema>;
 
 // Org Invites Table (Task 83)
@@ -1128,7 +1128,7 @@ export const insertOrgInviteSchema = createInsertSchema(orgInvites).omit({
   createdAt: true,
 });
 
-export type OrgInviteRecord = typeof orgInvites.$inferSelect;
+export type OrgInviteRecord = InferSelectModel<typeof orgInvites>;
 export type InsertOrgInvite = z.infer<typeof insertOrgInviteSchema>;
 
 // Org Subscriptions Table (Task 84)
@@ -1153,7 +1153,7 @@ export const insertOrgSubscriptionSchema = createInsertSchema(orgSubscriptions).
   updatedAt: true,
 });
 
-export type OrgSubscriptionRecord = typeof orgSubscriptions.$inferSelect;
+export type OrgSubscriptionRecord = InferSelectModel<typeof orgSubscriptions>;
 export type InsertOrgSubscription = z.infer<typeof insertOrgSubscriptionSchema>;
 
 // Org Integrations Table (Task 85-86, 99)
@@ -1176,7 +1176,7 @@ export const insertOrgIntegrationSchema = createInsertSchema(orgIntegrations).om
   updatedAt: true,
 });
 
-export type OrgIntegrationRecord = typeof orgIntegrations.$inferSelect;
+export type OrgIntegrationRecord = InferSelectModel<typeof orgIntegrations>;
 export type InsertOrgIntegration = z.infer<typeof insertOrgIntegrationSchema>;
 
 // Review Sessions Table (Task 87 - Zoom)
@@ -1207,7 +1207,7 @@ export const insertReviewSessionSchema = createInsertSchema(reviewSessions).omit
   updatedAt: true,
 });
 
-export type ReviewSessionRecord = typeof reviewSessions.$inferSelect;
+export type ReviewSessionRecord = InferSelectModel<typeof reviewSessions>;
 export type InsertReviewSession = z.infer<typeof insertReviewSessionSchema>;
 
 // Badges Table (Task 92 - Gamification)
@@ -1229,7 +1229,7 @@ export const insertBadgeSchema = createInsertSchema(badges).omit({
   createdAt: true,
 });
 
-export type BadgeRecord = typeof badges.$inferSelect;
+export type BadgeRecord = InferSelectModel<typeof badges>;
 export type InsertBadge = z.infer<typeof insertBadgeSchema>;
 
 // User Badges Table (Task 92)
@@ -1248,7 +1248,7 @@ export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
   awardedAt: true,
 });
 
-export type UserBadgeRecord = typeof userBadges.$inferSelect;
+export type UserBadgeRecord = InferSelectModel<typeof userBadges>;
 export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
 
 // User Onboarding Table (Task 97)
@@ -1270,7 +1270,7 @@ export const insertUserOnboardingSchema = createInsertSchema(userOnboarding).omi
   updatedAt: true,
 });
 
-export type UserOnboardingRecord = typeof userOnboarding.$inferSelect;
+export type UserOnboardingRecord = InferSelectModel<typeof userOnboarding>;
 export type InsertUserOnboarding = z.infer<typeof insertUserOnboardingSchema>;
 
 // Notion Mappings Table (Task 86)
@@ -1291,7 +1291,7 @@ export const insertNotionMappingSchema = createInsertSchema(notionMappings).omit
   createdAt: true,
 });
 
-export type NotionMappingRecord = typeof notionMappings.$inferSelect;
+export type NotionMappingRecord = InferSelectModel<typeof notionMappings>;
 export type InsertNotionMapping = z.infer<typeof insertNotionMappingSchema>;
 
 // ============================================================
@@ -1320,7 +1320,7 @@ export const insertIdeaSchema = createInsertSchema(ideas).omit({
   deletedAt: true,
 });
 
-export type Idea = typeof ideas.$inferSelect;
+export type Idea = InferSelectModel<typeof ideas>;
 export type InsertIdea = z.infer<typeof insertIdeaSchema>;
 
 // Idea Scorecards Table - Scoring criteria for evaluating ideas
@@ -1345,7 +1345,7 @@ export const insertIdeaScorecardSchema = createInsertSchema(ideaScorecards).omit
   updatedAt: true,
 });
 
-export type IdeaScorecard = typeof ideaScorecards.$inferSelect;
+export type IdeaScorecard = InferSelectModel<typeof ideaScorecards>;
 export type InsertIdeaScorecard = z.infer<typeof insertIdeaScorecardSchema>;
 
 // Topic Briefs Table - Structured research planning documents with PICO framework
@@ -1389,7 +1389,7 @@ export const insertTopicBriefSchema = createInsertSchema(topicBriefs).omit({
   deletedAt: true,
 });
 
-export type TopicBrief = typeof topicBriefs.$inferSelect;
+export type TopicBrief = InferSelectModel<typeof topicBriefs>;
 export type InsertTopicBrief = z.infer<typeof insertTopicBriefSchema>;
 
 // Venues Table - Target publication/presentation venues
@@ -1419,7 +1419,7 @@ export const insertVenueSchema = createInsertSchema(venues).omit({
   deletedAt: true,
 });
 
-export type Venue = typeof venues.$inferSelect;
+export type Venue = InferSelectModel<typeof venues>;
 export type InsertVenue = z.infer<typeof insertVenueSchema>;
 
 // Doc Kits Table - Document preparation kits per venue
@@ -1444,7 +1444,7 @@ export const insertDocKitSchema = createInsertSchema(docKits).omit({
   deletedAt: true,
 });
 
-export type DocKit = typeof docKits.$inferSelect;
+export type DocKit = InferSelectModel<typeof docKits>;
 export type InsertDocKit = z.infer<typeof insertDocKitSchema>;
 
 // Doc Kit Items Table - Individual documents in a kit
@@ -1472,7 +1472,7 @@ export const insertDocKitItemSchema = createInsertSchema(docKitItems).omit({
   deletedAt: true,
 });
 
-export type DocKitItem = typeof docKitItems.$inferSelect;
+export type DocKitItem = InferSelectModel<typeof docKitItems>;
 export type InsertDocKitItem = z.infer<typeof insertDocKitItemSchema>;
 
 // Doc Anchors Table - Hash chain for immutable scope freeze snapshots
@@ -1492,7 +1492,7 @@ export const insertDocAnchorSchema = createInsertSchema(docAnchors).omit({
   createdAt: true,
 });
 
-export type DocAnchor = typeof docAnchors.$inferSelect;
+export type DocAnchor = InferSelectModel<typeof docAnchors>;
 export type InsertDocAnchor = z.infer<typeof insertDocAnchorSchema>;
 
 // ============================================================
@@ -1521,7 +1521,7 @@ export const insertFeatureFlagSchema = createInsertSchema(featureFlags).omit({
   updatedAt: true,
 });
 
-export type FeatureFlag = typeof featureFlags.$inferSelect;
+export type FeatureFlag = InferSelectModel<typeof featureFlags>;
 export type InsertFeatureFlag = z.infer<typeof insertFeatureFlagSchema>;
 
 // Experiments Table (A/B Testing)
@@ -1548,7 +1548,7 @@ export const insertExperimentSchema = createInsertSchema(experiments).omit({
   updatedAt: true,
 });
 
-export type Experiment = typeof experiments.$inferSelect;
+export type Experiment = InferSelectModel<typeof experiments>;
 export type InsertExperiment = z.infer<typeof insertExperimentSchema>;
 
 // Experiment Assignments Table
@@ -1565,7 +1565,7 @@ export const insertExperimentAssignmentSchema = createInsertSchema(experimentAss
   assignedAt: true,
 });
 
-export type ExperimentAssignment = typeof experimentAssignments.$inferSelect;
+export type ExperimentAssignment = InferSelectModel<typeof experimentAssignments>;
 export type InsertExperimentAssignment = z.infer<typeof insertExperimentAssignmentSchema>;
 
 // =====================
@@ -1590,7 +1590,7 @@ export const insertOrgCustomFieldSchema = createInsertSchema(orgCustomFields).om
   updatedAt: true,
 });
 
-export type OrgCustomField = typeof orgCustomFields.$inferSelect;
+export type OrgCustomField = InferSelectModel<typeof orgCustomFields>;
 export type InsertOrgCustomField = z.infer<typeof insertOrgCustomFieldSchema>;
 
 // Entity Custom Field Values Table
@@ -1610,7 +1610,7 @@ export const insertEntityCustomFieldValueSchema = createInsertSchema(entityCusto
   updatedAt: true,
 });
 
-export type EntityCustomFieldValue = typeof entityCustomFieldValues.$inferSelect;
+export type EntityCustomFieldValue = InferSelectModel<typeof entityCustomFieldValues>;
 export type InsertEntityCustomFieldValue = z.infer<typeof insertEntityCustomFieldValueSchema>;
 
 // =====================
@@ -1635,7 +1635,7 @@ export const insertArtifactEmbeddingSchema = createInsertSchema(artifactEmbeddin
   updatedAt: true,
 });
 
-export type ArtifactEmbedding = typeof artifactEmbeddings.$inferSelect;
+export type ArtifactEmbedding = InferSelectModel<typeof artifactEmbeddings>;
 export type InsertArtifactEmbedding = z.infer<typeof insertArtifactEmbeddingSchema>;
 
 // =====================
@@ -1662,7 +1662,7 @@ export const insertTutorialAssetSchema = createInsertSchema(tutorialAssets).omit
   updatedAt: true,
 });
 
-export type TutorialAsset = typeof tutorialAssets.$inferSelect;
+export type TutorialAsset = InferSelectModel<typeof tutorialAssets>;
 export type InsertTutorialAsset = z.infer<typeof insertTutorialAssetSchema>;
 // ============================================================
 // PHASE G: CUSTOM WORKFLOW BUILDER TABLES (Migration 0007)
@@ -1697,7 +1697,7 @@ export const insertWorkflowSchema = createInsertSchema(workflows).omit({
   updatedAt: true,
 });
 
-export type WorkflowRecord = typeof workflows.$inferSelect;
+export type WorkflowRecord = InferSelectModel<typeof workflows>;
 export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
 
 // =====================
@@ -1718,7 +1718,7 @@ export const insertWorkflowVersionSchema = createInsertSchema(workflowVersions).
   createdAt: true,
 });
 
-export type WorkflowVersionRecord = typeof workflowVersions.$inferSelect;
+export type WorkflowVersionRecord = InferSelectModel<typeof workflowVersions>;
 export type InsertWorkflowVersion = z.infer<typeof insertWorkflowVersionSchema>;
 
 // =====================
@@ -1738,7 +1738,7 @@ export const insertWorkflowTemplateSchema = createInsertSchema(workflowTemplates
   createdAt: true,
 });
 
-export type WorkflowTemplateRecord = typeof workflowTemplates.$inferSelect;
+export type WorkflowTemplateRecord = InferSelectModel<typeof workflowTemplates>;
 export type InsertWorkflowTemplate = z.infer<typeof insertWorkflowTemplateSchema>;
 
 // =====================
@@ -1755,7 +1755,7 @@ export const insertWorkflowPolicySchema = createInsertSchema(workflowPolicies).o
   updatedAt: true,
 });
 
-export type WorkflowPolicyRecord = typeof workflowPolicies.$inferSelect;
+export type WorkflowPolicyRecord = InferSelectModel<typeof workflowPolicies>;
 export type InsertWorkflowPolicy = z.infer<typeof insertWorkflowPolicySchema>;
 
 // =====================
@@ -1781,7 +1781,7 @@ export const insertWorkflowRunCheckpointSchema = createInsertSchema(workflowRunC
   updatedAt: true,
 });
 
-export type WorkflowRunCheckpointRecord = typeof workflowRunCheckpoints.$inferSelect;
+export type WorkflowRunCheckpointRecord = InferSelectModel<typeof workflowRunCheckpoints>;
 export type InsertWorkflowRunCheckpoint = z.infer<typeof insertWorkflowRunCheckpointSchema>;
 
 // =====================
@@ -1821,7 +1821,7 @@ export const insertArtifactEdgeSchema = createInsertSchema(artifactEdges).omit({
   createdAt: true,
 });
 
-export type ArtifactEdge = typeof artifactEdges.$inferSelect;
+export type ArtifactEdge = InferSelectModel<typeof artifactEdges>;
 export type InsertArtifactEdge = z.infer<typeof insertArtifactEdgeSchema>;
 
 // Comment Anchor Types
@@ -1868,7 +1868,7 @@ export const insertCommentSchema = createInsertSchema(comments).omit({
   updatedAt: true,
 });
 
-export type Comment = typeof comments.$inferSelect;
+export type Comment = InferSelectModel<typeof comments>;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 
 // Claim Status Types
@@ -1900,7 +1900,7 @@ export const insertClaimSchema = createInsertSchema(claims).omit({
   createdAt: true,
 });
 
-export type Claim = typeof claims.$inferSelect;
+export type Claim = InferSelectModel<typeof claims>;
 export type InsertClaim = z.infer<typeof insertClaimSchema>;
 
 // Evidence Types
@@ -1932,7 +1932,7 @@ export const insertClaimEvidenceLinkSchema = createInsertSchema(claimEvidenceLin
   linkedAt: true,
 });
 
-export type ClaimEvidenceLink = typeof claimEvidenceLinks.$inferSelect;
+export type ClaimEvidenceLink = InferSelectModel<typeof claimEvidenceLinks>;
 export type InsertClaimEvidenceLink = z.infer<typeof insertClaimEvidenceLinkSchema>;
 
 // Share Permissions
@@ -1957,7 +1957,7 @@ export const insertArtifactShareSchema = createInsertSchema(artifactShares).omit
   createdAt: true,
 });
 
-export type ArtifactShare = typeof artifactShares.$inferSelect;
+export type ArtifactShare = InferSelectModel<typeof artifactShares>;
 export type InsertArtifactShare = z.infer<typeof insertArtifactShareSchema>;
 
 // Submission Target Kinds
@@ -1982,7 +1982,7 @@ export const insertSubmissionTargetSchema = createInsertSchema(submissionTargets
   createdAt: true,
 });
 
-export type SubmissionTarget = typeof submissionTargets.$inferSelect;
+export type SubmissionTarget = InferSelectModel<typeof submissionTargets>;
 export type InsertSubmissionTarget = z.infer<typeof insertSubmissionTargetSchema>;
 
 // Submission Statuses
@@ -2020,7 +2020,7 @@ export const insertSubmissionSchema = createInsertSchema(submissions).omit({
   updatedAt: true,
 });
 
-export type Submission = typeof submissions.$inferSelect;
+export type Submission = InferSelectModel<typeof submissions>;
 export type InsertSubmission = z.infer<typeof insertSubmissionSchema>;
 
 // Reviewer Point Statuses
@@ -2048,7 +2048,7 @@ export const insertReviewerPointSchema = createInsertSchema(reviewerPoints).omit
   createdAt: true,
 });
 
-export type ReviewerPoint = typeof reviewerPoints.$inferSelect;
+export type ReviewerPoint = InferSelectModel<typeof reviewerPoints>;
 export type InsertReviewerPoint = z.infer<typeof insertReviewerPointSchema>;
 
 // Rebuttal Responses Table
@@ -2068,7 +2068,7 @@ export const insertRebuttalResponseSchema = createInsertSchema(rebuttalResponses
   createdAt: true,
 });
 
-export type RebuttalResponse = typeof rebuttalResponses.$inferSelect;
+export type RebuttalResponse = InferSelectModel<typeof rebuttalResponses>;
 export type InsertRebuttalResponse = z.infer<typeof insertRebuttalResponseSchema>;
 
 // Submission Package Types
@@ -2091,7 +2091,7 @@ export const insertSubmissionPackageSchema = createInsertSchema(submissionPackag
   createdAt: true,
 });
 
-export type SubmissionPackage = typeof submissionPackages.$inferSelect;
+export type SubmissionPackage = InferSelectModel<typeof submissionPackages>;
 export type InsertSubmissionPackage = z.infer<typeof insertSubmissionPackageSchema>;
 
 // Manuscript Yjs Snapshots Table
@@ -2109,7 +2109,7 @@ export const insertManuscriptYjsSnapshotSchema = createInsertSchema(manuscriptYj
   createdAt: true,
 });
 
-export type ManuscriptYjsSnapshot = typeof manuscriptYjsSnapshots.$inferSelect;
+export type ManuscriptYjsSnapshot = InferSelectModel<typeof manuscriptYjsSnapshots>;
 export type InsertManuscriptYjsSnapshot = z.infer<typeof insertManuscriptYjsSnapshotSchema>;
 
 // Manuscript Yjs Updates Table
@@ -2127,7 +2127,7 @@ export const insertManuscriptYjsUpdateSchema = createInsertSchema(manuscriptYjsU
   appliedAt: true,
 });
 
-export type ManuscriptYjsUpdate = typeof manuscriptYjsUpdates.$inferSelect;
+export type ManuscriptYjsUpdate = InferSelectModel<typeof manuscriptYjsUpdates>;
 export type InsertManuscriptYjsUpdate = z.infer<typeof insertManuscriptYjsUpdateSchema>;
 
 // =====================
@@ -2156,7 +2156,7 @@ export const insertGovernanceConfigSchema = createInsertSchema(governanceConfig)
   updatedAt: true,
 });
 
-export type GovernanceConfig = typeof governanceConfig.$inferSelect;
+export type GovernanceConfig = InferSelectModel<typeof governanceConfig>;
 export type InsertGovernanceConfig = z.infer<typeof insertGovernanceConfigSchema>;
 
 // Note: Feature Flags, Experiments, and Experiment Assignments tables are defined
@@ -2183,7 +2183,7 @@ export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).om
   createdAt: true,
 });
 
-export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type AnalyticsEvent = InferSelectModel<typeof analyticsEvents>;
 export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;
 
 // Allowed analytics event names (PHI-safe allowlist)
