@@ -23,6 +23,7 @@
 
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import crypto from 'crypto';
 import { requireRole, logAuditEvent } from '../middleware/rbac';
 import * as workflowService from '../services/workflowService';
 import {
@@ -442,6 +443,104 @@ router.post('/:id/policy', requireRole('STEWARD'), async (req: Request, res: Res
   } catch (error) {
     console.error('[workflows] Set policy error:', error);
     res.status(500).json({ error: 'Failed to set policy' });
+  }
+});
+
+// POST /api/workflows/:id/execute - Execute workflow
+router.post('/:id/execute', requireRole('RESEARCHER'), async (req: Request, res: Response) => {
+  try {
+    const { id: userId, orgId } = getUserFromRequest(req);
+    const { inputs } = req.body;
+
+    const workflow = await workflowService.getWorkflow(req.params.id, orgId);
+    if (!workflow) {
+      return res.status(404).json({ error: 'Workflow not found' });
+    }
+
+    // Get the latest published version
+    const version = await workflowService.getLatestPublishedVersion(workflow.id);
+    if (!version) {
+      return res.status(400).json({ 
+        error: 'No published version available',
+        message: 'Workflow must be published before execution' 
+      });
+    }
+
+    // Create execution record
+    const executionId = crypto.randomUUID();
+    const execution = {
+      id: executionId,
+      workflowId: workflow.id,
+      versionId: version.id,
+      userId,
+      status: 'running',
+      inputs: inputs || {},
+      outputs: {},
+      startedAt: new Date().toISOString(),
+      completedAt: null,
+    };
+
+    // Log execution start
+    await logAuditEvent({
+      eventType: 'WORKFLOW_EXECUTED',
+      userId,
+      resourceType: 'workflow',
+      resourceId: workflow.id,
+      action: 'EXECUTE',
+      details: { executionId, inputs },
+    });
+
+    // Return execution ID immediately for async processing
+    res.json({
+      executionId,
+      status: 'running',
+      message: 'Workflow execution started',
+      workflowId: workflow.id,
+      versionId: version.id,
+    });
+
+    // TODO: Send to worker service for actual execution
+    // This would be done via the worker service or a job queue
+  } catch (error) {
+    console.error('[workflows] Execute error:', error);
+    res.status(500).json({ error: 'Failed to execute workflow' });
+  }
+});
+
+// GET /api/workflows/:id/executions - List workflow executions
+router.get('/:id/executions', requireRole('VIEWER'), async (req: Request, res: Response) => {
+  try {
+    const { orgId } = getUserFromRequest(req);
+    const workflow = await workflowService.getWorkflow(req.params.id, orgId);
+    
+    if (!workflow) {
+      return res.status(404).json({ error: 'Workflow not found' });
+    }
+
+    // TODO: Fetch executions from database
+    // For now, return empty array
+    res.json({ executions: [] });
+  } catch (error) {
+    console.error('[workflows] List executions error:', error);
+    res.status(500).json({ error: 'Failed to list executions' });
+  }
+});
+
+// GET /api/workflows/:id/executions/:executionId - Get execution details
+router.get('/:id/executions/:executionId', requireRole('VIEWER'), async (req: Request, res: Response) => {
+  try {
+    const { orgId } = getUserFromRequest(req);
+    const workflow = await workflowService.getWorkflow(req.params.id, orgId);
+    
+    if (!workflow) {
+      return res.status(404).json({ error: 'Workflow not found' });
+    }
+
+    // TODO: Fetch execution from database
+    res.status(404).json({ error: 'Execution not found' });
+  } catch (error) {
+    console.error('[workflows] Get execution error:', error);
+    res.status(500).json({ error: 'Failed to get execution' });
   }
 });
 

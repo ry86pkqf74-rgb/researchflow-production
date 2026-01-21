@@ -157,6 +157,12 @@ export async function getLatestVersion(workflowId: string) {
   return v || null;
 }
 
+export async function getLatestPublishedVersion(workflowId: string) {
+  // For now, just return the latest version
+  // In the future, we could add a 'published' flag to versions table
+  return getLatestVersion(workflowId);
+}
+
 export async function listVersions(workflowId: string) {
   return db.select()
     .from(workflowVersions)
