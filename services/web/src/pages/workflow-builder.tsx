@@ -255,9 +255,31 @@ export default function WorkflowBuilderPage() {
     enabled: !!workflowId,
   });
 
+  // Detect if this is a standard ROS pipeline workflow
+  const isStandardROSWorkflow = useMemo(() => {
+    if (!version?.definition) return false;
+    const def = version.definition;
+    
+    // Check if the definition has stage nodes that match the standard ROS pipeline
+    // The standard-research template has specific stage IDs (1-19)
+    const hasStageNodes = (def.nodes || []).some((n: any) => 
+      n.type === "stage" && n.stageId && typeof n.stageId === "number"
+    );
+    
+    return hasStageNodes;
+  }, [version]);
+
+  // If this is a standard ROS workflow, redirect to the main workflow execution page
+  useEffect(() => {
+    if (isStandardROSWorkflow && !workflowLoading && !versionLoading) {
+      // Redirect to the main workflow execution interface
+      setLocation("/workflow");
+    }
+  }, [isStandardROSWorkflow, workflowLoading, versionLoading, setLocation]);
+
   // Initialize nodes and edges from version definition
   useEffect(() => {
-    if (version?.definition) {
+    if (version?.definition && !isStandardROSWorkflow) {
       const def = version.definition;
       const initialNodes: Node[] = (def.nodes || []).map((n) => ({
         id: n.id,
@@ -281,7 +303,7 @@ export default function WorkflowBuilderPage() {
       setNodes(initialNodes);
       setEdges(initialEdges);
     }
-  }, [version, setNodes, setEdges]);
+  }, [version, isStandardROSWorkflow, setNodes, setEdges]);
 
   const onConnect = useCallback(
     (connection: Connection) => {

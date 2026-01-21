@@ -294,6 +294,28 @@ router.get('/:id/versions', requireRole('VIEWER'), async (req: Request, res: Res
   }
 });
 
+// GET /api/workflows/:id/versions/latest - Get latest version
+router.get('/:id/versions/latest', requireRole('VIEWER'), async (req: Request, res: Response) => {
+  try {
+    const { orgId } = getUserFromRequest(req);
+    const workflow = await workflowService.getWorkflow(req.params.id, orgId);
+
+    if (!workflow) {
+      return res.status(404).json({ error: 'Workflow not found' });
+    }
+
+    const version = await workflowService.getLatestVersion(workflow.id);
+    if (!version) {
+      return res.status(404).json({ error: 'No versions found for this workflow' });
+    }
+
+    res.json(version);
+  } catch (error) {
+    console.error('[workflows] Get latest version error:', error);
+    res.status(500).json({ error: 'Failed to get latest version' });
+  }
+});
+
 // GET /api/workflows/:id/versions/:version - Get specific version
 router.get('/:id/versions/:version', requireRole('VIEWER'), async (req: Request, res: Response) => {
   try {

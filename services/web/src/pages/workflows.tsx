@@ -259,6 +259,11 @@ export default function WorkflowsPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {selectedTemplate === "standard-research" && (
+                      <p className="text-xs text-muted-foreground">
+                        This template includes the full 19-stage ROS pipeline and will open in the execution interface.
+                      </p>
+                    )}
                   </div>
                 </div>
                 <DialogFooter>
