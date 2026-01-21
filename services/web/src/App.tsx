@@ -21,6 +21,8 @@ import '@/i18n'; // Initialize i18n
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import DemoLanding from "@/pages/demo-landing";
+import LoginPage from "@/pages/login";
+import RegisterPage from "@/pages/register";
 import WorkflowPage from "@/pages/workflow";
 import GovernancePage from "@/pages/governance";
 import GovernanceConsole from "@/pages/governance-console";
@@ -243,6 +245,10 @@ function Router() {
       {/* Marketing/demo landing page - always accessible */}
       <Route path="/demo" component={DemoLanding} />
       <Route path="/landing" component={Home} />
+
+      {/* Auth routes - always accessible */}
+      <Route path="/login" component={LoginPage} />
+      <Route path="/register" component={RegisterPage} />
 
       {/* Protected routes - require auth in LIVE mode */}
       <Route path="/governance">
