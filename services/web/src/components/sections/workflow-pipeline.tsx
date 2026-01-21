@@ -735,11 +735,22 @@ export function WorkflowPipeline() {
     // Build request body based on stage requirements
     let body: Record<string, unknown> | undefined;
     const stage1Scope = scopeValuesByStage[1];
-    const topicText = stage1Scope?.population 
+    const stage1Overview = overviewByStage[1] || "";
+    const topicText = stage1Scope?.population
       ? `${stage1Scope.population} ${stage1Scope.outcomes ? `with outcomes: ${stage1Scope.outcomes}` : ''}`
-      : "Subclinical hypothyroidism and cardiovascular outcomes";
-    
-    if (stageId === 2) {
+      : stage1Overview || "Research topic to be defined";
+
+    if (stageId === 1) {
+      // Stage 1 (Topic Declaration): pass the research overview and PICO scope values
+      body = {
+        researchOverview: stage1Overview,
+        population: stage1Scope?.population,
+        intervention: stage1Scope?.intervention,
+        comparator: stage1Scope?.comparator,
+        outcomes: stage1Scope?.outcomes,
+        timeframe: stage1Scope?.timeframe
+      };
+    } else if (stageId === 2) {
       // Stage 2 (Literature Search): pass the research topic from stage 1 scope values
       body = {
         topic: topicText,
@@ -765,16 +776,27 @@ export function WorkflowPipeline() {
     if (!stageGroups) return;
     const allStages = stageGroups.flatMap(g => g.stages);
     const stage1Scope = scopeValuesByStage[1];
-    const topicText = stage1Scope?.population 
+    const stage1OverviewText = overviewByStage[1] || "";
+    const topicText = stage1Scope?.population
       ? `${stage1Scope.population} ${stage1Scope.outcomes ? `with outcomes: ${stage1Scope.outcomes}` : ''}`
-      : "Subclinical hypothyroidism and cardiovascular outcomes";
-    
+      : stage1OverviewText || "Research topic to be defined";
+
     for (const stage of allStages) {
       if (executionState[stage.id]?.status !== 'completed') {
         await new Promise<void>((resolve) => {
           let body: Record<string, unknown> | undefined;
-          
-          if (stage.id === 2) {
+
+          if (stage.id === 1) {
+            // Stage 1: pass research overview and PICO scope values
+            body = {
+              researchOverview: stage1OverviewText,
+              population: stage1Scope?.population,
+              intervention: stage1Scope?.intervention,
+              comparator: stage1Scope?.comparator,
+              outcomes: stage1Scope?.outcomes,
+              timeframe: stage1Scope?.timeframe
+            };
+          } else if (stage.id === 2) {
             body = {
               topic: topicText,
               population: stage1Scope?.population,
@@ -789,7 +811,7 @@ export function WorkflowPipeline() {
               researchGaps: literatureData?.researchGaps || []
             };
           }
-          
+
           executeMutation.mutate({ stageId: stage.id, body }, {
             onSettled: () => {
               setTimeout(resolve, 500);

@@ -44,66 +44,87 @@ interface TopicBriefPanelProps {
 export function TopicBriefPanel({ scopeValues, onExport }: TopicBriefPanelProps) {
   const [exporting, setExporting] = useState<"pdf" | "md" | null>(null);
 
+  // Build PICO elements from user's actual input - no synthetic fallbacks
   const picoElements: PICOElement[] = [
     {
       id: "population",
       label: "Population",
-      value: scopeValues?.population || "Adults aged 40-65 with subclinical hypothyroidism (TSH 4.5-10 mIU/L)",
+      value: scopeValues?.population || "(Not specified)",
       icon: Users
     },
     {
       id: "intervention",
       label: "Intervention/Exposure",
-      value: scopeValues?.intervention || "Levothyroxine therapy initiation vs. watchful waiting",
+      value: scopeValues?.intervention || "(Not specified)",
       icon: FlaskConical
     },
     {
       id: "comparator",
       label: "Comparator",
-      value: scopeValues?.comparator || "Age and sex-matched euthyroid controls",
+      value: scopeValues?.comparator || "(Not specified)",
       icon: Scale
     },
     {
       id: "outcomes",
       label: "Outcomes",
-      value: scopeValues?.outcomes || "Cardiovascular events (MI, stroke, CV death), quality of life measures",
+      value: scopeValues?.outcomes || "(Not specified)",
       icon: Target
     },
     {
       id: "timeframe",
       label: "Timeframe",
-      value: scopeValues?.timeframe || "5-year follow-up period (2018-2024)",
+      value: scopeValues?.timeframe || "(Not specified)",
       icon: Clock
     }
   ];
 
-  const endpoints: Endpoint[] = [
-    { type: "primary", name: "Composite CV Events", description: "Time to first major adverse cardiovascular event (MACE)" },
-    { type: "primary", name: "All-cause Mortality", description: "Death from any cause during follow-up" },
-    { type: "secondary", name: "Heart Failure Hospitalization", description: "Admission for acute decompensated heart failure" },
-    { type: "secondary", name: "Quality of Life", description: "SF-36 and ThyPRO questionnaire scores at 12, 24, 60 months" },
-    { type: "secondary", name: "TSH Normalization", description: "Proportion achieving TSH 0.5-4.0 mIU/L" }
-  ];
+  // Only show endpoints if user has defined outcomes
+  const endpoints: Endpoint[] = scopeValues?.outcomes ? [
+    { type: "primary", name: "Primary Endpoint", description: `Based on: ${scopeValues.outcomes}` },
+  ] : [];
 
+  // Generic risk warnings that apply to most studies
   const riskWarnings: RiskWarning[] = [
-    { 
-      type: "confounding", 
-      severity: "high", 
-      message: "Age is a significant confounder - consider stratified analysis or propensity matching" 
+    {
+      type: "confounding",
+      severity: "medium",
+      message: "Consider potential confounders and appropriate statistical adjustments"
     },
-    { 
-      type: "bias", 
-      severity: "medium", 
-      message: "Selection bias possible - patients initiating therapy may have more severe symptoms" 
+    {
+      type: "bias",
+      severity: "medium",
+      message: "Assess potential selection bias in your study population"
     },
-    { 
-      type: "limitation", 
-      severity: "low", 
-      message: "Single-center data may limit generalizability to diverse populations" 
-    }
   ];
 
-  const improvedStatement = `This retrospective cohort study investigates the association between subclinical hypothyroidism treatment decisions and cardiovascular outcomes in middle-aged adults. Using propensity-matched analysis of ${scopeValues?.population ? "the defined population" : "2,847 patients"} from the Thyroid Clinical Dataset (2018-2024), we aim to determine whether early levothyroxine initiation reduces the risk of major adverse cardiovascular events compared to conservative monitoring.`;
+  // Build improved statement dynamically from user input - NO synthetic data
+  const buildImprovedStatement = (): string => {
+    const parts: string[] = [];
+
+    if (scopeValues?.population) {
+      parts.push(`studying ${scopeValues.population}`);
+    }
+    if (scopeValues?.intervention) {
+      parts.push(`examining ${scopeValues.intervention}`);
+    }
+    if (scopeValues?.comparator) {
+      parts.push(`compared to ${scopeValues.comparator}`);
+    }
+    if (scopeValues?.outcomes) {
+      parts.push(`measuring ${scopeValues.outcomes}`);
+    }
+    if (scopeValues?.timeframe) {
+      parts.push(`over ${scopeValues.timeframe}`);
+    }
+
+    if (parts.length === 0) {
+      return "Enter your research details above to generate an AI-refined research statement.";
+    }
+
+    return `This study aims to investigate the research question by ${parts.join(", ")}.`;
+  };
+
+  const improvedStatement = buildImprovedStatement();
 
   const handleExport = async (format: "pdf" | "md") => {
     setExporting(format);

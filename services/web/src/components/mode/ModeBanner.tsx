@@ -43,13 +43,13 @@ export function ModeBanner() {
   
   if (isLive) {
     return (
-      <div 
-        className="bg-green-600 text-white px-4 py-2 flex items-center justify-center gap-2 sticky top-0 z-50"
+      <div
+        className="bg-green-600 text-white px-4 py-1.5 flex items-center justify-center gap-2"
         role="status"
         data-testid="mode-banner-live"
       >
-        <CheckCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span className="text-sm font-medium" data-testid="text-live-mode-message">
+        <CheckCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span className="text-xs font-medium" data-testid="text-live-mode-message">
           LIVE MODE — Full functionality enabled. All AI calls are real.
         </span>
       </div>

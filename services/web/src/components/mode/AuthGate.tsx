@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { useModeStore } from '@/stores/mode-store';
+import { useTokenStore } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
 
 interface AuthGateProps {
@@ -22,6 +23,7 @@ interface AuthState {
 
 export function AuthGate({ children, requireAuth = false }: AuthGateProps) {
   const { isLive, isLoading: modeLoading } = useModeStore();
+  const accessToken = useTokenStore((state) => state.accessToken);
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: false,
     isLoading: true,
@@ -31,21 +33,35 @@ export function AuthGate({ children, requireAuth = false }: AuthGateProps) {
 
   useEffect(() => {
     let cancelled = false;
-    
+
     async function checkAuth() {
+      // If no token, user is not authenticated
+      if (!accessToken) {
+        setAuthState({
+          isAuthenticated: false,
+          isLoading: false,
+          user: null,
+        });
+        return;
+      }
+
       try {
         const response = await fetch('/api/auth/user', {
           credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
         });
-        
+
         if (cancelled) return;
-        
+
         if (response.ok) {
-          const user = await response.json();
+          const data = await response.json();
           setAuthState({
             isAuthenticated: true,
             isLoading: false,
-            user,
+            user: data.user || data,
           });
         } else {
           setAuthState({
@@ -66,11 +82,11 @@ export function AuthGate({ children, requireAuth = false }: AuthGateProps) {
     }
 
     checkAuth();
-    
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [accessToken]);
 
   // Handle redirect in useEffect to avoid side effects during render
   useEffect(() => {
@@ -112,7 +128,8 @@ export function AuthGate({ children, requireAuth = false }: AuthGateProps) {
 /**
  * Hook to check authentication status
  */
-export function useAuth() {
+export function useAuthGate() {
+  const accessToken = useTokenStore((state) => state.accessToken);
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: false,
     isLoading: true,
@@ -121,21 +138,35 @@ export function useAuth() {
 
   useEffect(() => {
     let cancelled = false;
-    
+
     async function checkAuth() {
+      // If no token, user is not authenticated
+      if (!accessToken) {
+        setAuthState({
+          isAuthenticated: false,
+          isLoading: false,
+          user: null,
+        });
+        return;
+      }
+
       try {
         const response = await fetch('/api/auth/user', {
           credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
         });
-        
+
         if (cancelled) return;
-        
+
         if (response.ok) {
-          const user = await response.json();
+          const data = await response.json();
           setAuthState({
             isAuthenticated: true,
             isLoading: false,
-            user,
+            user: data.user || data,
           });
         } else {
           setAuthState({
@@ -156,11 +187,11 @@ export function useAuth() {
     }
 
     checkAuth();
-    
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [accessToken]);
 
   return authState;
 }

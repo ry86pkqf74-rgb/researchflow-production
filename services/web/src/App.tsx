@@ -14,9 +14,9 @@ import { AuthGate } from "@/components/mode/AuthGate";
 import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
 import { useModeStore } from "@/stores/mode-store";
 import { useOrgStore } from "@/stores/org-store";
-import { useAuthStore } from "@/stores/auth-store";
+import { useAuth } from "@/hooks/use-auth";
 import { useAppShortcuts } from "@/hooks/useGlobalShortcuts";
-import { Loader2 } from "lucide-react";
+import { Loader2, Home as HomeIcon, LayoutDashboard, Workflow, Shield, Settings } from "lucide-react";
 import '@/i18n'; // Initialize i18n
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
@@ -92,7 +92,7 @@ function ModeInitializer() {
  */
 function OrgInitializer() {
   const { isLive, isLoading: modeLoading } = useModeStore();
-  const { user } = useAuthStore();
+  const { user } = useAuth();
   const { fetchContext } = useOrgStore();
 
   useEffect(() => {
@@ -140,32 +140,70 @@ function ShortcutsInitializer() {
  */
 function MainLayout({ children }: { children: React.ReactNode }) {
   const { isLive } = useModeStore();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuth();
 
   // Only show sidebar in LIVE mode when authenticated
-  if (!isLive || !user) {
+  if (!isLive || !isAuthenticated) {
     return <>{children}</>;
   }
 
   return (
-    <div className="flex h-screen">
-      {/* Sidebar with org selector and adaptive navigation */}
-      <aside className="w-64 border-r bg-muted/10 flex flex-col">
-        <div className="p-4 border-b">
-          <OrgSelector />
+    <div className="flex h-screen pt-7">
+      {/* Sidebar with user info and navigation */}
+      <aside className="w-52 min-w-52 border-r bg-muted/10 flex flex-col shrink-0">
+        <div className="p-3 border-b">
+          <div className="flex flex-col">
+            <span className="font-medium text-sm truncate">{user?.displayName || user?.email || 'User'}</span>
+            <span className="text-xs text-muted-foreground capitalize">
+              {user?.role?.toLowerCase() || 'researcher'}
+            </span>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <AdaptiveNavigation />
+          {/* Simple navigation links that always work */}
+          <nav className="space-y-1 px-2 py-3">
+            <a
+              href="/"
+              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <HomeIcon className="h-4 w-4 shrink-0" />
+              <span>Pipeline</span>
+            </a>
+            <a
+              href="/pipeline"
+              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <LayoutDashboard className="h-4 w-4 shrink-0" />
+              <span>Dashboard</span>
+            </a>
+            <a
+              href="/workflows"
+              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Workflow className="h-4 w-4 shrink-0" />
+              <span>Workflows</span>
+            </a>
+            <a
+              href="/governance"
+              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Shield className="h-4 w-4 shrink-0" />
+              <span>Governance</span>
+            </a>
+            <a
+              href="/settings"
+              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Settings className="h-4 w-4 shrink-0" />
+              <span>Settings</span>
+            </a>
+          </nav>
         </div>
       </aside>
 
       {/* Main content area */}
       <main className="flex-1 overflow-auto">
-        {/* Breadcrumb navigation (Task 11) */}
-        <div className="border-b bg-muted/5 px-4 py-2">
-          <Breadcrumbs showHome />
-        </div>
         {children}
       </main>
     </div>

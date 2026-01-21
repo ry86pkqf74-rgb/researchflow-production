@@ -2782,6 +2782,87 @@ export async function registerRoutes(
       return res.status(404).json({ error: "Stage not found" });
     }
 
+    // For stage 1 (Topic Declaration), use the user's actual input - no synthetic data
+    if (stageId === 1) {
+      const { researchOverview, population, intervention, comparator, outcomes, timeframe } = req.body || {};
+
+      const startTime = Date.now();
+      const executionTimeMs = Date.now() - startTime + 100; // Add small delay
+
+      // Find next stage
+      const currentIndex = allStages.findIndex(s => s.id === stageId);
+      const nextStage = allStages[currentIndex + 1];
+
+      // Build outputs based on user's actual input
+      const outputs = [];
+
+      // Research Overview
+      if (researchOverview) {
+        outputs.push({
+          title: "Research Overview",
+          content: researchOverview,
+          type: "text"
+        });
+      }
+
+      // Build hypothesis from user input
+      const hypothesisContent = population || outcomes
+        ? `Based on your research overview:\n\n• Population: ${population || "(To be defined)"}\n• Outcomes of interest: ${outcomes || "(To be defined)"}\n\nPlease refine your hypothesis based on your data.`
+        : "Please define your research population and outcomes to generate a hypothesis.";
+
+      outputs.push({
+        title: "Research Hypothesis",
+        content: hypothesisContent,
+        type: "text"
+      });
+
+      // Variable definitions from PICO
+      const variableContent = [
+        population ? `• Population: ${population}` : null,
+        intervention ? `• Intervention/Exposure: ${intervention}` : null,
+        comparator ? `• Comparator: ${comparator}` : null,
+        outcomes ? `• Outcomes: ${outcomes}` : null,
+        timeframe ? `• Timeframe: ${timeframe}` : null
+      ].filter(Boolean).join("\n");
+
+      if (variableContent) {
+        outputs.push({
+          title: "Study Scope (PICO Framework)",
+          content: variableContent || "Define your PICO elements to establish study scope.",
+          type: "list"
+        });
+      }
+
+      // Summary
+      const hasPicoData = population || intervention || comparator || outcomes || timeframe;
+      const summary = researchOverview
+        ? `Research topic captured. ${hasPicoData ? "PICO framework elements defined." : "Consider defining PICO elements for more structured analysis."}`
+        : "Topic declaration started. Please provide your research overview.";
+
+      return res.json({
+        stageId,
+        stageName: stage.name,
+        status: "completed",
+        executionTime: `${(executionTimeMs / 1000).toFixed(1)}s`,
+        summary,
+        outputs: outputs.length > 0 ? outputs : [{
+          title: "Getting Started",
+          content: "Enter your research overview and PICO elements above to define your study scope.",
+          type: "text"
+        }],
+        nextStageId: nextStage?.id,
+        // Pass through the user's input for downstream stages
+        topicData: {
+          researchOverview,
+          population,
+          intervention,
+          comparator,
+          outcomes,
+          timeframe
+        }
+      });
+    }
+
     // For stage 2 (Literature Search), use AI to generate real results
     if (stageId === 2) {
       try {

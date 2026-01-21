@@ -261,15 +261,15 @@ export function WorkflowSidebar({
             </div>
           </ScrollArea>
 
-          {/* Footer with close button */}
+          {/* Footer with toggle button */}
           <div className="border-t p-4">
             <Button
               variant="outline"
               className="w-full"
               onClick={onToggle}
-              data-testid="button-workflow-sidebar-close-bottom"
+              data-testid="button-workflow-sidebar-toggle-bottom"
             >
-              Close Panel
+              {isOpen ? 'Close Panel' : 'Open Panel'}
             </Button>
           </div>
         </div>

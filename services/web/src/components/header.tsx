@@ -109,18 +109,21 @@ export function Header() {
             </div>
           </a>
 
-          <nav className="hidden lg:flex items-center gap-8" data-testid="nav-desktop">
-            {navLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                data-testid={link.testId}
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
+          {/* Only show marketing nav links when NOT authenticated */}
+          {!isAuthenticated && (
+            <nav className="hidden lg:flex items-center gap-8" data-testid="nav-desktop">
+              {navLinks.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid={link.testId}
+                >
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+          )}
 
           <div className="flex items-center gap-3">
             <Tooltip>
@@ -288,7 +291,8 @@ export function Header() {
             data-testid="nav-mobile"
           >
             <nav className="container mx-auto px-6 py-4 flex flex-col gap-2">
-              {navLinks.map((link) => (
+              {/* Only show marketing nav links when NOT authenticated */}
+              {!isAuthenticated && navLinks.map((link) => (
                 <a
                   key={link.label}
                   href={link.href}

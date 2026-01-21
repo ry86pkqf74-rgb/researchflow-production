@@ -238,6 +238,8 @@ export function useAuth() {
       clearToken();
       queryClient.setQueryData(['/api/auth/user', null], null);
       queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      // Redirect to landing page after logout
+      window.location.href = '/landing';
     },
   });
 
