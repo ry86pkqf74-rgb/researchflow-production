@@ -15,9 +15,13 @@
 
 import { z } from 'zod';
 import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import { createRequire } from 'module';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
+
+// Use createRequire for CommonJS packages to ensure proper resolution in Docker
+const require = createRequire(import.meta.url);
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 // Environment configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'development-jwt-secret-change-in-production';
