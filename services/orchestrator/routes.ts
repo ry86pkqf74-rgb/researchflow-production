@@ -12,6 +12,7 @@ import { eq } from "drizzle-orm";
 // JWT-based authentication (replaces Replit auth)
 import { requireAuth, requireAuth as isAuthenticated, optionalAuth, devOrRequireAuth } from "./src/services/authService";
 import jwtAuthRouter from "./src/routes/auth";
+import userSettingsRouter from "./src/routes/user-settings";
 import {
   requireRole,
   requirePermission,
@@ -845,6 +846,9 @@ export async function registerRoutes(
 ): Promise<Server> {
   // Mount JWT authentication routes (register, login, logout, refresh, etc.)
   app.use('/api/auth', jwtAuthRouter);
+
+  // Mount user settings routes
+  app.use('/api/user', userSettingsRouter);
 
   // Apply lifecycle state middleware to all routes
   app.use(lifecycleStateMiddleware);

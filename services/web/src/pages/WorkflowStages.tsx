@@ -49,7 +49,9 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     status: 'available',
     icon: Database,
     requiresDataClassification: ['SYNTHETIC', 'DEIDENTIFIED'],
-    phaseNumber: 3
+    phaseNumber: 3,
+    actionRoute: '/workflow',
+    actionLabel: 'Upload Data'
   },
   {
     id: 2,
@@ -82,7 +84,9 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     description: 'Automated quality checks for forbidden language and unsupported claims',
     status: 'available',
     icon: FileCheck,
-    phaseNumber: 3
+    phaseNumber: 3,
+    actionRoute: '/quality-dashboard',
+    actionLabel: 'Run Quality Checks'
   },
   {
     id: 6,
@@ -168,7 +172,9 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     description: 'Complete audit logging with hash-chaining',
     status: 'available',
     icon: Shield,
-    phaseNumber: 5
+    phaseNumber: 5,
+    actionRoute: '/governance-console',
+    actionLabel: 'View Audit Logs'
   },
   {
     id: 16,

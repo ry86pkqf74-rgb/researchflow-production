@@ -46,6 +46,9 @@ export function HeroSection() {
                 size="lg" 
                 className="bg-ros-primary hover:bg-ros-primary/90 text-white px-8 py-6 text-lg font-semibold"
                 data-testid="button-hero-demo"
+                onClick={() => {
+                  document.getElementById('try-demo')?.scrollIntoView({ behavior: 'smooth' });
+                }}
               >
                 See Demo
                 <Play className="ml-2 h-5 w-5" />
@@ -55,6 +58,9 @@ export function HeroSection() {
                 variant="outline" 
                 className="px-8 py-6 text-lg font-semibold border-2"
                 data-testid="button-hero-learn-more"
+                onClick={() => {
+                  document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+                }}
               >
                 Learn More
                 <ArrowRight className="ml-2 h-5 w-5" />

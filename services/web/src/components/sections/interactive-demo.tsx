@@ -346,10 +346,29 @@ export function InteractiveDemo() {
                               </div>
 
                               <div className="flex gap-2 mt-4">
-                                <Button size="sm" data-testid={`button-select-proposal-${proposal.id}`}>
+                                <Button 
+                                  size="sm" 
+                                  data-testid={`button-select-proposal-${proposal.id}`}
+                                  onClick={() => {
+                                    // Store selected proposal in sessionStorage
+                                    sessionStorage.setItem('selectedProposal', JSON.stringify(proposal));
+                                    // Navigate to workflow page
+                                    window.location.href = '/workflow';
+                                  }}
+                                >
                                   Select This Proposal
                                 </Button>
-                                <Button size="sm" variant="outline" data-testid={`button-refine-proposal-${proposal.id}`}>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  data-testid={`button-refine-proposal-${proposal.id}`}
+                                  onClick={() => {
+                                    // Re-trigger generation with existing inputs
+                                    if (topic && domain) {
+                                      generateProposals.mutate({ topic, domain, population });
+                                    }
+                                  }}
+                                >
                                   Refine Further
                                 </Button>
                               </div>

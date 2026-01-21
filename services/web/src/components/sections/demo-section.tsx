@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,7 @@ const demoSteps: DemoStep[] = [
 export function DemoSection() {
   const [, setCurrentStep] = useState(4);
   const [isFileHovered, setIsFileHovered] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: datasetInfo } = useQuery<{
     id: string;
@@ -214,10 +215,26 @@ export function DemoSection() {
                 <p className="text-sm text-muted-foreground mb-4" data-testid="text-upload-description">
                   Drag and drop a CSV, Excel, or SPSS file
                 </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls,.sav"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // TODO: Implement file upload logic
+                      console.log('File selected:', file.name);
+                      // Navigate to workflow with uploaded file
+                      window.location.href = '/workflow';
+                    }
+                  }}
+                />
                 <Button 
                   variant="outline" 
                   className="mb-2"
                   data-testid="button-browse-files"
+                  onClick={() => fileInputRef.current?.click()}
                 >
                   Browse Files
                 </Button>
