@@ -10,7 +10,7 @@ import { db } from "./db";
 import { topics } from "@researchflow/core/schema";
 import { eq } from "drizzle-orm";
 // JWT-based authentication (replaces Replit auth)
-import { requireAuth, optionalAuth, devOrRequireAuth } from "./src/services/authService";
+import { requireAuth, requireAuth as isAuthenticated, optionalAuth, devOrRequireAuth } from "./src/services/authService";
 import jwtAuthRouter from "./src/routes/auth";
 import {
   requireRole,
