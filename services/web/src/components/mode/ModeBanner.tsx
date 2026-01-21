@@ -29,8 +29,8 @@ export function ModeBanner() {
             DEMO MODE — Explore how ResearchFlow Canvas works. No login required. AI responses are simulated.
           </span>
         </div>
-        <a 
-          href="/api/login" 
+        <a
+          href="/login"
           className="flex items-center gap-1 text-sm font-bold underline whitespace-nowrap"
           data-testid="link-switch-to-live"
         >

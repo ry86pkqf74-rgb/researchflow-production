@@ -81,7 +81,7 @@ export function AuthGate({ children, requireAuth = false }: AuthGateProps) {
 
   useEffect(() => {
     if (shouldRedirect) {
-      window.location.href = '/api/login';
+      window.location.href = '/login';
     }
   }, [shouldRedirect]);
 

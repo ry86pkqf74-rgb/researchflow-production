@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 
 export default function DemoLanding() {
   const handleLoginClick = () => {
-    window.location.href = '/api/login';
+    window.location.href = '/login';
   };
 
   return (
