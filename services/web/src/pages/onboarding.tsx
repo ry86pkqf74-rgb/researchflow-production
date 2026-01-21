@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useAuth } from '@/hooks/use-auth';
 
 interface OnboardingStep {
   id: string;
@@ -59,6 +60,7 @@ const STEPS: OnboardingStep[] = [
 ];
 
 export function Onboarding() {
+  const { accessToken } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,9 +100,16 @@ export function Onboarding() {
       if (orgName.trim() && orgSlug.trim()) {
         setLoading(true);
         try {
+          const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+          };
+          if (accessToken) {
+            headers['Authorization'] = `Bearer ${accessToken}`;
+          }
+          
           const response = await fetch('/api/org', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             credentials: 'include',
             body: JSON.stringify({
               name: orgName,
@@ -158,8 +167,14 @@ export function Onboarding() {
 
   const completeOnboarding = async () => {
     try {
+      const headers: HeadersInit = {};
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+      
       await fetch('/api/user/onboarding/complete', {
         method: 'POST',
+        headers,
         credentials: 'include',
       });
       // Redirect to workflows page where user can create and execute pipelines
