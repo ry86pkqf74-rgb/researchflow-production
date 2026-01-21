@@ -15,19 +15,11 @@
 
 import { z } from 'zod';
 import crypto from 'crypto';
-import { createRequire } from 'module';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 
-// Use createRequire anchored to /app/node_modules for CommonJS packages
-// This ensures proper resolution regardless of the importing file's location
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const appRoot = join(__dirname, '..', '..'); // Navigate from src/services to /app
-const require = createRequire(join(appRoot, 'node_modules', 'package.json'));
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+// Import jwt and bcrypt from wrapper module at /app/lib/
+// This avoids tsx module resolution issues with CommonJS packages
+import { jwt, bcrypt } from '../../lib/crypto-deps.js';
 
 // Environment configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'development-jwt-secret-change-in-production';
