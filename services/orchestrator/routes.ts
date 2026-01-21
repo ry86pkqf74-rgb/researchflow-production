@@ -863,6 +863,9 @@ export async function registerRoutes(
   // Apply lifecycle state middleware to all routes
   app.use(lifecycleStateMiddleware);
 
+  // Attach JWT user context if Authorization header is present
+  app.use(optionalAuth);
+
   // Authentication middleware - sets user context for RBAC
   // Uses JWT auth or falls back to dev user for unauthenticated routes
   app.use((req: Request, _res: Response, next: NextFunction) => {

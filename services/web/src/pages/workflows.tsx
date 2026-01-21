@@ -53,7 +53,7 @@ import {
   FileText,
   Loader2,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useAccessToken } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
 interface WorkflowSummary {
@@ -70,12 +70,14 @@ interface WorkflowSummary {
 }
 
 interface WorkflowTemplate {
-  id: string;
+  key: string;
   name: string;
   description: string | null;
   category: string;
   definition: object;
 }
+
+const NO_TEMPLATE_VALUE = "__none__";
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: "bg-slate-500",
@@ -91,26 +93,35 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   ARCHIVED: <Archive className="h-4 w-4" />,
 };
 
-async function fetchWorkflows(status?: string): Promise<WorkflowSummary[]> {
+async function fetchWorkflows(status: string | undefined, accessToken: string | null): Promise<WorkflowSummary[]> {
   const params = new URLSearchParams();
   if (status && status !== "all") params.set("status", status);
-  const response = await fetch(`/api/workflows?${params}`, { credentials: "include" });
+  const headers: HeadersInit = {};
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  const response = await fetch(`/api/workflows?${params}`, { credentials: "include", headers });
   if (!response.ok) throw new Error("Failed to fetch workflows");
   const data = await response.json();
   return data.workflows ?? [];
 }
 
-async function fetchTemplates(): Promise<WorkflowTemplate[]> {
-  const response = await fetch("/api/workflows/templates", { credentials: "include" });
+async function fetchTemplates(accessToken: string | null): Promise<WorkflowTemplate[]> {
+  const headers: HeadersInit = {};
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  const response = await fetch("/api/workflows/templates", { credentials: "include", headers });
   if (!response.ok) throw new Error("Failed to fetch templates");
   const data = await response.json();
   return data.templates ?? [];
 }
 
-async function createWorkflow(data: { name: string; description?: string; template_id?: string }) {
+async function createWorkflow(
+  data: { name: string; description?: string; template_id?: string; definition?: object },
+  accessToken: string | null
+) {
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
   const response = await fetch("/api/workflows", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     credentials: "include",
     body: JSON.stringify(data),
   });
@@ -128,9 +139,10 @@ export default function WorkflowsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newWorkflowName, setNewWorkflowName] = useState("");
   const [newWorkflowDesc, setNewWorkflowDesc] = useState("");
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(NO_TEMPLATE_VALUE);
   
   const { user } = useAuth();
+  const accessToken = useAccessToken();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -138,23 +150,24 @@ export default function WorkflowsPage() {
   const canEdit = user?.role && ["STEWARD", "ADMIN"].includes(user.role);
 
   const { data: workflows = [], isLoading } = useQuery({
-    queryKey: ["workflows", statusFilter],
-    queryFn: () => fetchWorkflows(statusFilter),
+    queryKey: ["workflows", statusFilter, accessToken],
+    queryFn: () => fetchWorkflows(statusFilter, accessToken),
   });
 
   const { data: templates = [] } = useQuery({
-    queryKey: ["workflow-templates"],
-    queryFn: fetchTemplates,
+    queryKey: ["workflow-templates", accessToken],
+    queryFn: () => fetchTemplates(accessToken),
   });
 
   const createMutation = useMutation({
-    mutationFn: createWorkflow,
+    mutationFn: (payload: { name: string; description?: string; template_id?: string; definition?: object }) =>
+      createWorkflow(payload, accessToken),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["workflows"] });
       setCreateDialogOpen(false);
       setNewWorkflowName("");
       setNewWorkflowDesc("");
-      setSelectedTemplate("");
+      setSelectedTemplate(NO_TEMPLATE_VALUE);
       toast({
         title: "Workflow created",
         description: `"${data.name}" has been created successfully.`,
@@ -176,10 +189,15 @@ export default function WorkflowsPage() {
 
   const handleCreateWorkflow = () => {
     if (!newWorkflowName.trim()) return;
+    const selected = selectedTemplate === NO_TEMPLATE_VALUE
+      ? undefined
+      : templates.find((template) => template.key === selectedTemplate);
+
     createMutation.mutate({
       name: newWorkflowName.trim(),
       description: newWorkflowDesc.trim() || undefined,
-      template_id: selectedTemplate || undefined,
+      template_id: selectedTemplate === NO_TEMPLATE_VALUE ? undefined : selectedTemplate,
+      definition: selected?.definition as any,
     });
   };
 
@@ -233,9 +251,9 @@ export default function WorkflowsPage() {
                         <SelectValue placeholder="Start from scratch" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Start from scratch</SelectItem>
+                          <SelectItem value={NO_TEMPLATE_VALUE}>Start from scratch</SelectItem>
                         {templates.map((template) => (
-                          <SelectItem key={template.id} value={template.id}>
+                            <SelectItem key={template.key} value={template.key}>
                             {template.name}
                           </SelectItem>
                         ))}
