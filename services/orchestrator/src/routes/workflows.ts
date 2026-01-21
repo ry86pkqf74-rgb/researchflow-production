@@ -74,8 +74,9 @@ function getUserFromRequest(req: Request): { id: string; orgId?: string; role?: 
 // GET /api/workflows - List workflows
 router.get('/', requireRole('VIEWER'), async (req: Request, res: Response) => {
   try {
-    // Temporarily return empty list for testing
-    res.json({ workflows: [] });
+    const { orgId } = getUserFromRequest(req);
+    const workflows = await workflowService.listWorkflows(orgId);
+    res.json({ workflows });
   } catch (error) {
     console.error('[workflows] List error:', error);
     res.status(500).json({ error: 'Failed to list workflows' });
