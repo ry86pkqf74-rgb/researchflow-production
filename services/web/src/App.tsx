@@ -36,6 +36,7 @@ import SearchPage from "@/pages/search";
 import Community from "@/pages/community";
 import Onboarding from "@/pages/onboarding";
 import Settings from "@/pages/settings";
+import NotificationsPage from "@/pages/notifications";
 import XRPage from "@/pages/xr";
 import ImportBundlePage from "@/pages/import-bundle";
 import WorkflowsPage from "@/pages/workflows";
@@ -324,6 +325,9 @@ function Router() {
       </Route>
       <Route path="/settings">
         {() => <ProtectedRoute component={Settings} />}
+      </Route>
+      <Route path="/notifications">
+        {() => <ProtectedRoute component={NotificationsPage} />}
       </Route>
       <Route path="/xr">
         {() => <ProtectedRoute component={XRPage} />}

@@ -3,7 +3,8 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ThemeSettings } from "@/components/ui/theme-settings";
 import { GovernanceBadge } from "@/components/governance";
-import { Database, Menu, X, Bot, ChevronDown, Settings2, Shield, LogOut, LayoutDashboard } from "lucide-react";
+import { Database, Menu, X, Bot, ChevronDown, Settings2, Shield, LogOut, LayoutDashboard, Bell, Settings, User } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useAIApprovalGate } from "@/components/ui/ai-approval-gate";
@@ -187,6 +188,33 @@ export function Header() {
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
+            
+            {/* Notifications Bell */}
+            {isAuthenticated && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative hidden md:inline-flex"
+                    asChild
+                  >
+                    <Link href="/notifications">
+                      <Bell className="h-4 w-4" />
+                      <Badge 
+                        className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center bg-ros-workflow text-white text-[10px]"
+                      >
+                        3
+                      </Badge>
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Notifications (3 new)</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            
             <ThemeSettings variant="compact" />
             {isAuthLoading ? (
               <div className="hidden sm:flex items-center gap-3">
@@ -227,6 +255,21 @@ export function Header() {
                       <a href="/pipeline" data-testid="link-dashboard">
                         <LayoutDashboard className="h-4 w-4 mr-2" />
                         My Dashboard
+                      </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <a href="/settings" data-testid="link-settings">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Settings
+                      </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <a href="/notifications" data-testid="link-notifications">
+                        <Bell className="h-4 w-4 mr-2" />
+                        Notifications
+                        <Badge variant="secondary" className="ml-auto text-[10px]">
+                          3
+                        </Badge>
                       </a>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
