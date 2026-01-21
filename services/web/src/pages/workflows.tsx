@@ -181,15 +181,14 @@ export default function WorkflowsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="container mx-auto py-6 px-4">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Workflows</h1>
-            <p className="text-muted-foreground">
-              Create and manage custom research workflows
-            </p>
-          </div>
+    <div className="w-full h-full bg-background p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Workflows</h1>
+          <p className="text-muted-foreground">
+            Create and manage custom research workflows
+          </p>
+        </div>
           {canCreate && (
             <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
               <DialogTrigger asChild>
@@ -374,7 +373,6 @@ export default function WorkflowsPage() {
             ))}
           </div>
         )}
-      </main>
     </div>
   );
 }
