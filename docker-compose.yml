@@ -67,6 +67,12 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     depends_on:
       postgres:
         condition: service_healthy
@@ -148,9 +154,9 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ros
-      POSTGRES_PASSWORD: ros
-      POSTGRES_DB: ros
+      POSTGRES_USER: ${POSTGRES_USER:-ros}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ros}
+      POSTGRES_DB: ${POSTGRES_DB:-ros}
     ports:
       - "5432:5432"
     volumes:

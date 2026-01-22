@@ -46,6 +46,10 @@ import badgesRoutes from './routes/badges';
 import sustainabilityRoutes from './routes/sustainability';
 import peerReviewRoutes from './routes/peerReview';
 import taskBoardsRoutes from './routes/taskBoards';
+import consentRoutes from './routes/consent';
+import commentsRoutes from './routes/comments';
+import submissionsRoutes from './routes/submissions';
+import manuscriptBranchesRoutes from './routes/manuscript-branches';
 // Audit Improvements: New modular routes
 import authRoutes from './routes/auth';
 import workflowStagesRoutes from './routes/workflow-stages';
@@ -99,6 +103,9 @@ app.get('/health', (req, res) => {
 app.use('/api/governance', governanceRoutes);
 app.use('/api/datasets', datasetRoutes);
 app.use('/api/ros/conference', conferenceRoutes);
+app.use('/api/ros/comments', commentsRoutes);  // Inline comments with PHI scanning
+app.use('/api/ros/submissions', submissionsRoutes);  // Journal/conference submissions
+app.use('/api/ros/manuscripts', manuscriptBranchesRoutes);  // Manuscript branching & merging
 app.use('/api/orcid', orcidRoutes);
 
 // V2 API Routes (new collaboration + provenance features)
@@ -146,6 +153,7 @@ app.use('/api/badges', badgesRoutes);  // Gamification badges system
 app.use('/api/sustainability', sustainabilityRoutes);  // CO2 tracking and sustainability metrics
 app.use('/api/peer-review', peerReviewRoutes);  // Peer review system with rubrics
 app.use('/api', taskBoardsRoutes);  // Task board management (handles /api/research/:researchId/boards)
+app.use('/api/consent', consentRoutes);  // GDPR consent management
 
 // Audit Improvements: Authentication and Workflow Routes
 app.use('/api/auth', authRoutes);  // JWT-based authentication (replaces Replit auth)
@@ -243,6 +251,7 @@ httpServer.listen(PORT, () => {
   console.log('  ✓ Sustainability CO2 Tracking');
   console.log('  ✓ Peer Review System');
   console.log('  ✓ Task Boards (Kanban)');
+  console.log('  ✓ GDPR Consent Management');
   console.log('='.repeat(60));
   console.log('Audit Improvements: CODE QUALITY');
   console.log('  ✓ JWT-Based Authentication (Production Ready)');
