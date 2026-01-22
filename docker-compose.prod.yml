@@ -34,6 +34,11 @@ services:
     networks:
       - researchflow
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
@@ -78,6 +83,11 @@ services:
     networks:
       - researchflow
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -86,6 +96,12 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # ===================
   # Worker - Python FastAPI
@@ -122,6 +138,11 @@ services:
     networks:
       - researchflow
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -130,6 +151,12 @@ services:
         reservations:
           cpus: '1'
           memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # ===================
   # Web - React Frontend (Nginx)
@@ -155,6 +182,11 @@ services:
     networks:
       - researchflow
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -187,6 +219,11 @@ services:
     networks:
       - researchflow
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -195,6 +232,11 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:1235/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # ===================
   # PostgreSQL Database
@@ -211,6 +253,11 @@ services:
     networks:
       - researchflow
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -234,6 +281,11 @@ services:
     networks:
       - researchflow
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
