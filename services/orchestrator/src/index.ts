@@ -33,6 +33,8 @@ import helpRoutes from './routes/help';
 import pluginsRoutes from './routes/plugins';
 import aiProvidersRoutes from './routes/aiProviders';
 import ecosystemIntegrationsRoutes from './routes/ecosystemIntegrations';
+import googleDriveRoutes from './routes/google-drive';
+import literatureIntegrationsRoutes from './routes/literature-integrations';
 import apiKeysRoutes from './routes/apiKeys';
 import tutorialSandboxRoutes from './routes/tutorialSandbox';
 import futureProofingRoutes from './routes/futureProofing';
@@ -119,7 +121,9 @@ app.use('/api/monitoring', phaseGRoutes);  // All Phase G endpoints
 app.use('/api/help', helpRoutes);  // Task 136: Interactive API docs + Task 140: Community links
 app.use('/api/plugins', pluginsRoutes);  // Task 137: Plugin marketplace
 app.use('/api/ai', aiProvidersRoutes);  // Task 141: Custom AI model hooks
-app.use('/api/integrations', ecosystemIntegrationsRoutes);  // Tasks 139, 143, 144: Overleaf, Git, Import
+app.use('/api/integrations', ecosystemIntegrationsRoutes);
+app.use('/api/integrations/google-drive', googleDriveRoutes);  // Google Drive/Docs export
+app.use('/api/literature', literatureIntegrationsRoutes);  // Zotero integration  // Tasks 139, 143, 144: Overleaf, Git, Import
 app.use('/api/profile/api-keys', apiKeysRoutes);  // Task 138: API key rotation
 app.use('/api/tutorials/sandbox', tutorialSandboxRoutes);  // Task 145: Tutorial code sandboxes
 app.use('/api/admin/upgrades', futureProofingRoutes);  // Task 150: Future-proofing checklists
