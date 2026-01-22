@@ -587,6 +587,89 @@ export const devOrRequireAuth: RequestHandler = (req: Request, res: Response, ne
   return requireAuth(req, res, next);
 };
 
+/**
+ * Create or get TESTROS admin user for testing
+ * This bypasses normal authentication for development/testing
+ */
+export async function createTestrosUser(): Promise<{
+  success: boolean;
+  user?: User;
+  accessToken?: string;
+  refreshToken?: string;
+  error?: string;
+}> {
+  try {
+    const testrosEmail = 'testros@researchflow.dev';
+    const userId = crypto.randomUUID();
+
+    // Check if TESTROS user exists in database
+    const existingUser = await pool.query(
+      'SELECT id, email, name, role, created_at, updated_at FROM users WHERE email = $1',
+      [testrosEmail]
+    );
+
+    let user: User;
+
+    if (existingUser.rows.length > 0) {
+      // User exists, use existing
+      const row = existingUser.rows[0];
+      user = {
+        id: row.id,
+        email: row.email,
+        displayName: row.name || 'Test ROS Admin',
+        role: row.role as 'ADMIN',
+        createdAt: row.created_at.toISOString(),
+        updatedAt: row.updated_at.toISOString()
+      };
+    } else {
+      // Create new TESTROS user
+      const result = await pool.query(
+        `INSERT INTO users (id, email, name, role, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, NOW(), NOW())
+         RETURNING id, email, name, role, created_at, updated_at`,
+        [userId, testrosEmail, 'Test ROS Admin', 'ADMIN']
+      );
+
+      const row = result.rows[0];
+      user = {
+        id: row.id,
+        email: row.email,
+        displayName: row.name,
+        role: row.role as 'ADMIN',
+        createdAt: row.created_at.toISOString(),
+        updatedAt: row.updated_at.toISOString()
+      };
+    }
+
+    // Generate tokens
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    // Store refresh token
+    await pool.query(
+      `INSERT INTO refresh_tokens (user_id, token, expires_at, created_at)
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT DO NOTHING`,
+      [user.id, refreshToken, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
+    );
+
+    console.log('[AUTH] TESTROS user authenticated:', user.email);
+
+    return {
+      success: true,
+      user,
+      accessToken,
+      refreshToken
+    };
+  } catch (error) {
+    console.error('[AUTH] TESTROS user creation error:', error);
+    return {
+      success: false,
+      error: 'Failed to create TESTROS user'
+    };
+  }
+}
+
 // Export the service
 export const authService = {
   hashPassword,
@@ -604,7 +687,8 @@ export const authService = {
   requireAuth,
   optionalAuth,
   devOrRequireAuth,
-  devFallbackUser
+  devFallbackUser,
+  createTestrosUser
 };
 
 export default authService;
