@@ -47,11 +47,21 @@ const MODE_OPTIONS: ModeOption[] = [
 ];
 
 async function changeMode(mode: GovernanceMode): Promise<{ mode: GovernanceMode }> {
+  // Get auth token from localStorage or Zustand store
+  const token = localStorage.getItem('auth_token');
+  
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  
+  // Add auth token if available
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
   const response = await fetch("/api/governance/mode", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
     credentials: "include",
     body: JSON.stringify({ mode }),
   });

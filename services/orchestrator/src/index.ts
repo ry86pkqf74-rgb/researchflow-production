@@ -45,6 +45,7 @@ import workflowsRoutes from './routes/workflows';
 import organizationsRoutes from './routes/organizations';
 import userSettingsRoutes from './routes/user-settings';
 import { mockAuthMiddleware } from './middleware/auth.js';
+import { optionalAuth } from './services/authService';
 import { errorHandler } from './middleware/errorHandler.js';
 import { CollaborationWebSocketServer } from './collaboration/websocket-server';
 
@@ -72,8 +73,9 @@ if (NODE_ENV === 'development') {
   });
 }
 
-// Mock authentication middleware (sets req.user for RBAC)
-app.use(mockAuthMiddleware);
+// Optional authentication middleware - attaches user if token present, allows anonymous if not
+// This replaces mockAuthMiddleware and works with JWT tokens from frontend
+app.use(optionalAuth);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

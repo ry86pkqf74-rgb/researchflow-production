@@ -119,6 +119,9 @@ export function requireRole(minRole: RoleName) {
       return;
     }
 
+    // DEBUG: Log user role check
+    console.log(`[RBAC] Role check - User: ${req.user.email}, Role: ${req.user.role}, Required: ${minRole}`);
+
     // Check if role is valid
     if (!ROLE_CONFIGS[req.user.role]) {
       console.error('[RBAC] Invalid role:', req.user.role);
