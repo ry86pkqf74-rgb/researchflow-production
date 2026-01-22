@@ -377,18 +377,13 @@ export async function loginUser(input: LoginInput): Promise<{
       // Also insert into database so foreign keys work
       try {
         const { db } = await import('../../db.js');
-        const { users } = await import('@researchflow/core/schema');
-        await db.insert(users).values({
-          id: userId,
-          email: 'testros@gmail.com',
-          firstName: 'Test',
-          lastName: 'ROS',
-          displayName: 'Test ROS User',
-          role: 'ADMIN',
-          isActive: true,
-          createdAt: new Date(now),
-          updatedAt: new Date(now)
-        }).onConflictDoNothing();
+        const { sql } = await import('drizzle-orm');
+        // Use raw SQL since the Drizzle schema may not match the actual database
+        await db.execute(sql`
+          INSERT INTO users (id, email, name, role, created_at, updated_at)
+          VALUES (${userId}, ${'testros@researchflow.dev'}, ${'Test ROS Admin'}, ${'ADMIN'}, NOW(), NOW())
+          ON CONFLICT (email) DO NOTHING
+        `);
         console.log('[AUTH] TESTROS user auto-created in database');
       } catch (dbError) {
         console.warn('[AUTH] Failed to create TESTROS user in database:', dbError);
