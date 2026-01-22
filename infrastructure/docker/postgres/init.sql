@@ -20,6 +20,19 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Refresh Tokens for JWT authentication
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(500) UNIQUE NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token);
+CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+
 -- Research Projects
 CREATE TABLE IF NOT EXISTS research_projects (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
