@@ -38,13 +38,6 @@ const MODE_OPTIONS: ModeOption[] = [
     icon: Database,
   },
   {
-    value: "STANDBY",
-    label: "Standby Mode",
-    description: "System paused. Data processing is disabled.",
-    icon: Power,
-    warning: "Data processing will be paused in this mode",
-  },
-  {
     value: "LIVE",
     label: "Live Mode",
     description: "Full system access with real data and all features enabled.",

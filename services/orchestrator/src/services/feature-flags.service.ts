@@ -55,7 +55,7 @@ async function refreshCache(): Promise<void> {
     flagCache.flags.clear();
 
     for (const flag of flags) {
-      flagCache.flags.set(flag.key, flag);
+      flagCache.flags.set(flag.flagKey, flag);
     }
 
     flagCache.expiry = Date.now() + CACHE_TTL;
@@ -100,7 +100,7 @@ function evaluateFlag(
   context: { userId?: string; sessionId?: string; mode: GovernanceMode }
 ): boolean {
   // 1. Check environment override first (highest priority)
-  const envKey = `FEATURE_${flag.key.toUpperCase().replace(/-/g, '_')}`;
+  const envKey = `FEATURE_${flag.flagKey.toUpperCase().replace(/-/g, '_')}`;
   if (process.env[envKey] !== undefined) {
     return process.env[envKey] === 'true';
   }
@@ -111,16 +111,17 @@ function evaluateFlag(
   }
 
   // 3. Check required modes
-  const requiredModes = (flag.requiredModes as string[]) || [];
+  const requiredModes = (flag.metadata as any)?.requiredModes || [];
   if (requiredModes.length > 0 && !requiredModes.includes(context.mode)) {
     return false;
   }
 
   // 4. Check rollout percentage
-  if (flag.rolloutPercent < 100) {
+  const rolloutPercent = (flag.metadata as any)?.rolloutPercent || 100;
+  if (rolloutPercent < 100) {
     const identifier = context.userId || context.sessionId || 'anonymous';
-    const hash = computeRolloutHash(identifier, flag.key);
-    if (hash >= flag.rolloutPercent) {
+    const hash = computeRolloutHash(identifier, flag.flagKey);
+    if (hash >= rolloutPercent) {
       return false;
     }
   }
@@ -187,12 +188,12 @@ export async function listFlags(): Promise<FlagMeta[]> {
   const flags = await getCachedFlags();
 
   return Array.from(flags.values()).map(flag => ({
-    key: flag.key,
+    key: flag.flagKey,
     enabled: flag.enabled,
     description: flag.description,
-    scope: flag.scope,
-    rolloutPercent: flag.rolloutPercent,
-    requiredModes: (flag.requiredModes as string[]) || [],
+    scope: (flag.metadata as any)?.scope || 'product',
+    rolloutPercent: (flag.metadata as any)?.rolloutPercent || 100,
+    requiredModes: (flag.metadata as any)?.requiredModes || [],
   }));
 }
 

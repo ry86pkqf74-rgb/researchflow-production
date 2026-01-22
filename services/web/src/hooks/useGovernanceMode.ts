@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-export type GovernanceMode = 'DEMO' | 'STANDBY' | 'LIVE';
+export type GovernanceMode = 'DEMO' | 'LIVE';
 
 interface GovernanceModeResponse {
   mode: GovernanceMode;
@@ -23,13 +23,14 @@ async function fetchGovernanceMode(): Promise<GovernanceModeResponse> {
 }
 
 export function useGovernanceMode() {
-
   const { data, isLoading } = useQuery<GovernanceModeResponse>({
     queryKey: ["/api/governance/mode"],
     queryFn: fetchGovernanceMode,
     retry: false,
     staleTime: 1000 * 60 * 5,
-    enabled: true,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   const mode = data?.mode ?? 'DEMO';
@@ -37,7 +38,6 @@ export function useGovernanceMode() {
   return {
     mode,
     isDemo: mode === 'DEMO',
-    isStandby: mode === 'STANDBY',
     isLive: mode === 'LIVE',
     isLoading,
   };

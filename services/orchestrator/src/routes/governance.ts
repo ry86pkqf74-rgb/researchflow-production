@@ -127,7 +127,7 @@ router.get(
 
 /**
  * POST /api/governance/mode
- * Change governance mode (STANDBY, DEMO, LIVE)
+ * Change governance mode (DEMO, LIVE)
  * Requires: ADMIN role
  *
  * Phase F: Now persists to database and publishes realtime event
@@ -147,11 +147,11 @@ router.post(
       return;
     }
 
-    if (!['STANDBY', 'DEMO', 'LIVE'].includes(mode)) {
+    if (!['DEMO', 'LIVE'].includes(mode)) {
       res.status(400).json({
         error: 'Invalid governance mode',
         code: 'INVALID_MODE',
-        allowedValues: ['STANDBY', 'DEMO', 'LIVE']
+        allowedValues: ['DEMO', 'LIVE']
       });
       return;
     }

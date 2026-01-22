@@ -184,7 +184,7 @@ export interface User {
 /**
  * Governance modes
  */
-export type GovernanceMode = 'STANDBY' | 'DEMO' | 'LIVE';
+export type GovernanceMode = 'DEMO' | 'LIVE';
 
 /**
  * Feature flags for governance

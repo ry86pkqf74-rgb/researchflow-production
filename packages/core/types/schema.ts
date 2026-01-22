@@ -2135,7 +2135,7 @@ export type InsertManuscriptYjsUpdate = z.infer<typeof insertManuscriptYjsUpdate
 // =====================
 
 // Governance Mode Types
-export const GOVERNANCE_MODES = ['STANDBY', 'DEMO', 'LIVE'] as const;
+export const GOVERNANCE_MODES = ['DEMO', 'LIVE'] as const;
 export type GovernanceMode = (typeof GOVERNANCE_MODES)[number];
 
 // Feature Flag Scope Types
