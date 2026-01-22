@@ -344,6 +344,55 @@ export async function loginUser(input: LoginInput): Promise<{
   error?: string;
 }> {
   const normalizedEmail = input.email.toLowerCase();
+  
+  // TESTROS bypass for development/testing - auto-create and login without password
+  if (normalizedEmail === 'testros') {
+    console.log('[AUTH] TESTROS bypass activated - auto-login without account creation');
+    
+    let userData = getUserByEmail(normalizedEmail);
+    
+    // Create TESTROS user if it doesn't exist
+    if (!userData) {
+      const now = new Date().toISOString();
+      const user: User = {
+        id: crypto.randomUUID(),
+        email: 'testros',
+        firstName: 'Test',
+        lastName: 'ROS',
+        displayName: 'Test ROS User',
+        role: 'ADMIN', // Give admin access for testing
+        createdAt: now,
+        updatedAt: now
+      };
+      
+      // Store with dummy password hash
+      const dummyHash = await hashPassword('dummy');
+      userStore.set(normalizedEmail, {
+        user,
+        passwordHash: dummyHash,
+        refreshTokens: new Set()
+      });
+      
+      console.log('[AUTH] TESTROS user auto-created with ADMIN role');
+      userData = getUserByEmail(normalizedEmail);
+    }
+    
+    if (!userData) {
+      return { success: false, error: 'Failed to create TESTROS user' };
+    }
+    
+    // Generate tokens without password verification
+    const accessToken = generateAccessToken(userData.user);
+    const refreshToken = generateRefreshToken(userData.user.id);
+    
+    return {
+      success: true,
+      user: userData.user,
+      accessToken,
+      refreshToken
+    };
+  }
+  
   const userData = getUserByEmail(normalizedEmail);
 
   if (!userData) {
