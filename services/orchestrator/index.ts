@@ -281,6 +281,18 @@ app.use((req, res, next) => {
     await registerRoutes(httpServer, app);
     log("Routes registered");
 
+    // Initialize governance mode from database
+    try {
+      const { governanceConfigService } = await import("./src/services/governance-config.service.js");
+      const mode = await governanceConfigService.initializeMode();
+      log(`Governance mode initialized: ${mode}`);
+    } catch (error) {
+      logger.warn("Failed to initialize governance mode from database", {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      log("Falling back to environment variable GOVERNANCE_MODE");
+    }
+
     // Global error handler
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err.status || err.statusCode || 500;
