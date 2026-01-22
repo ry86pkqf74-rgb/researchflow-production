@@ -104,7 +104,8 @@ export function Header() {
               <div className="hidden sm:inline-flex">
                 <GovernanceBadge 
                   mode={(rosStatus?.mode as 'DEMO' | 'STANDBY' | 'LIVE') || 'STANDBY'} 
-                  showTooltip 
+                  showTooltip
+                  clickable
                 />
               </div>
             </div>

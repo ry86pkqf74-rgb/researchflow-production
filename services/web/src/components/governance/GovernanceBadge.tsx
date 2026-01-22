@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -6,10 +7,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useGovernanceMode, GovernanceMode } from "@/hooks/useGovernanceMode";
+import { ModeSwitcher } from "./ModeSwitcher";
 
 export interface GovernanceBadgeProps {
   mode?: GovernanceMode;
   showTooltip?: boolean;
+  clickable?: boolean;
 }
 
 interface ModeConfig {
@@ -36,9 +39,10 @@ const MODE_CONFIGS: Record<GovernanceMode, ModeConfig> = {
   },
 };
 
-export function GovernanceBadge({ mode: propMode, showTooltip = false }: GovernanceBadgeProps) {
+export function GovernanceBadge({ mode: propMode, showTooltip = false, clickable = false }: GovernanceBadgeProps) {
   const { mode: hookMode, isLoading } = useGovernanceMode();
   const currentMode = propMode ?? hookMode;
+  const [switcherOpen, setSwitcherOpen] = useState(false);
 
   if (isLoading && !propMode) {
     return (
@@ -53,25 +57,50 @@ export function GovernanceBadge({ mode: propMode, showTooltip = false }: Governa
   const badge = (
     <Badge
       variant="outline"
-      className={config.className}
+      className={`${config.className} ${clickable ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
       aria-label={`Current governance mode: ${config.label}`}
+      onClick={clickable ? () => setSwitcherOpen(true) : undefined}
+      role={clickable ? "button" : undefined}
     >
       {config.label}
     </Badge>
   );
 
   if (!showTooltip) {
-    return badge;
+    return (
+      <>
+        {badge}
+        {clickable && (
+          <ModeSwitcher
+            currentMode={currentMode}
+            open={switcherOpen}
+            onOpenChange={setSwitcherOpen}
+          />
+        )}
+      </>
+    );
   }
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>{badge}</TooltipTrigger>
-        <TooltipContent>
-          <p className="max-w-xs">{config.tooltipText}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>{badge}</TooltipTrigger>
+          <TooltipContent>
+            <p className="max-w-xs">{config.tooltipText}</p>
+            {clickable && (
+              <p className="text-xs text-muted-foreground mt-1">Click to change mode</p>
+            )}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      {clickable && (
+        <ModeSwitcher
+          currentMode={currentMode}
+          open={switcherOpen}
+          onOpenChange={setSwitcherOpen}
+        />
+      )}
+    </>
   );
 }
