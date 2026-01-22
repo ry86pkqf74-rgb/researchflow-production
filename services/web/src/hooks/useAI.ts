@@ -16,6 +16,7 @@ import {
   validateEndpointResponse,
   formatValidationErrors,
 } from '@/lib/ai-validation';
+import { createErrorFromResponse, getUserMessage } from '@/lib/errors';
 
 interface AIResponse<T = any> {
   success: boolean;

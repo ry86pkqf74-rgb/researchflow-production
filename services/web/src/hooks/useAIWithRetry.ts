@@ -11,6 +11,7 @@
 
 import { useAI, type AIGenerateOptions } from './useAI';
 import { useToast } from './use-toast';
+import { isRetryableError as checkRetryable, getUserMessage } from '@/lib/errors';
 
 interface AIResponse<T = any> {
   success: boolean;
