@@ -2,15 +2,18 @@
  * ModeBanner Component
  * 
  * Prominent sticky banner showing current mode (DEMO or LIVE).
- * - DEMO: Amber banner with login link
+ * - DEMO: Amber banner with mode switch link
  * - LIVE: Green banner confirming full functionality
  */
 
-import { useModeStore } from '@/stores/mode-store';
+import { useState } from 'react';
+import { useGovernanceMode } from '@/hooks/useGovernanceMode';
+import { ModeSwitcher } from '@/components/governance/ModeSwitcher';
 import { AlertTriangle, CheckCircle, ArrowRight } from 'lucide-react';
 
 export function ModeBanner() {
-  const { isDemo, isLive, isLoading } = useModeStore();
+  const { mode, isDemo, isLive, isLoading } = useGovernanceMode();
+  const [switcherOpen, setSwitcherOpen] = useState(false);
   
   if (isLoading) {
     return null;
@@ -18,26 +21,33 @@ export function ModeBanner() {
   
   if (isDemo) {
     return (
-      <div 
-        className="bg-amber-500 text-amber-950 px-4 py-3 flex items-center justify-center gap-4 sticky top-0 z-50"
-        role="alert"
-        data-testid="mode-banner-demo"
-      >
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span className="text-sm font-semibold" data-testid="text-demo-mode-message">
-            DEMO MODE — Explore how ResearchFlow Canvas works. No login required. AI responses are simulated.
-          </span>
-        </div>
-        <a
-          href="/login"
-          className="flex items-center gap-1 text-sm font-bold underline whitespace-nowrap"
-          data-testid="link-switch-to-live"
+      <>
+        <div 
+          className="bg-amber-500 text-amber-950 px-4 py-3 flex items-center justify-center gap-4 sticky top-0 z-50"
+          role="alert"
+          data-testid="mode-banner-demo"
         >
-          Switch to LIVE Mode
-          <ArrowRight className="h-3 w-3" aria-hidden="true" />
-        </a>
-      </div>
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="text-sm font-semibold" data-testid="text-demo-mode-message">
+              DEMO MODE — Explore how ResearchFlow Canvas works. No login required. AI responses are simulated.
+            </span>
+          </div>
+          <button
+            onClick={() => setSwitcherOpen(true)}
+            className="flex items-center gap-1 text-sm font-bold underline whitespace-nowrap hover:opacity-80 transition-opacity"
+            data-testid="link-switch-to-live"
+          >
+            Switch to LIVE Mode
+            <ArrowRight className="h-3 w-3" aria-hidden="true" />
+          </button>
+        </div>
+        <ModeSwitcher
+          currentMode={mode}
+          open={switcherOpen}
+          onOpenChange={setSwitcherOpen}
+        />
+      </>
     );
   }
   
