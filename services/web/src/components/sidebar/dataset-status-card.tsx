@@ -7,6 +7,7 @@
  * Priority: P0 - CRITICAL (Phase 2)
  */
 
+import { safeFixed } from "@/lib/format";
 import {
   Shield,
   Lock,

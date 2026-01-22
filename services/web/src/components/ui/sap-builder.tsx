@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { safeFixed } from "@/lib/format";
 import { motion } from "framer-motion";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";

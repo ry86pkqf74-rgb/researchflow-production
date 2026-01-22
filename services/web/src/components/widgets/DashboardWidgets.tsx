@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { safeFixed } from '@/lib/format';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

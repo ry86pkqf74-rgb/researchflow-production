@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { safeFixed } from "@/lib/format";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { safeFixed } from "@/lib/format";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
