@@ -88,6 +88,10 @@ const RouteRequestSchema = z.object({
   budgetLimit: z.number().positive().optional(),
   requirePhiCompliance: z.boolean().optional(),
   stageId: z.number().int().positive().optional(),
+  // Approval tracking fields
+  approvalId: z.string().optional(),
+  approvedBy: z.string().optional(),
+  approvalTimestamp: z.string().datetime().optional(),
 });
 
 const CostEstimateSchema = z.object({
@@ -165,6 +169,9 @@ router.post(
       budgetLimit,
       requirePhiCompliance,
       stageId,
+      approvalId,
+      approvedBy,
+      approvalTimestamp,
     } = validation.data;
 
     // Get task mapping or use defaults
@@ -229,7 +236,7 @@ router.post(
 
     const selectedTierConfig = MODEL_TIERS[selectedTier];
 
-    // Log routing decision
+    // Log routing decision with approval metadata
     await logAction({
       eventType: 'AI_ROUTING',
       action: 'ROUTE_SELECTED',
@@ -242,6 +249,11 @@ router.post(
         governanceMode,
         estimatedCost: tierCosts[selectedTier].totalCost,
         stageId,
+        // Approval tracking
+        approvalId,
+        approvedBy,
+        approvalTimestamp,
+        approvalRequired: governanceMode === 'LIVE',
       },
     });
 

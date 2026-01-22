@@ -156,7 +156,7 @@ export default function PipelineDashboard() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-8 max-w-5xl">
         <div className="flex items-center gap-4 mb-8">
-          <Link href="/">
+          <Link href="/workflow">
             <Button variant="ghost" size="icon" data-testid="button-back-home">
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -248,7 +248,7 @@ export default function PipelineDashboard() {
                       <p className="text-muted-foreground text-sm mb-4">
                         Pipeline runs will appear here once execution begins.
                       </p>
-                      <Link href="/">
+                      <Link href="/workflow">
                         <Button variant="outline" data-testid="link-start-workflow">
                           <ExternalLink className="h-4 w-4 mr-2" />
                           Start Workflow
@@ -303,27 +303,27 @@ export default function PipelineDashboard() {
                       </CardHeader>
                       <CardContent>
                         <div className="flex flex-wrap gap-2">
-                          <Link href="/">
+                          <Link href="/workflow">
                             <Button variant="outline" size="sm" data-testid="link-stage-topic">
                               Topic Declaration
                             </Button>
                           </Link>
-                          <Link href="/">
+                          <Link href="/workflow">
                             <Button variant="outline" size="sm" data-testid="link-stage-literature">
                               Literature Search
                             </Button>
                           </Link>
-                          <Link href="/">
+                          <Link href="/workflow">
                             <Button variant="outline" size="sm" data-testid="link-stage-irb">
                               IRB Proposal
                             </Button>
                           </Link>
-                          <Link href="/">
+                          <Link href="/workflow">
                             <Button variant="outline" size="sm" data-testid="link-stage-validation">
                               Data Validation
                             </Button>
                           </Link>
-                          <Link href="/">
+                          <Link href="/workflow">
                             <Button variant="outline" size="sm" data-testid="link-stage-analysis">
                               Statistical Analysis
                             </Button>

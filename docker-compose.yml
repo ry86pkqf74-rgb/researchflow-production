@@ -87,6 +87,8 @@ services:
       context: .
       dockerfile: services/web/Dockerfile
       target: production
+      args:
+        - VITE_WS_URL=ws://localhost:1234
     ports:
       - "5173:80"
     depends_on:

@@ -59,6 +59,8 @@ import { WorkflowSidebar } from "@/components/sections/workflow-sidebar";
 import { AIConsentModal, type AIConsentResult } from "@/components/ui/ai-consent-modal";
 import { useAIAuthorizationStore } from "@/stores/ai-authorization-store";
 import { TopicCardRecommendations, type TopicRecommendationsData } from "@/components/ui/topic-card-recommendations";
+import { useAI } from "@/hooks/useAI";
+import { useAIWithRetry } from "@/hooks/useAIWithRetry";
 import { type PhaseGroupInfo, type WorkflowStageInfo } from "@/components/ui/progress-stepper";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
@@ -201,6 +203,10 @@ export function WorkflowPipeline() {
   
   // PHI Gate System from context (keeping for phiStatus display, requestGateCheck unused with new PhiGate component)
   const { phiStatus } = usePhiGate();
+
+  // AI hook for API calls with authorization and retry
+  const { generateContent } = useAI();
+  const { generateWithRetry } = useAIWithRetry();
 
   // Add audit log entry
   const addAuditEntry = (entry: AuditLogEntry) => {
@@ -361,45 +367,45 @@ export function WorkflowPipeline() {
     await fetchRecommendations();
   };
 
-  // Fetch AI recommendations from API
+  // Fetch AI recommendations from API (now using useAI hook with authorization)
   const fetchRecommendations = async () => {
     console.log('[AI] fetchRecommendations called');
     setIsLoadingRecommendations(true);
-    
+
     try {
       const overview = getCurrentOverview();
       const currentValues = getCurrentScopeValues();
-      const authorization = useAIAuthorizationStore.getState().getAuthorization('topic-declaration-recommendations');
 
       console.log('[AI] Sending request to /api/ai/topic-recommendations', {
         overview: overview?.substring(0, 50) + '...',
         currentValues,
-        authorizedBy: authorization?.authorizedBy
       });
 
-      const response = await fetch('/api/ai/topic-recommendations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Use the useAIWithRetry hook which handles authorization, validation, and automatic retries
+      const response = await generateWithRetry<TopicRecommendationsData>(
+        'ai/topic-recommendations',
+        {
           researchOverview: overview,
           currentValues,
-          authorizedBy: authorization?.authorizedBy || 'Unknown',
-        }),
-      });
+        },
+        {
+          stageId: 1,
+          stageName: 'Topic Declaration',
+          maxRetries: 2, // Retry twice on network failures
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch recommendations');
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch recommendations');
       }
 
-      const data = await response.json();
-      setAiRecommendations(data);
-      
+      setAiRecommendations(response.data);
+
       addAuditEntry(createAuditEntry('AI_INTERACTION', {
         stageId: 1,
         stageName: 'Topic Declaration',
-        reason: `AI recommendations generated (strength: ${data.overallAssessment.strength})`,
+        reason: `AI recommendations generated (strength: ${response.data.overallAssessment.strength})`,
+        approvedBy: response.approvedBy,
       }));
     } catch (error) {
       console.error('Error fetching AI recommendations:', error);

@@ -128,13 +128,12 @@ router.get(
 /**
  * POST /api/governance/mode
  * Change governance mode (DEMO, LIVE)
- * Requires: ADMIN role
+ * Requires: Authentication (all authenticated users can switch modes)
  *
  * Phase F: Now persists to database and publishes realtime event
  */
 router.post(
   '/mode',
-  requireRole('ADMIN'),
   asyncHandler(async (req, res) => {
     const { mode } = req.body;
     const user = req.user;

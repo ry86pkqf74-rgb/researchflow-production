@@ -89,7 +89,26 @@ export function CollaborativeEditor({
 
   // Initialize Yjs and WebSocket provider
   useEffect(() => {
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
+    // Determine WebSocket URL based on environment
+    // In production, use wss:// for secure connections
+    // In Docker, connect to collab service on port 1234
+    const isDev = import.meta.env.DEV;
+    const isHttps = window.location.protocol === 'https:';
+    const wsProtocol = isHttps ? 'wss:' : 'ws:';
+
+    // Use environment variable if provided, otherwise construct from current host
+    let wsUrl = import.meta.env.VITE_WS_URL;
+    if (!wsUrl) {
+      if (isDev) {
+        // Development: connect to localhost collab service
+        wsUrl = 'ws://localhost:1234';
+      } else {
+        // Production: use current host with appropriate protocol
+        const wsHost = window.location.host;
+        wsUrl = `${wsProtocol}//${wsHost}`;
+      }
+    }
+
     const roomName = `artifact-${artifactId}`;
 
     const wsProvider = new WebsocketProvider(wsUrl, roomName, ydoc, {

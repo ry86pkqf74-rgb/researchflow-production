@@ -670,6 +670,121 @@ export async function createTestrosUser(): Promise<{
   }
 }
 
+/**
+ * Find user by email
+ */
+async function findUserByEmail(email: string): Promise<{ id: string; email: string; passwordHash: string } | null> {
+  try {
+    const result = await pool.query(
+      'SELECT id, email, password_hash as "passwordHash" FROM users WHERE email = $1',
+      [email.toLowerCase()]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return result.rows[0];
+  } catch (error) {
+    console.error('[Auth] Error finding user by email:', error);
+    return null;
+  }
+}
+
+/**
+ * Generate password reset token
+ * Returns a secure token that expires in 1 hour
+ */
+async function generatePasswordResetToken(userId: string): Promise<string> {
+  // Generate secure random token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  try {
+    // Store token in database
+    await pool.query(
+      `INSERT INTO password_reset_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id)
+       DO UPDATE SET token = $2, expires_at = $3, created_at = NOW()`,
+      [userId, resetToken, expiresAt]
+    );
+
+    return resetToken;
+  } catch (error) {
+    console.error('[Auth] Error generating password reset token:', error);
+    throw new Error('Failed to generate reset token');
+  }
+}
+
+/**
+ * Verify password reset token
+ * Returns user ID if valid, null if invalid or expired
+ */
+async function verifyPasswordResetToken(token: string): Promise<string | null> {
+  try {
+    const result = await pool.query(
+      `SELECT user_id, expires_at
+       FROM password_reset_tokens
+       WHERE token = $1`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const { user_id: userId, expires_at: expiresAt } = result.rows[0];
+
+    // Check if token has expired
+    if (new Date(expiresAt) < new Date()) {
+      // Delete expired token
+      await pool.query('DELETE FROM password_reset_tokens WHERE token = $1', [token]);
+      return null;
+    }
+
+    return userId;
+  } catch (error) {
+    console.error('[Auth] Error verifying password reset token:', error);
+    return null;
+  }
+}
+
+/**
+ * Update user password
+ */
+async function updatePassword(userId: string, newPassword: string): Promise<void> {
+  try {
+    // Hash new password
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    // Update password in database
+    await pool.query(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+      [passwordHash, userId]
+    );
+
+    // Delete used reset token
+    await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
+  } catch (error) {
+    console.error('[Auth] Error updating password:', error);
+    throw new Error('Failed to update password');
+  }
+}
+
+/**
+ * Invalidate all user sessions
+ * Revokes all refresh tokens for security after password change
+ */
+async function invalidateUserSessions(userId: string): Promise<void> {
+  try {
+    await revokeAllUserTokens(userId);
+  } catch (error) {
+    console.error('[Auth] Error invalidating user sessions:', error);
+    throw new Error('Failed to invalidate sessions');
+  }
+}
+
 // Export the service
 export const authService = {
   hashPassword,
@@ -688,7 +803,12 @@ export const authService = {
   optionalAuth,
   devOrRequireAuth,
   devFallbackUser,
-  createTestrosUser
+  createTestrosUser,
+  findUserByEmail,
+  generatePasswordResetToken,
+  verifyPasswordResetToken,
+  updatePassword,
+  invalidateUserSessions
 };
 
 export default authService;

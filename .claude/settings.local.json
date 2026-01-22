@@ -7,7 +7,13 @@
       "Read(*)",
       "Glob(*)",
       "Grep(*)",
-      "Task(*)"
+      "Task(*)",
+      "Bash(docker exec:*)",
+      "Bash(docker compose:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(docker logs:*)",
+      "Bash(curl:*)",
+      "Bash(jq:*)"
     ],
     "deny": []
   },

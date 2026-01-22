@@ -23,6 +23,9 @@ import Home from "@/pages/home";
 import DemoLanding from "@/pages/demo-landing";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import TermsPage from "@/pages/terms";
+import PrivacyPage from "@/pages/privacy";
 import WorkflowPage from "@/pages/workflow";
 import GovernancePage from "@/pages/governance";
 import GovernanceConsole from "@/pages/governance-console";
@@ -295,6 +298,11 @@ function Router() {
       {/* Auth routes - always accessible */}
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
+      <Route path="/forgot-password" component={ForgotPasswordPage} />
+
+      {/* Legal/compliance pages - always accessible */}
+      <Route path="/terms" component={TermsPage} />
+      <Route path="/privacy" component={PrivacyPage} />
 
       {/* Protected routes - require auth in LIVE mode */}
       <Route path="/governance">

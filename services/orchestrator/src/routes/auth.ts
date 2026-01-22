@@ -262,8 +262,103 @@ router.post('/logout-all', requireAuth, (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/auth/forgot-password
+ * Request a password reset link
+ */
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        error: 'Email is required'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        error: 'Invalid email format'
+      });
+    }
+
+    // Check if user exists (without revealing if they don't)
+    const user = await authService.findUserByEmail(email);
+
+    if (user) {
+      // Generate reset token (valid for 1 hour)
+      const resetToken = await authService.generatePasswordResetToken(user.id);
+
+      // In production, send email with reset link
+      // For now, log to console (in dev mode) or return token (for testing)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Password Reset] Token for', email, ':', resetToken);
+        console.log('[Password Reset] Link: http://localhost:5173/reset-password?token=' + resetToken);
+      }
+
+      // TODO: Send email via email service (SendGrid, AWS SES, etc.)
+      // await emailService.sendPasswordResetEmail(email, resetToken);
+    }
+
+    // Always return success to prevent email enumeration
+    res.json({
+      message: 'If an account exists for that email, a password reset link has been sent.',
+      note: process.env.NODE_ENV === 'development' ? 'Check console for reset link' : undefined
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Password reset request failed' });
+  }
+});
+
+/**
+ * POST /api/auth/reset-password
+ * Reset password using a valid reset token
+ */
+router.post('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        error: 'Token and new password are required'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        error: 'New password must be at least 8 characters'
+      });
+    }
+
+    // Verify token and get user ID
+    const userId = await authService.verifyPasswordResetToken(token);
+
+    if (!userId) {
+      return res.status(400).json({
+        error: 'Invalid or expired reset token'
+      });
+    }
+
+    // Update password
+    await authService.updatePassword(userId, newPassword);
+
+    // Invalidate all existing sessions for security
+    await authService.invalidateUserSessions(userId);
+
+    res.json({
+      message: 'Password reset successfully. Please login with your new password.'
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Password reset failed' });
+  }
+});
+
+/**
  * POST /api/auth/change-password
- * Change user password
+ * Change user password (requires authentication)
  */
 router.post('/change-password', requireAuth, async (req: Request, res: Response) => {
   try {
