@@ -346,7 +346,7 @@ export async function loginUser(input: LoginInput): Promise<{
   const normalizedEmail = input.email.toLowerCase();
   
   // TESTROS bypass for development/testing - auto-create and login without password
-  if (normalizedEmail === 'testros') {
+  if (normalizedEmail === 'testros@gmail.com') {
     console.log('[AUTH] TESTROS bypass activated - auto-login without account creation');
     
     let userData = getUserByEmail(normalizedEmail);
@@ -356,7 +356,7 @@ export async function loginUser(input: LoginInput): Promise<{
       const now = new Date().toISOString();
       const user: User = {
         id: crypto.randomUUID(),
-        email: 'testros',
+        email: 'testros@gmail.com',
         firstName: 'Test',
         lastName: 'ROS',
         displayName: 'Test ROS User',
