@@ -118,6 +118,7 @@ export function WorkflowPipeline() {
   const [expandedGroups, setExpandedGroups] = useState<string[]>(["data-preparation"]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [executionState, setExecutionState] = useState<ExecutionState>({});
+  const [executionPending, setExecutionPending] = useState<Record<number, boolean>>({});
   const [expandedOutputs, setExpandedOutputs] = useState<Record<string, boolean>>({});
   const [scopeValuesByStage, setScopeValuesByStage] = useState<Record<number, Record<string, string>>>({});
   const [appliedSuggestionsByStage, setAppliedSuggestionsByStage] = useState<Record<number, Set<number>>>({});
@@ -735,48 +736,56 @@ export function WorkflowPipeline() {
   };
 
   const handleExecuteStage = async (stageId: number) => {
-    // Reset selected manuscript if re-executing Stage 11
-    if (stageId === 11) {
-      setSelectedManuscript(null);
-    }
-    // Reset selected journal if re-executing Stage 16
-    if (stageId === 16) {
-      setSelectedJournal(null);
-    }
+    // Prevent double-clicks
+    if (executionPending[stageId]) return;
 
-    // Get stage name for attestation
-    const allStages = stageGroups?.flatMap(g => g.stages) || [];
-    const stage = allStages.find(s => s.id === stageId);
-    const stageName = stage?.name || `Stage ${stageId}`;
+    setExecutionPending(prev => ({ ...prev, [stageId]: true }));
+    try {
+      // Reset selected manuscript if re-executing Stage 11
+      if (stageId === 11) {
+        setSelectedManuscript(null);
+      }
+      // Reset selected journal if re-executing Stage 16
+      if (stageId === 16) {
+        setSelectedJournal(null);
+      }
 
-    // Enforce lifecycle state transition validation
-    const targetState = mapStageToLifecycleState(stageId);
-    if (targetState !== lifecycleState && !canExecuteInCurrentState(stageId, lifecycleState)) {
-      // Invalid lifecycle transition - block execution and log
-      addAuditEntry(createAuditEntry('GATE_BLOCKED', {
-        stageId,
-        stageName,
-        stateFrom: lifecycleState,
-        stateTo: targetState,
-        reason: `Invalid lifecycle transition: ${lifecycleState} → ${targetState}. Complete prior stages first.`,
-      }));
-      return;
-    }
+      // Get stage name for attestation
+      const allStages = stageGroups?.flatMap(g => g.stages) || [];
+      const stage = allStages.find(s => s.id === stageId);
+      const stageName = stage?.name || `Stage ${stageId}`;
 
-    // Check if PHI gate is required for this stage using new PhiGate component modal
-    // PHI-gated stages: 9, 13, 14, 17, 18, 19
-    const continueAfterPhiGate = async () => {
-      // This continuation runs after PHI gate passes or if stage is not PHI-gated
+      // Enforce lifecycle state transition validation
+      const targetState = mapStageToLifecycleState(stageId);
+      if (targetState !== lifecycleState && !canExecuteInCurrentState(stageId, lifecycleState)) {
+        // Invalid lifecycle transition - block execution and log
+        addAuditEntry(createAuditEntry('GATE_BLOCKED', {
+          stageId,
+          stageName,
+          stateFrom: lifecycleState,
+          stateTo: targetState,
+          reason: `Invalid lifecycle transition: ${lifecycleState} → ${targetState}. Complete prior stages first.`,
+        }));
+        return;
+      }
+
+      // Check if PHI gate is required for this stage using new PhiGate component modal
+      // PHI-gated stages: 9, 13, 14, 17, 18, 19
+      const continueAfterPhiGate = async () => {
+        // This continuation runs after PHI gate passes or if stage is not PHI-gated
+        await executeStageCore(stageId, stageName, targetState);
+      };
+
+      if (checkPhiGate(stageId, continueAfterPhiGate)) {
+        // PHI gate modal opened - execution will continue via onPass callback
+        return;
+      }
+
+      // Stage is not PHI-gated, continue with execution
       await executeStageCore(stageId, stageName, targetState);
-    };
-
-    if (checkPhiGate(stageId, continueAfterPhiGate)) {
-      // PHI gate modal opened - execution will continue via onPass callback
-      return;
+    } finally {
+      setExecutionPending(prev => ({ ...prev, [stageId]: false }));
     }
-
-    // Stage is not PHI-gated, continue with execution
-    await executeStageCore(stageId, stageName, targetState);
   };
 
   // Core stage execution logic (called after all gates pass)
@@ -1548,6 +1557,7 @@ export function WorkflowPipeline() {
                                 <Button
                                   onClick={() => handleExecuteStage(selectedStage.id)}
                                   disabled={
+                                    executionPending[selectedStage.id] ||
                                     executionState[selectedStage.id]?.status === 'executing' ||
                                     executionState[selectedStage.id]?.status === 'completed' ||
                                     !canExecuteStage(selectedStage.id)

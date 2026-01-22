@@ -58,8 +58,23 @@ export const useTokenStore = create<TokenStore>()(
   persist(
     (set) => ({
       accessToken: null,
-      setAccessToken: (token) => set({ accessToken: token }),
-      clearToken: () => set({ accessToken: null }),
+      setAccessToken: (token) => {
+        set({ accessToken: token });
+        // Sync with localStorage for api-client compatibility
+        if (typeof window !== 'undefined') {
+          if (token) {
+            localStorage.setItem('auth_token', token);
+          } else {
+            localStorage.removeItem('auth_token');
+          }
+        }
+      },
+      clearToken: () => {
+        set({ accessToken: null });
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('auth_token');
+        }
+      },
     }),
     {
       name: 'auth-storage',

@@ -109,6 +109,8 @@ import submissionsRouter from "./src/routes/submissions";
 // Phase F: Observability + Feature Flags routes
 import analyticsRouter from "./src/routes/analytics";
 import streamRouter from "./src/routes/stream";
+import aiRouter from "./src/routes/ai-router";
+import { aiProvidersRouter } from "./src/routes/aiProviders";
 import { scan as scanPhi } from "@researchflow/phi-engine";
 
 // Initialize OpenAI client
@@ -972,6 +974,12 @@ export async function registerRoutes(
   // Phase F: Observability + Feature Flags
   app.use("/api/analytics", analyticsRouter);
   app.use("/api/stream", streamRouter);
+
+  // AI Provider extensibility (Task 141)
+  app.use("/api/ai", aiProvidersRouter);
+
+  // AI Router - Model tier selection (Tasks 64-68)
+  app.use("/api/ai/router", aiRouter);
 
   // Mode information endpoint - publicly accessible
   app.get("/api/mode", (_req, res) => {

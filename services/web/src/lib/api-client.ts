@@ -36,12 +36,20 @@ export function configureAPI(newConfig: Partial<APIClientConfig>) {
 
 /**
  * Get authentication token from storage
- * TODO: Integrate with auth store when authentication is implemented
  */
 function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
 
-  // Check localStorage for token
+  // Prefer Zustand store state, fallback to localStorage
+  try {
+    const { useTokenStore } = require('@/hooks/use-auth');
+    const storeToken = useTokenStore.getState().accessToken;
+    if (storeToken) return storeToken;
+  } catch (e) {
+    // Fallback if import fails
+  }
+
+  // Fallback to localStorage
   const token = localStorage.getItem('auth_token');
   return token;
 }
