@@ -13,6 +13,16 @@ export function safeFixed(value: number | undefined | null, decimals: number = 2
 }
 
 /**
+ * Safely format a number with locale string, handling undefined/null values
+ * @param value - The number to format (can be undefined or null)
+ * @param options - Intl.NumberFormatOptions (optional)
+ * @returns Formatted locale string
+ */
+export function safeLocaleString(value: number | undefined | null, options?: Intl.NumberFormatOptions): string {
+  return (value ?? 0).toLocaleString(undefined, options);
+}
+
+/**
  * Format bytes to human-readable size
  * @param bytes - Size in bytes
  * @param decimals - Number of decimal places (default: 1)

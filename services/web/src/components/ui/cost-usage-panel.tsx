@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { safeFixed } from "@/lib/format";
+import { safeFixed, safeLocaleString } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -131,7 +131,7 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
           <CardContent className="pt-0 space-y-3">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Tokens Used</span>
-              <span className="font-mono" data-testid="text-total-tokens">{data.totalTokens.toLocaleString()}</span>
+              <span className="font-mono" data-testid="text-total-tokens">{safeLocaleString(data.totalTokens)}</span>
             </div>
 
             {data.budgetLimit && (
@@ -213,7 +213,7 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
           </div>
           <div className="space-y-1">
             <div className="text-sm text-muted-foreground">Total Tokens</div>
-            <div className="text-2xl font-bold" data-testid="text-total-tokens-large">{data.totalTokens.toLocaleString()}</div>
+            <div className="text-2xl font-bold" data-testid="text-total-tokens-large">{safeLocaleString(data.totalTokens)}</div>
           </div>
         </div>
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { safeLocaleString } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -164,7 +165,7 @@ export function DatasetLibrary() {
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1">
                           <FileText className="h-3 w-3 text-muted-foreground" />
-                          <span className="font-medium">{dataset.records.toLocaleString()}</span>
+                          <span className="font-medium">{safeLocaleString(dataset.records)}</span>
                         </span>
                         <span className="flex items-center gap-1">
                           <Database className="h-3 w-3 text-muted-foreground" />
@@ -219,7 +220,7 @@ export function DatasetLibrary() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                       <div className="p-3 rounded-lg bg-background">
                         <div className="text-xs text-muted-foreground mb-1">Records</div>
-                        <div className="text-lg font-semibold">{selectedDataset.records.toLocaleString()}</div>
+                        <div className="text-lg font-semibold">{safeLocaleString(selectedDataset.records)}</div>
                       </div>
                       <div className="p-3 rounded-lg bg-background">
                         <div className="text-xs text-muted-foreground mb-1">Variables</div>
