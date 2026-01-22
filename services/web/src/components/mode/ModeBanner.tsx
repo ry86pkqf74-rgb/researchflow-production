@@ -22,7 +22,7 @@ export function ModeBanner() {
   return (
     <>
       <div 
-        className="bg-amber-500 text-amber-950 px-4 py-3 flex items-center justify-center gap-4 fixed top-16 left-0 right-0 z-40"
+        className="bg-amber-500 text-amber-950 px-4 py-3 flex items-center justify-between fixed top-16 left-0 right-0 z-40"
         role="alert"
         data-testid="mode-banner-demo"
       >
@@ -37,7 +37,7 @@ export function ModeBanner() {
             console.log('[ModeBanner] Switch button clicked');
             setSwitcherOpen(true);
           }}
-          className="flex items-center gap-1 text-sm font-bold underline whitespace-nowrap hover:opacity-80 transition-opacity"
+          className="flex items-center gap-1 text-sm font-bold underline whitespace-nowrap hover:opacity-80 transition-opacity ml-auto mr-4"
           data-testid="link-switch-to-live"
         >
           Switch to LIVE Mode

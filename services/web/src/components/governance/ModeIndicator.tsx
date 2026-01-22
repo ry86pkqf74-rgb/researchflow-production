@@ -20,20 +20,6 @@ interface ModeConfig {
 }
 
 const MODE_CONFIGS: Record<GovernanceMode, ModeConfig> = {
-  STANDBY: {
-    color: "text-muted-foreground",
-    bgColor: "bg-muted/50",
-    borderColor: "border-muted-foreground/30",
-    icon: Lock,
-    label: "STANDBY",
-    description: "System locked - No data processing",
-    allowedOperations: [
-      "View documentation",
-      "View governance console",
-      "View audit logs (read-only)",
-      "Configure settings",
-    ],
-  },
   DEMO: {
     color: "text-amber-600 dark:text-amber-400",
     bgColor: "bg-amber-500/10",

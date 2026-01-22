@@ -117,7 +117,7 @@ export function SystemStatusCard({
               className="text-xs"
               data-testid="mode-badge"
             >
-              {isLiveMode ? "LIVE" : "STANDBY"}
+              {isLiveMode ? "LIVE" : "DEMO"}
             </Badge>
           </div>
           {hasWarning && (
@@ -141,7 +141,7 @@ export function SystemStatusCard({
             className="text-xs"
             data-testid="mode-badge"
           >
-            {isLiveMode ? "LIVE" : "STANDBY"}
+            {isLiveMode ? "LIVE" : "DEMO"}
           </Badge>
         </CardTitle>
       </CardHeader>
