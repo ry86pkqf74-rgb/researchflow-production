@@ -5,6 +5,7 @@ import crypto from "crypto";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import OpenAI from "openai";
 import { storage } from "./storage";
 import { db } from "./db";
 import { topics } from "@researchflow/core/schema";
@@ -109,6 +110,12 @@ import submissionsRouter from "./src/routes/submissions";
 import analyticsRouter from "./src/routes/analytics";
 import streamRouter from "./src/routes/stream";
 import { scan as scanPhi } from "@researchflow/phi-engine";
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
 
 // ROS Backend API URL (Python FastAPI server)
 const ROS_API_URL = process.env.ROS_API_URL || "http://localhost:8000";
