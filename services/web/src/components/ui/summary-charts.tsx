@@ -1,4 +1,5 @@
 import * as React from "react";
+import { safeFixed, formatBytes } from "@/lib/format";
 import {
   BarChart,
   Bar,
@@ -180,7 +181,7 @@ export function CorrelationHeatmap({ data, variables }: CorrelationHeatmapProps)
                         data-testid={`heatmap-cell-${rowVar}-${colVar}`}
                       >
                         <span className="absolute inset-0 flex items-center justify-center text-xs font-medium">
-                          {correlation.toFixed(2)}
+                          {safeFixed(correlation, 2)}
                         </span>
                       </div>
                     );
@@ -198,7 +199,7 @@ export function CorrelationHeatmap({ data, variables }: CorrelationHeatmapProps)
                 {hoveredCell.row} × {hoveredCell.col}
               </p>
               <p className="text-muted-foreground">
-                Correlation: <span className="font-mono font-medium text-foreground">{hoveredCell.value.toFixed(3)}</span>
+                Correlation: <span className="font-mono font-medium text-foreground">{hoveredCell.safeFixed(value, 3)}</span>
               </p>
             </div>
           )}
@@ -326,11 +327,11 @@ const BoxPlotTooltip = ({
       <div className="rounded-lg border border-border/50 bg-background px-3 py-2 text-sm shadow-xl">
         <p className="font-medium text-foreground">{data.category}</p>
         <div className="mt-1 space-y-0.5 text-muted-foreground">
-          <p>Max: <span className="font-mono font-medium text-foreground">{data.max.toFixed(2)}</span></p>
-          <p>Q3: <span className="font-mono font-medium text-foreground">{data.q3.toFixed(2)}</span></p>
-          <p>Median: <span className="font-mono font-medium text-foreground">{data.median.toFixed(2)}</span></p>
-          <p>Q1: <span className="font-mono font-medium text-foreground">{data.q1.toFixed(2)}</span></p>
-          <p>Min: <span className="font-mono font-medium text-foreground">{data.min.toFixed(2)}</span></p>
+          <p>Max: <span className="font-mono font-medium text-foreground">{data.safeFixed(max, 2)}</span></p>
+          <p>Q3: <span className="font-mono font-medium text-foreground">{data.safeFixed(q3, 2)}</span></p>
+          <p>Median: <span className="font-mono font-medium text-foreground">{data.safeFixed(median, 2)}</span></p>
+          <p>Q1: <span className="font-mono font-medium text-foreground">{data.safeFixed(q1, 2)}</span></p>
+          <p>Min: <span className="font-mono font-medium text-foreground">{data.safeFixed(min, 2)}</span></p>
           {data.outliers && data.outliers.length > 0 && (
             <p>Outliers: <span className="font-mono font-medium text-foreground">{data.outliers.length}</span></p>
           )}

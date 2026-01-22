@@ -1,5 +1,6 @@
 // components/ROSMetrics.tsx
 import React from 'react';
+import { safeFixed, formatBytes } from "@/lib/format";
 
 /**
  * Key metrics and pricing data for ROS (Research Operating System)
@@ -214,7 +215,7 @@ export function ROICalculator() {
   const platformFee = tierFees[selectedTier] || 11988;
   const totalRosCost = rosStudyCost + platformFee;
   const annualSavings = (studiesPerYear * 30133) - totalRosCost;
-  const roi = ((annualSavings / platformFee) * 100).toFixed(0);
+  const roi = safeFixed(((annualSavings / platformFee) * 100), 0);
   const monthsSavedPerStudy = 10.5; // midpoint of 9-12 months
   const totalMonthsSaved = studiesPerYear * monthsSavedPerStudy;
 

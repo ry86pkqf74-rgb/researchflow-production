@@ -428,7 +428,7 @@ export function SlideDeckGenerator({
                       <div className="text-xs text-muted-foreground flex items-center gap-4">
                         <span>
                           <Clock className="w-3 h-3 inline mr-1" />
-                          ~{estimatedMinutesPerSlide.toFixed(1)} min per slide
+                          ~{safeFixed(estimatedMinutesPerSlide, 1)} min per slide
                         </span>
                         {!slideCountExceedsLimit && !slideCountBelowMinimum && (
                           <span className="text-ros-success flex items-center">

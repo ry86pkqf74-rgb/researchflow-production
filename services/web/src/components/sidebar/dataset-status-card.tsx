@@ -100,7 +100,7 @@ function DatasetDetails({ dataset }: { dataset: DatasetMetadata }) {
 
       <div className="flex items-center gap-2 text-gray-600">
         <FileText className="h-4 w-4 flex-shrink-0" />
-        <span>{dataset.format} • {(dataset.sizeBytes / 1024 / 1024).toFixed(2)} MB</span>
+        <span>{dataset.format} • {safeFixed((dataset.sizeBytes / 1024 / 1024), 2)} MB</span>
       </div>
 
       {dataset.irbNumber && (

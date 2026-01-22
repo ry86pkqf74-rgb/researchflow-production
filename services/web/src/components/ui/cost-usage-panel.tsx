@@ -119,7 +119,7 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs" data-testid="badge-total-cost">
-                    ${data.totalCost.toFixed(2)}
+                    ${data.safeFixed(totalCost, 2)}
                   </Badge>
                   <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
                 </div>
@@ -138,7 +138,7 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Budget</span>
                   <span data-testid="text-budget-status">
-                    ${data.totalCost.toFixed(2)} / ${data.budgetLimit.toFixed(2)}
+                    ${data.safeFixed(totalCost, 2)} / ${data.safeFixed(budgetLimit, 2)}
                   </span>
                 </div>
                 <Progress value={data.budgetUsedPercent} className="h-1.5" data-testid="progress-budget" />
@@ -164,7 +164,7 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
                     <span className="text-muted-foreground truncate max-w-[120px]">{stage.stage}</span>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-muted-foreground">{stage.tokens.toLocaleString()}</span>
-                      <Badge variant="outline" className="text-xs font-mono">${stage.cost.toFixed(2)}</Badge>
+                      <Badge variant="outline" className="text-xs font-mono">${stage.safeFixed(cost, 2)}</Badge>
                     </div>
                   </div>
                 ))}
@@ -177,7 +177,7 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
                     <span className="text-muted-foreground font-mono">{model.model}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground">{model.calls} calls</span>
-                      <Badge variant="outline" className="text-xs font-mono">${model.cost.toFixed(2)}</Badge>
+                      <Badge variant="outline" className="text-xs font-mono">${model.safeFixed(cost, 2)}</Badge>
                     </div>
                   </div>
                 ))}
@@ -208,7 +208,7 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <div className="text-sm text-muted-foreground">Total Cost</div>
-            <div className="text-2xl font-bold" data-testid="text-total-cost-large">${data.totalCost.toFixed(2)}</div>
+            <div className="text-2xl font-bold" data-testid="text-total-cost-large">${data.safeFixed(totalCost, 2)}</div>
           </div>
           <div className="space-y-1">
             <div className="text-sm text-muted-foreground">Total Tokens</div>
@@ -220,11 +220,11 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span>Budget Progress</span>
-              <span>{data.budgetUsedPercent.toFixed(1)}%</span>
+              <span>{data.safeFixed(budgetUsedPercent, 1)}%</span>
             </div>
             <Progress value={data.budgetUsedPercent} data-testid="progress-budget-full" />
             <div className="text-xs text-muted-foreground text-right">
-              ${data.totalCost.toFixed(2)} of ${data.budgetLimit.toFixed(2)} used
+              ${data.safeFixed(totalCost, 2)} of ${data.safeFixed(budgetLimit, 2)} used
             </div>
           </div>
         )}
@@ -236,7 +236,7 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
               <span className="text-sm">{stage.stage}</span>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground">{stage.tokens.toLocaleString()} tokens</span>
-                <Badge variant="secondary">${stage.cost.toFixed(2)}</Badge>
+                <Badge variant="secondary">${stage.safeFixed(cost, 2)}</Badge>
               </div>
             </div>
           ))}
@@ -249,7 +249,7 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
               <span className="text-sm font-mono">{model.model}</span>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground">{model.calls} calls</span>
-                <Badge variant="secondary">${model.cost.toFixed(2)}</Badge>
+                <Badge variant="secondary">${model.safeFixed(cost, 2)}</Badge>
               </div>
             </div>
           ))}

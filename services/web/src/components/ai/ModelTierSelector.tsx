@@ -6,6 +6,7 @@
  */
 
 import * as React from 'react';
+import { safeFixed, formatBytes } from "@/lib/format";
 import { useState, useMemo } from 'react';
 import {
   Zap,
@@ -230,7 +231,7 @@ export function ModelTierCards({
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Cost</span>
                   <span className="font-mono text-xs">
-                    ${tier.costPerToken.toFixed(4)}/token
+                    ${tier.safeFixed(costPerToken, 4)}/token
                   </span>
                 </div>
               )}
@@ -331,7 +332,7 @@ export function AIRoutingIndicator({
         </div>
         <div>
           <p className="text-muted-foreground text-xs">Est. Cost</p>
-          <p className="font-mono">${estimatedCost.toFixed(4)}</p>
+          <p className="font-mono">${safeFixed(estimatedCost, 4)}</p>
         </div>
         <div>
           <p className="text-muted-foreground text-xs">Max Tokens</p>
@@ -376,18 +377,18 @@ export function CostEstimation({
     <div className={cn('space-y-2', className)}>
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">Estimated Cost</span>
-        <span className="text-lg font-bold font-mono">${totalCost.toFixed(4)}</span>
+        <span className="text-lg font-bold font-mono">${safeFixed(totalCost, 4)}</span>
       </div>
 
       {showBreakdown && (
         <div className="text-xs text-muted-foreground space-y-1">
           <div className="flex justify-between">
             <span>Input ({inputTokens.toLocaleString()} tokens)</span>
-            <span className="font-mono">${inputCost.toFixed(4)}</span>
+            <span className="font-mono">${safeFixed(inputCost, 4)}</span>
           </div>
           <div className="flex justify-between">
             <span>Output ({outputTokens.toLocaleString()} tokens)</span>
-            <span className="font-mono">${outputCost.toFixed(4)}</span>
+            <span className="font-mono">${safeFixed(outputCost, 4)}</span>
           </div>
         </div>
       )}
@@ -443,19 +444,19 @@ export function BudgetProgress({
 
       <div className="flex justify-between mt-2 text-sm">
         <span className={cn(isOverBudget && 'text-red-500 font-medium')}>
-          ${used.toFixed(2)} used
+          ${safeFixed(used, 2)} used
         </span>
-        <span className="text-muted-foreground">${limit.toFixed(2)} limit</span>
+        <span className="text-muted-foreground">${safeFixed(limit, 2)} limit</span>
       </div>
 
       {isOverBudget && (
         <p className="text-xs text-red-500 mt-2">
-          Budget exceeded by ${(used - limit).toFixed(2)}
+          Budget exceeded by ${safeFixed((used - limit), 2)}
         </p>
       )}
       {isNearLimit && (
         <p className="text-xs text-yellow-600 mt-2">
-          Approaching budget limit ({percentage.toFixed(0)}% used)
+          Approaching budget limit ({safeFixed(percentage, 0)}% used)
         </p>
       )}
     </Card>
@@ -479,7 +480,7 @@ export function TierBadge({ tier, showCost, className }: TierBadgeProps) {
       {config.name}
       {showCost && (
         <span className="text-muted-foreground ml-1">
-          ${config.costPerToken.toFixed(4)}/tok
+          ${config.safeFixed(costPerToken, 4)}/tok
         </span>
       )}
     </Badge>

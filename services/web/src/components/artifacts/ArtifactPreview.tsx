@@ -6,6 +6,7 @@
  */
 
 import * as React from 'react';
+import { safeFixed, formatBytes } from "@/lib/format";
 import { useState, useMemo, useCallback } from 'react';
 import {
   FileText,
@@ -124,7 +125,7 @@ function formatFileSize(bytes: number): string {
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  return `${parseFloat(formatBytes(bytes, 1).split(" ")[0])} ${sizes[i]}`;
 }
 
 // Main Artifact Preview Component

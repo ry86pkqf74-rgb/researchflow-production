@@ -284,7 +284,7 @@ export function BundleImport({
                 <div>
                   <p className="font-medium">{file.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {(file.size / (1024 * 1024)).toFixed(2)} MB
+                    {safeFixed((file.size / (1024 * 1024)), 2)} MB
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleReset(); }}>

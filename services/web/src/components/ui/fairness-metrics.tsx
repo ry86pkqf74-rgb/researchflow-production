@@ -130,7 +130,7 @@ export function FairnessMetrics({
                   className="bg-amber-500/10 border-amber-500/30"
                   data-testid={`badge-underrep-${issue.category.toLowerCase()}-${idx}`}
                 >
-                  {issue.category}: {issue.group} ({issue.percentage.toFixed(1)}%)
+                  {issue.category}: {issue.group} ({issue.safeFixed(percentage, 1)}%)
                 </Badge>
               ))}
             </div>
@@ -165,7 +165,7 @@ export function FairnessMetrics({
                       <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
                       <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12 }} />
                       <Tooltip 
-                        formatter={(value: number) => [`${value.toFixed(1)}%`, "Percentage"]}
+                        formatter={(value: number) => [`${safeFixed(value, 1)}%`, "Percentage"]}
                         contentStyle={{ 
                           backgroundColor: 'hsl(var(--card))',
                           border: '1px solid hsl(var(--border))'
@@ -205,7 +205,7 @@ export function FairnessMetrics({
                         cx="50%"
                         cy="50%"
                         outerRadius={60}
-                        label={({ name, percentage }) => `${name}: ${percentage.toFixed(1)}%`}
+                        label={({ name, percentage }) => `${name}: ${safeFixed(percentage, 1)}%`}
                         labelLine={false}
                       >
                         {genderDistribution.map((entry, index) => (
@@ -219,7 +219,7 @@ export function FairnessMetrics({
                         ))}
                       </Pie>
                       <Tooltip 
-                        formatter={(value: number) => [`${value.toFixed(1)}%`, "Percentage"]}
+                        formatter={(value: number) => [`${safeFixed(value, 1)}%`, "Percentage"]}
                         contentStyle={{ 
                           backgroundColor: 'hsl(var(--card))',
                           border: '1px solid hsl(var(--border))'
@@ -247,7 +247,7 @@ export function FairnessMetrics({
                           {region.name}
                         </span>
                         <span className="text-muted-foreground">
-                          {region.count.toLocaleString()} ({region.percentage.toFixed(1)}%)
+                          {region.count.toLocaleString()} ({region.safeFixed(percentage, 1)}%)
                         </span>
                       </div>
                       <Progress 
@@ -278,7 +278,7 @@ export function FairnessMetrics({
                           )}
                         </span>
                         <span className="text-muted-foreground">
-                          {group.count.toLocaleString()} ({group.percentage.toFixed(1)}%)
+                          {group.count.toLocaleString()} ({group.safeFixed(percentage, 1)}%)
                         </span>
                       </div>
                       <Progress 

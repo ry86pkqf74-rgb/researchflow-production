@@ -1027,21 +1027,21 @@ export function SapBuilderPanel({ topicId, researchId, onGenerateSap }: SapBuild
                         <div className="grid grid-cols-4 gap-2 text-xs">
                           <div>
                             <span className="text-muted-foreground">{result.statistic_name}:</span>
-                            <span className="ml-1 font-mono">{result.statistic?.toFixed(3)}</span>
+                            <span className="ml-1 font-mono">{safeFixed(result.statistic, 3)}</span>
                           </div>
                           <div>
                             <span className="text-muted-foreground">p-value:</span>
                             <span className={`ml-1 font-mono ${result.p_value < 0.05 ? "text-ros-success font-semibold" : ""}`}>
-                              {result.p_value.toFixed(4)}
+                              {result.safeFixed(p_value, 4)}
                             </span>
                           </div>
                           <div>
                             <span className="text-muted-foreground">95% CI:</span>
-                            <span className="ml-1 font-mono">[{result.ci_lower?.toFixed(2)}, {result.ci_upper?.toFixed(2)}]</span>
+                            <span className="ml-1 font-mono">[{safeFixed(result.ci_lower, 2)}, {safeFixed(result.ci_upper, 2)}]</span>
                           </div>
                           <div>
                             <span className="text-muted-foreground">{result.effect_size_name}:</span>
-                            <span className="ml-1 font-mono">{result.effect_size?.toFixed(3)}</span>
+                            <span className="ml-1 font-mono">{safeFixed(result.effect_size, 3)}</span>
                           </div>
                         </div>
                       </div>

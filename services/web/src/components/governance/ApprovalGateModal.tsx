@@ -1,5 +1,6 @@
 import { useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { safeFixed, formatBytes } from "@/lib/format";
 import { X } from "lucide-react";
 import {
   Dialog,
@@ -55,7 +56,7 @@ function formatBytes(bytes: number): string {
   const k = 1024;
   const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  return parseFloat(formatBytes(bytes, 2).split(" ")[0]) + " " + sizes[i];
 }
 
 export function ApprovalGateModal({
