@@ -17,8 +17,9 @@ interface APIClientConfig {
 }
 
 // Default configuration
+// Use empty baseURL for relative paths - nginx will proxy /api/* to orchestrator:3001
 const defaultConfig: APIClientConfig = {
-  baseURL: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001',
+  baseURL: '',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -58,17 +59,26 @@ function getAuthToken(): string | null {
  * Build full URL from endpoint
  */
 function buildURL(endpoint: string): string {
-  // Handle absolute URLs
+  // Handle absolute URLs (http:// or https://)
   if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
     return endpoint;
   }
 
-  // Remove leading slash if present
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+  // For endpoints starting with /, use as-is (relative to origin)
+  // This allows nginx to proxy /api/* to orchestrator:3001
+  if (endpoint.startsWith('/')) {
+    return endpoint;
+  }
+
+  // Otherwise, prepend baseURL if it exists
+  if (!config.baseURL) {
+    // If baseURL is empty, prepend / to make it a relative path
+    return `/${endpoint}`;
+  }
 
   // Combine base URL with endpoint
   const baseURL = config.baseURL.endsWith('/') ? config.baseURL.slice(0, -1) : config.baseURL;
-  return `${baseURL}/${cleanEndpoint}`;
+  return `${baseURL}/${endpoint}`;
 }
 
 /**
