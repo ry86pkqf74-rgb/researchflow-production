@@ -52,23 +52,30 @@ function ModeInitializer() {
     
     async function fetchMode() {
       try {
+        console.log('[ModeInitializer] Fetching governance mode...');
         const response = await fetch('/api/governance/mode', {
           credentials: 'include',
         });
         
         if (cancelled) return;
         
+        console.log('[ModeInitializer] Response status:', response.status);
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('[ModeInitializer] Received mode:', data.mode);
           if (data.mode === 'LIVE' || data.mode === 'DEMO') {
             setMode(data.mode);
           } else {
+            console.warn('[ModeInitializer] Invalid mode, defaulting to DEMO');
             setMode('DEMO');
           }
         } else {
+          console.warn('[ModeInitializer] Failed to fetch mode, defaulting to DEMO');
           setMode('DEMO');
         }
-      } catch {
+      } catch (error) {
+        console.error('[ModeInitializer] Error fetching mode:', error);
         if (!cancelled) {
           setMode('DEMO');
         }
