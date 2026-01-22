@@ -42,8 +42,8 @@ export class RedisPersistenceAdapter implements PersistenceAdapter {
       // Reconnection
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
-      // Disable offline queue to fail fast
-      enableOfflineQueue: false,
+      // Enable offline queue to allow commands while disconnected/reconnecting
+      enableOfflineQueue: true,
     });
 
     // Handle connection events
