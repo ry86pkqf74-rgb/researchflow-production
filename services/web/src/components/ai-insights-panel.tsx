@@ -1,11 +1,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-// Safe number formatter
-const safeFixed = (value: number | undefined | null, decimals: number = 2): string => {
-  return (value ?? 0).toFixed(decimals);
-};
+import { safeFixed } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

@@ -3,11 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-// Safe number formatter
-const safeFixed = (value: number | undefined | null, decimals: number = 2): string => {
-  return (value ?? 0).toFixed(decimals);
-};
+import { safeFixed } from "@/lib/format";
 import {
   BookOpen,
   Star,

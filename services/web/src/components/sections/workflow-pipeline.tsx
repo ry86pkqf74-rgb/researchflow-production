@@ -3,11 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// Safe number formatter - prevents toFixed crashes on undefined
-const safeFixed = (value: number | undefined | null, decimals: number = 2): string => {
-  return (value ?? 0).toFixed(decimals);
-};
+import { safeFixed, formatBytes } from "@/lib/format";
 import { useWorkflowPersistence } from "@/hooks/use-workflow-persistence";
 import {
   Accordion,
@@ -992,11 +988,7 @@ export function WorkflowPipeline() {
   const isPhase2Stage = (stageId: number) => stageId >= 5 && stageId <= 8;
 
   // File upload handlers
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
+  const formatFileSize = (bytes: number) => formatBytes(bytes, 1);
 
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
