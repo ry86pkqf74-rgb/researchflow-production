@@ -56,7 +56,7 @@ export function TimelineComparison() {
 
   if (!timeline) return null;
 
-  const maxTraditionalDays = Math.max(...timeline.steps.map(s => s.traditionalDays));
+  const maxTraditionalDays = Math.max(...(timeline.steps || []).map(s => s.traditionalDays));
 
   return (
     <section className="py-16 lg:py-24 bg-gradient-to-b from-background to-muted/30" data-testid="section-timeline">
@@ -106,7 +106,7 @@ export function TimelineComparison() {
               </div>
 
               <div className="space-y-4">
-                {timeline.steps.map((step, index) => {
+                {(timeline.steps || []).map((step, index) => {
                   const StepIcon = stepIcons[step.id] || FileText;
                   const barWidth = (step.traditionalDays / maxTraditionalDays) * 100;
                   
@@ -169,7 +169,7 @@ export function TimelineComparison() {
               </div>
 
               <div className="space-y-4">
-                {timeline.steps.map((step, index) => {
+                {(timeline.steps || []).map((step, index) => {
                   const StepIcon = stepIcons[step.id] || FileText;
                   
                   return (

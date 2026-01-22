@@ -160,7 +160,7 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
                   <Cpu className="h-3 w-3" />
                   By Stage
                 </div>
-                {data.stageBreakdown.map((stage, idx) => (
+                {(data.stageBreakdown || []).map((stage, idx) => (
                   <div key={idx} className="flex items-center justify-between text-xs pl-4" data-testid={`row-stage-usage-${idx}`}>
                     <span className="text-muted-foreground truncate max-w-[120px]">{stage.stage}</span>
                     <div className="flex items-center gap-2">
@@ -173,7 +173,7 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
 
               <div className="space-y-2">
                 <div className="text-xs font-medium">By Model</div>
-                {data.modelBreakdown.map((model, idx) => (
+                {(data.modelBreakdown || []).map((model, idx) => (
                   <div key={idx} className="flex items-center justify-between text-xs pl-4" data-testid={`row-model-usage-${idx}`}>
                     <span className="text-muted-foreground font-mono">{model.model}</span>
                     <div className="flex items-center gap-2">
@@ -232,7 +232,7 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
 
         <div className="space-y-3">
           <h4 className="text-sm font-medium">Usage by Stage</h4>
-          {data.stageBreakdown.map((stage, idx) => (
+          {(data.stageBreakdown || []).map((stage, idx) => (
             <div key={idx} className="flex items-center justify-between" data-testid={`row-stage-usage-full-${idx}`}>
               <span className="text-sm">{stage.stage}</span>
               <div className="flex items-center gap-3">
@@ -245,7 +245,7 @@ export function CostUsagePanel({ variant = "compact" }: CostUsagePanelProps) {
 
         <div className="space-y-3">
           <h4 className="text-sm font-medium">Usage by Model</h4>
-          {data.modelBreakdown.map((model, idx) => (
+          {(data.modelBreakdown || []).map((model, idx) => (
             <div key={idx} className="flex items-center justify-between" data-testid={`row-model-usage-full-${idx}`}>
               <span className="text-sm font-mono">{model.model}</span>
               <div className="flex items-center gap-3">
