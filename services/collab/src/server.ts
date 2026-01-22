@@ -10,6 +10,7 @@
  * - Fail-closed security in LIVE mode
  */
 
+import http from "http";
 import { Hocuspocus } from "@hocuspocus/server";
 import type {
   onAuthenticatePayload,
@@ -527,4 +528,27 @@ const server = new CollaborationServer();
 server.start().catch((error) => {
   console.error("Failed to start collaboration server:", error);
   process.exit(1);
+});
+
+// Create simple HTTP server for health checks
+// Note: Hocuspocus handles WebSocket upgrades, but we can still handle regular HTTP
+const healthPort = parseInt(process.env.HEALTH_PORT ?? "1235", 10);
+const healthServer = http.createServer(async (req, res) => {
+  if (req.url === "/health") {
+    try {
+      const health = await server.getHealth();
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(health));
+    } catch (error) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ status: "unhealthy", error: String(error) }));
+    }
+  } else {
+    res.writeHead(404);
+    res.end("Not Found");
+  }
+});
+
+healthServer.listen(healthPort, "0.0.0.0", () => {
+  console.log(`[collab] Health check endpoint: http://0.0.0.0:${healthPort}/health`);
 });
