@@ -59,7 +59,10 @@ export function GovernanceBadge({ mode: propMode, showTooltip = false, clickable
       variant="outline"
       className={`${config.className} ${clickable ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
       aria-label={`Current governance mode: ${config.label}`}
-      onClick={clickable ? () => setSwitcherOpen(true) : undefined}
+      onClick={clickable ? () => {
+        console.log('[GovernanceBadge] Badge clicked, opening switcher');
+        setSwitcherOpen(true);
+      } : undefined}
       role={clickable ? "button" : undefined}
     >
       {config.label}

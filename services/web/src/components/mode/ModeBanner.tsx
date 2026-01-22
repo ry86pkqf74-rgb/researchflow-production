@@ -23,7 +23,7 @@ export function ModeBanner() {
     return (
       <>
         <div 
-          className="bg-amber-500 text-amber-950 px-4 py-3 flex items-center justify-center gap-4 sticky top-0 z-50"
+          className="bg-amber-500 text-amber-950 px-4 py-3 flex items-center justify-center gap-4 fixed top-16 left-0 right-0 z-40"
           role="alert"
           data-testid="mode-banner-demo"
         >
@@ -34,7 +34,10 @@ export function ModeBanner() {
             </span>
           </div>
           <button
-            onClick={() => setSwitcherOpen(true)}
+            onClick={() => {
+              console.log('[ModeBanner] Switch button clicked');
+              setSwitcherOpen(true);
+            }}
             className="flex items-center gap-1 text-sm font-bold underline whitespace-nowrap hover:opacity-80 transition-opacity"
             data-testid="link-switch-to-live"
           >
@@ -54,7 +57,7 @@ export function ModeBanner() {
   if (isLive) {
     return (
       <div
-        className="bg-green-600 text-white px-4 py-1.5 flex items-center justify-center gap-2"
+        className="bg-green-600 text-white px-4 py-1.5 flex items-center justify-center gap-2 fixed top-16 left-0 right-0 z-40"
         role="status"
         data-testid="mode-banner-live"
       >
