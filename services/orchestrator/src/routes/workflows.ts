@@ -15,6 +15,7 @@
  * - GET    /api/workflows/:id/versions/:v - Get specific version
  * - POST   /api/workflows/:id/publish  - Publish workflow
  * - POST   /api/workflows/:id/archive  - Archive workflow
+ * - POST   /api/workflows/:id/duplicate - Duplicate workflow
  * - GET    /api/workflows/:id/policy   - Get policy
  * - POST   /api/workflows/:id/policy   - Set policy
  * 
@@ -406,6 +407,64 @@ router.post('/:id/archive', requireRole('STEWARD'), async (req: Request, res: Re
   } catch (error) {
     console.error('[workflows] Archive error:', error);
     res.status(500).json({ error: 'Failed to archive workflow' });
+  }
+});
+
+// POST /api/workflows/:id/duplicate - Duplicate workflow
+router.post('/:id/duplicate', requireRole('RESEARCHER'), async (req: Request, res: Response) => {
+  try {
+    const { id: userId, orgId } = getUserFromRequest(req);
+    const workflow = await workflowService.getWorkflow(req.params.id, orgId);
+
+    if (!workflow) {
+      return res.status(404).json({ error: 'Workflow not found' });
+    }
+
+    // Get the latest version to duplicate
+    const latestVersion = await workflowService.getLatestVersion(workflow.id);
+
+    // Create new workflow with duplicated data
+    const duplicated = await workflowService.createWorkflow({
+      name: `${workflow.name} (Copy)`,
+      description: workflow.description,
+      orgId: workflow.orgId,
+      createdBy: userId,
+      definition: latestVersion?.definition as WorkflowDefinition | undefined,
+    });
+
+    // If there was a version, create it for the duplicate
+    if (latestVersion) {
+      await workflowService.createWorkflowVersion({
+        workflowId: duplicated.id,
+        definition: latestVersion.definition as WorkflowDefinition,
+        changelog: 'Duplicated from workflow: ' + workflow.name,
+        createdBy: userId,
+      });
+    }
+
+    // Copy policy if it exists
+    const policy = await workflowService.getWorkflowPolicy(workflow.id);
+    if (policy?.policy) {
+      await workflowService.setWorkflowPolicy(
+        duplicated.id,
+        policy.policy as WorkflowPolicy,
+        userId
+      );
+    }
+
+    await logAuditEvent({
+      eventType: 'WORKFLOW_DUPLICATED',
+      userId,
+      resourceType: 'workflow',
+      resourceId: duplicated.id,
+      action: 'DUPLICATE',
+      details: { originalId: workflow.id, originalName: workflow.name },
+    });
+
+    res.status(201).json({ workflow: duplicated });
+  } catch (error) {
+    console.error('[workflows] Duplicate error:', error);
+    res.status(500).json({ error: 'Failed to duplicate workflow' });
   }
 });
 

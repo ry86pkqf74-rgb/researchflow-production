@@ -38,6 +38,14 @@ import literatureIntegrationsRoutes from './routes/literature-integrations';
 import apiKeysRoutes from './routes/apiKeys';
 import tutorialSandboxRoutes from './routes/tutorialSandbox';
 import futureProofingRoutes from './routes/futureProofing';
+// Additional Phase H Routes
+import watermarkRoutes from './routes/watermark';
+import preferencesRoutes from './routes/preferences';
+import invitesRoutes from './routes/invites';
+import badgesRoutes from './routes/badges';
+import sustainabilityRoutes from './routes/sustainability';
+import peerReviewRoutes from './routes/peerReview';
+import taskBoardsRoutes from './routes/taskBoards';
 // Audit Improvements: New modular routes
 import authRoutes from './routes/auth';
 import workflowStagesRoutes from './routes/workflow-stages';
@@ -130,6 +138,15 @@ app.use('/api/profile/api-keys', apiKeysRoutes);  // Task 138: API key rotation
 app.use('/api/tutorials/sandbox', tutorialSandboxRoutes);  // Task 145: Tutorial code sandboxes
 app.use('/api/admin/upgrades', futureProofingRoutes);  // Task 150: Future-proofing checklists
 
+// Additional Phase H Routes (Previously Unregistered)
+app.use('/api/ai/watermark', watermarkRoutes);  // AI watermark verification and management
+app.use('/api/me/preferences', preferencesRoutes);  // User preferences API
+app.use('/api', invitesRoutes);  // Organization invite management (handles /api/org/:orgId/invites and /api/invites/*)
+app.use('/api/badges', badgesRoutes);  // Gamification badges system
+app.use('/api/sustainability', sustainabilityRoutes);  // CO2 tracking and sustainability metrics
+app.use('/api/peer-review', peerReviewRoutes);  // Peer review system with rubrics
+app.use('/api', taskBoardsRoutes);  // Task board management (handles /api/research/:researchId/boards)
+
 // Audit Improvements: Authentication and Workflow Routes
 app.use('/api/auth', authRoutes);  // JWT-based authentication (replaces Replit auth)
 app.use('/api/workflow', workflowStagesRoutes);  // Workflow stage management and lifecycle
@@ -219,6 +236,13 @@ httpServer.listen(PORT, () => {
   console.log('  ✓ API Key Rotation');
   console.log('  ✓ Scientific Notation Localization');
   console.log('  ✓ Future-Proofing Checklists');
+  console.log('  ✓ AI Watermark Verification');
+  console.log('  ✓ User Preferences API');
+  console.log('  ✓ Organization Invites');
+  console.log('  ✓ Gamification Badges');
+  console.log('  ✓ Sustainability CO2 Tracking');
+  console.log('  ✓ Peer Review System');
+  console.log('  ✓ Task Boards (Kanban)');
   console.log('='.repeat(60));
   console.log('Audit Improvements: CODE QUALITY');
   console.log('  ✓ JWT-Based Authentication (Production Ready)');

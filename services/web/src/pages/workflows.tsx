@@ -133,6 +133,53 @@ async function createWorkflow(
   return payload.workflow ?? payload;
 }
 
+async function duplicateWorkflow(workflowId: string, accessToken: string | null) {
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  const response = await fetch(`/api/workflows/${workflowId}/duplicate`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to duplicate workflow");
+  }
+  const payload = await response.json();
+  return payload.workflow ?? payload;
+}
+
+async function archiveWorkflow(workflowId: string, accessToken: string | null) {
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  const response = await fetch(`/api/workflows/${workflowId}/archive`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to archive workflow");
+  }
+  const payload = await response.json();
+  return payload.workflow ?? payload;
+}
+
+async function deleteWorkflow(workflowId: string, accessToken: string | null) {
+  const headers: HeadersInit = {};
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  const response = await fetch(`/api/workflows/${workflowId}`, {
+    method: "DELETE",
+    headers,
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to delete workflow");
+  }
+  return response.json();
+}
+
 export default function WorkflowsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -176,6 +223,60 @@ export default function WorkflowsPage() {
     onError: (error: Error) => {
       toast({
         title: "Failed to create workflow",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: (workflowId: string) => duplicateWorkflow(workflowId, accessToken),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      toast({
+        title: "Workflow duplicated",
+        description: `"${data.name}" has been created successfully.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to duplicate workflow",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: (workflowId: string) => archiveWorkflow(workflowId, accessToken),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      toast({
+        title: "Workflow archived",
+        description: `"${data.name}" has been archived.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to archive workflow",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (workflowId: string) => deleteWorkflow(workflowId, accessToken),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      toast({
+        title: "Workflow deleted",
+        description: "The workflow has been deleted permanently.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete workflow",
         description: error.message,
         variant: "destructive",
       });
@@ -348,17 +449,31 @@ export default function WorkflowsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            duplicateMutation.mutate(workflow.id);
+                          }}>
                             <Copy className="mr-2 h-4 w-4" />
                             Duplicate
                           </DropdownMenuItem>
                           {canEdit && (
                             <>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => {
+                                e.stopPropagation();
+                                archiveMutation.mutate(workflow.id);
+                              }}>
                                 <Archive className="mr-2 h-4 w-4" />
                                 Archive
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm(`Are you sure you want to delete "${workflow.name}"? This action cannot be undone.`)) {
+                                    deleteMutation.mutate(workflow.id);
+                                  }
+                                }}
+                              >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
                               </DropdownMenuItem>
