@@ -354,8 +354,9 @@ export async function loginUser(input: LoginInput): Promise<{
     // Create TESTROS user if it doesn't exist
     if (!userData) {
       const now = new Date().toISOString();
+      const userId = crypto.randomUUID();
       const user: User = {
-        id: crypto.randomUUID(),
+        id: userId,
         email: 'testros@gmail.com',
         firstName: 'Test',
         lastName: 'ROS',
@@ -365,13 +366,34 @@ export async function loginUser(input: LoginInput): Promise<{
         updatedAt: now
       };
       
-      // Store with dummy password hash
+      // Store with dummy password hash in memory
       const dummyHash = await hashPassword('dummy');
       userStore.set(normalizedEmail, {
         user,
         passwordHash: dummyHash,
         refreshTokens: new Set()
       });
+      
+      // Also insert into database so foreign keys work
+      try {
+        const { db } = await import('../../db.js');
+        const { users } = await import('@researchflow/core/schema');
+        await db.insert(users).values({
+          id: userId,
+          email: 'testros@gmail.com',
+          firstName: 'Test',
+          lastName: 'ROS',
+          displayName: 'Test ROS User',
+          role: 'ADMIN',
+          isActive: true,
+          createdAt: new Date(now),
+          updatedAt: new Date(now)
+        }).onConflictDoNothing();
+        console.log('[AUTH] TESTROS user auto-created in database');
+      } catch (dbError) {
+        console.warn('[AUTH] Failed to create TESTROS user in database:', dbError);
+        // Continue anyway - in-memory user still works for most things
+      }
       
       console.log('[AUTH] TESTROS user auto-created with ADMIN role');
       userData = getUserByEmail(normalizedEmail);
