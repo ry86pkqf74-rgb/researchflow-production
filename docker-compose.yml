@@ -94,6 +94,12 @@ services:
     networks:
       - researchflow
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # ===================
   # Collab - Real-time Collaboration Server
@@ -105,9 +111,11 @@ services:
       target: development
     ports:
       - "1234:1234"
+      - "1235:1235"
     environment:
       - NODE_ENV=development
       - PORT=1234
+      - HEALTH_PORT=1235
       - HOST=0.0.0.0
       - APP_MODE=DEMO
       - REDIS_URL=redis://redis:6379
@@ -126,7 +134,7 @@ services:
       - researchflow
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:1234/health"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:1235/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
