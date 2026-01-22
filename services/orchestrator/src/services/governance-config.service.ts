@@ -125,14 +125,17 @@ export async function setMode(mode: GovernanceMode, actorUserId: string): Promis
 
   // Write audit log
   await logAction({
-    action: 'GOVERNANCE_MODE_CHANGED',
+    eventType: 'GOVERNANCE_MODE_CHANGED',
+    action: 'MODE_CHANGE',
     userId: actorUserId,
+    resourceType: 'GOVERNANCE_CONFIG',
+    resourceId: 'mode',
     details: {
       previousMode,
       newMode: mode,
+      severity: 'INFO',
+      category: 'GOVERNANCE',
     },
-    severity: 'INFO',
-    category: 'GOVERNANCE',
   });
 
   // Publish event-bus event
