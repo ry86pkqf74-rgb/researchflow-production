@@ -128,6 +128,8 @@ CREATE TABLE IF NOT EXISTS batch_job_requests (
 );
 
 -- Evidence Cards for RAG
+-- Note: pgvector extension required for embedding column
+-- CREATE EXTENSION IF NOT EXISTS vector; -- Uncomment if pgvector available
 CREATE TABLE IF NOT EXISTS evidence_cards (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     card_id VARCHAR(100) UNIQUE NOT NULL,
@@ -135,7 +137,8 @@ CREATE TABLE IF NOT EXISTS evidence_cards (
     content TEXT NOT NULL,
     source VARCHAR(255),
     source_type VARCHAR(50),
-    embedding VECTOR(1536),
+    -- embedding VECTOR(1536), -- Requires pgvector extension
+    embedding BYTEA, -- Fallback: store as bytes until pgvector installed
     metadata JSONB DEFAULT '{}',
     research_id UUID REFERENCES research_projects(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -366,16 +369,19 @@ ON CONFLICT (name, version) DO NOTHING;
 -- Create test users with different roles for development and testing
 -- Password authentication is handled by TESTROS bypass in authService.ts
 
+-- Insert test users with proper UUIDs
+-- Use uuid_generate_v5 to create deterministic UUIDs from namespace + email
 INSERT INTO users (id, email, name, role, created_at, updated_at) VALUES
-('testros-user-001', 'testros@researchflow.dev', 'Test ROS Admin', 'ADMIN', NOW(), NOW()),
-('researcher-001', 'researcher@researchflow.dev', 'Dr. Sarah Chen', 'RESEARCHER', NOW(), NOW()),
-('steward-001', 'steward@researchflow.dev', 'Dr. Emily Wang', 'STEWARD', NOW(), NOW()),
-('viewer-001', 'viewer@researchflow.dev', 'Alex Kim', 'VIEWER', NOW(), NOW())
+(uuid_generate_v5(uuid_ns_dns(), 'testros@researchflow.dev'), 'testros@researchflow.dev', 'Test ROS Admin', 'ADMIN', NOW(), NOW()),
+(uuid_generate_v5(uuid_ns_dns(), 'researcher@researchflow.dev'), 'researcher@researchflow.dev', 'Dr. Sarah Chen', 'RESEARCHER', NOW(), NOW()),
+(uuid_generate_v5(uuid_ns_dns(), 'steward@researchflow.dev'), 'steward@researchflow.dev', 'Dr. Emily Wang', 'STEWARD', NOW(), NOW()),
+(uuid_generate_v5(uuid_ns_dns(), 'viewer@researchflow.dev'), 'viewer@researchflow.dev', 'Alex Kim', 'VIEWER', NOW(), NOW())
 ON CONFLICT (email) DO NOTHING;
 
 -- Insert initial governance mode configuration
+-- Use the same deterministic UUID for testros user
 INSERT INTO governance_config (key, value, updated_by, created_at, updated_at) VALUES
-('mode', '{"mode": "DEMO"}', 'testros-user-001', NOW(), NOW())
+('mode', '{"mode": "DEMO"}', uuid_generate_v5(uuid_ns_dns(), 'testros@researchflow.dev'), NOW(), NOW())
 ON CONFLICT (key) DO UPDATE SET
   value = EXCLUDED.value,
   updated_at = NOW();
