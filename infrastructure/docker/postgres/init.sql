@@ -273,7 +273,7 @@ CREATE INDEX idx_governance_log_created_at ON governance_log(created_at);
 CREATE TABLE IF NOT EXISTS audit_logs (
     id SERIAL PRIMARY KEY,
     event_type TEXT NOT NULL,
-    user_id VARCHAR(255) REFERENCES users(id),
+    user_id UUID REFERENCES users(id),
     resource_type TEXT,
     resource_id VARCHAR(255),
     action TEXT NOT NULL,
