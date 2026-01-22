@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+
+// Safe number formatter
+const safeFixed = (value: number | undefined | null, decimals: number = 2): string => {
+  return (value ?? 0).toFixed(decimals);
+};
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,7 +64,7 @@ function JournalCard({ journal, index }: { journal: TargetJournal; index: number
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             <h5 className="font-semibold text-sm">{journal.name}</h5>
             <Badge variant="outline" className="text-xs" data-testid="badge-impact-factor">
-              IF: {journal.impactFactor.toFixed(1)}
+              IF: {safeFixed(journal.impactFactor, 1)}
             </Badge>
             <AcceptanceBadge likelihood={journal.acceptanceLikelihood} />
           </div>

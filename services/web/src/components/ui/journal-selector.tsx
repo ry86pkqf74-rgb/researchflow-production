@@ -3,6 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+// Safe number formatter
+const safeFixed = (value: number | undefined | null, decimals: number = 2): string => {
+  return (value ?? 0).toFixed(decimals);
+};
 import {
   BookOpen,
   Star,
@@ -79,12 +84,12 @@ function JournalCard({
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <TrendingUp className="h-3 w-3" />
-                  <span className="font-medium">{journal.impactFactor.toFixed(2)}</span>
+                  <span className="font-medium">{safeFixed(journal.impactFactor, 2)}</span>
                   <span>IF</span>
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p className="text-xs">Impact Factor: {journal.impactFactor.toFixed(3)}</p>
+                <p className="text-xs">Impact Factor: {safeFixed(journal.impactFactor, 3)}</p>
               </TooltipContent>
             </Tooltip>
 

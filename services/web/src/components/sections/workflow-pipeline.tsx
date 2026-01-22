@@ -3,6 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
+// Safe number formatter - prevents toFixed crashes on undefined
+const safeFixed = (value: number | undefined | null, decimals: number = 2): string => {
+  return (value ?? 0).toFixed(decimals);
+};
 import { useWorkflowPersistence } from "@/hooks/use-workflow-persistence";
 import {
   Accordion,
