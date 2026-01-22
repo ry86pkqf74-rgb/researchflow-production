@@ -360,6 +360,26 @@ INSERT INTO ai_prompts (name, version, system_prompt, model_tier, is_active) VAL
 ('evidence_synthesis', 1, 'You are a systematic review specialist. Synthesize evidence from multiple sources while maintaining scientific rigor.', 'FRONTIER', true)
 ON CONFLICT (name, version) DO NOTHING;
 
+-- ====================
+-- Test Users for Development
+-- ====================
+-- Create test users with different roles for development and testing
+-- Password authentication is handled by TESTROS bypass in authService.ts
+
+INSERT INTO users (id, email, name, role, created_at, updated_at) VALUES
+('testros-user-001', 'testros@researchflow.dev', 'Test ROS Admin', 'ADMIN', NOW(), NOW()),
+('researcher-001', 'researcher@researchflow.dev', 'Dr. Sarah Chen', 'RESEARCHER', NOW(), NOW()),
+('steward-001', 'steward@researchflow.dev', 'Dr. Emily Wang', 'STEWARD', NOW(), NOW()),
+('viewer-001', 'viewer@researchflow.dev', 'Alex Kim', 'VIEWER', NOW(), NOW())
+ON CONFLICT (email) DO NOTHING;
+
+-- Insert initial governance mode configuration
+INSERT INTO governance_config (key, value, updated_by, created_at, updated_at) VALUES
+('mode', '{"mode": "DEMO"}', 'testros-user-001', NOW(), NOW())
+ON CONFLICT (key) DO UPDATE SET
+  value = EXCLUDED.value,
+  updated_at = NOW();
+
 -- Grant permissions
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ros;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ros;
