@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
+import { safeFixed } from "@/lib/format";
 import {
   Bot,
   Brain,
@@ -179,7 +180,7 @@ export function AIRouter() {
 
                   <div className="pt-2 border-t border-border/50">
                     <p className="text-xs text-muted-foreground" data-testid={`text-tokens-used-${provider.id}`}>
-                      {(provider.tokensUsed / 1000).toFixed(0)}K tokens used
+                      {safeFixed((provider.tokensUsed / 1000), 0)}K tokens used
                     </p>
                   </div>
                 </Card>
@@ -206,7 +207,7 @@ export function AIRouter() {
                   <div className="flex items-center justify-between" data-testid="stat-tokens-used">
                     <span className="text-sm text-muted-foreground">Total Tokens Used</span>
                     <span className="text-2xl font-bold text-ros-primary">
-                      {(totalTokensUsed / 1000000).toFixed(1)}M
+                      {safeFixed((totalTokensUsed / 1000000), 1)}M
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -218,7 +219,7 @@ export function AIRouter() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Budget Remaining</span>
                     <span className={`text-sm font-semibold ${getBudgetColor(budgetPercentage)}`}>
-                      ${budgetRemaining.toFixed(2)} / ${monthlyBudget.toFixed(2)}
+                      ${safeFixed(budgetRemaining, 2)} / ${safeFixed(monthlyBudget, 2)}
                     </span>
                   </div>
                   <Progress
@@ -227,8 +228,8 @@ export function AIRouter() {
                     data-testid="progress-budget"
                   />
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>${totalCostUsed.toFixed(2)} spent</span>
-                    <span>{budgetPercentage.toFixed(1)}% used</span>
+                    <span>${safeFixed(totalCostUsed, 2)} spent</span>
+                    <span>{safeFixed(budgetPercentage, 1)}% used</span>
                   </div>
                 </div>
 
@@ -239,7 +240,7 @@ export function AIRouter() {
                       <div key={index} className="space-y-1" data-testid={`stage-cost-${index}`}>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">{item.stage}</span>
-                          <span className="font-medium">${item.cost.toFixed(2)}</span>
+                          <span className="font-medium">${safeFixed(item.cost, 2)}</span>
                         </div>
                         <div className="h-2 bg-muted rounded-full overflow-hidden">
                           <motion.div
@@ -262,7 +263,7 @@ export function AIRouter() {
                       Cost trend: <span className="text-ros-alert">+5.2%</span> vs last month
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Current run rate: ${(totalCostUsed * 1.05).toFixed(2)}/month
+                      Current run rate: ${safeFixed((totalCostUsed * 1.05), 2)}/month
                     </p>
                   </div>
                 </div>
@@ -363,7 +364,7 @@ export function AIRouter() {
                       <div className="text-xs">
                         <p className="font-medium text-ros-alert">Alert: Approaching Limit</p>
                         <p className="text-ros-alert/70">
-                          {(100 - budgetPercentage).toFixed(2)}% remaining
+                          {safeFixed((100 - budgetPercentage), 2)}% remaining
                         </p>
                       </div>
                     </>
@@ -373,7 +374,7 @@ export function AIRouter() {
                       <div className="text-xs">
                         <p className="font-medium text-red-600 dark:text-red-500">Over Budget</p>
                         <p className="text-red-600/70 dark:text-red-500/70">
-                          ${Math.abs(budgetRemaining).toFixed(2)} over limit
+                          ${safeFixed(Math.abs(budgetRemaining), 2)} over limit
                         </p>
                       </div>
                     </>
