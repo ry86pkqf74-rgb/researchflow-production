@@ -345,6 +345,7 @@ export function WorkflowPipeline() {
 
   // Handle authorization from consent modal
   const handleAuthorizeAI = async (result: AIConsentResult) => {
+    console.log('[AI] Authorization received:', result);
     authorize(result);
     addAuditEntry(createAuditEntry('AI_APPROVAL', {
       stageId: 1,
@@ -353,18 +354,26 @@ export function WorkflowPipeline() {
       reason: `AI recommendations authorized for ${result.scope}`,
     }));
     
+    console.log('[AI] Fetching recommendations...');
     // Fetch recommendations after authorization
     await fetchRecommendations();
   };
 
   // Fetch AI recommendations from API
   const fetchRecommendations = async () => {
+    console.log('[AI] fetchRecommendations called');
     setIsLoadingRecommendations(true);
     
     try {
       const overview = getCurrentOverview();
       const currentValues = getCurrentScopeValues();
       const authorization = useAIAuthorizationStore.getState().getAuthorization('topic-declaration-recommendations');
+
+      console.log('[AI] Sending request to /api/ai/topic-recommendations', {
+        overview: overview?.substring(0, 50) + '...',
+        currentValues,
+        authorizedBy: authorization?.authorizedBy
+      });
 
       const response = await fetch('/api/ai/topic-recommendations', {
         method: 'POST',
