@@ -164,7 +164,7 @@ export function AICostWidget({ className, onRemove, refreshKey }: WidgetProps) {
         ) : (
           <div className="space-y-4">
             <div className="flex items-end gap-2">
-              <span className="text-3xl font-bold">${costs.safeFixed(thisMonth, 2)}</span>
+              <span className="text-3xl font-bold">${safeFixed(costs.thisMonth, 2)}</span>
               <span className="text-sm text-muted-foreground mb-1">this month</span>
               {costs.trend !== 0 && (
                 <div className={cn(
@@ -199,17 +199,17 @@ export function AICostWidget({ className, onRemove, refreshKey }: WidgetProps) {
             <div className="grid grid-cols-3 gap-1 text-xs">
               <div className="text-center p-1.5 rounded bg-green-500/10">
                 <Zap className="h-3 w-3 mx-auto text-green-500" />
-                <div className="font-medium mt-1">${costs.byModel.safeFixed(NANO, 2)}</div>
+                <div className="font-medium mt-1">${safeFixed(costs.byModel.NANO, 2)}</div>
                 <div className="text-muted-foreground">NANO</div>
               </div>
               <div className="text-center p-1.5 rounded bg-blue-500/10">
                 <Zap className="h-3 w-3 mx-auto text-blue-500" />
-                <div className="font-medium mt-1">${costs.byModel.safeFixed(MINI, 2)}</div>
+                <div className="font-medium mt-1">${safeFixed(costs.byModel.MINI, 2)}</div>
                 <div className="text-muted-foreground">MINI</div>
               </div>
               <div className="text-center p-1.5 rounded bg-purple-500/10">
                 <Zap className="h-3 w-3 mx-auto text-purple-500" />
-                <div className="font-medium mt-1">${costs.byModel.safeFixed(FRONTIER, 2)}</div>
+                <div className="font-medium mt-1">${safeFixed(costs.byModel.FRONTIER, 2)}</div>
                 <div className="text-muted-foreground">FRONTIER</div>
               </div>
             </div>

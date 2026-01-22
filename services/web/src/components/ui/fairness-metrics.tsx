@@ -130,7 +130,7 @@ export function FairnessMetrics({
                   className="bg-amber-500/10 border-amber-500/30"
                   data-testid={`badge-underrep-${issue.category.toLowerCase()}-${idx}`}
                 >
-                  {issue.category}: {issue.group} ({issue.safeFixed(percentage, 1)}%)
+                  {issue.category}: {issue.group} ({safeFixed(issue.percentage, 1)}%)
                 </Badge>
               ))}
             </div>
@@ -247,7 +247,7 @@ export function FairnessMetrics({
                           {region.name}
                         </span>
                         <span className="text-muted-foreground">
-                          {region.count.toLocaleString()} ({region.safeFixed(percentage, 1)}%)
+                          {region.count.toLocaleString()} ({safeFixed(region.percentage, 1)}%)
                         </span>
                       </div>
                       <Progress 
@@ -278,7 +278,7 @@ export function FairnessMetrics({
                           )}
                         </span>
                         <span className="text-muted-foreground">
-                          {group.count.toLocaleString()} ({group.safeFixed(percentage, 1)}%)
+                          {group.count.toLocaleString()} ({safeFixed(group.percentage, 1)}%)
                         </span>
                       </div>
                       <Progress 

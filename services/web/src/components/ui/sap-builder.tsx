@@ -1032,7 +1032,7 @@ export function SapBuilderPanel({ topicId, researchId, onGenerateSap }: SapBuild
                           <div>
                             <span className="text-muted-foreground">p-value:</span>
                             <span className={`ml-1 font-mono ${result.p_value < 0.05 ? "text-ros-success font-semibold" : ""}`}>
-                              {result.safeFixed(p_value, 4)}
+                              {safeFixed(result.p_value, 4)}
                             </span>
                           </div>
                           <div>

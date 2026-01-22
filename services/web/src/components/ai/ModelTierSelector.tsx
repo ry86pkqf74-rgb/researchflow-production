@@ -231,7 +231,7 @@ export function ModelTierCards({
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Cost</span>
                   <span className="font-mono text-xs">
-                    ${tier.safeFixed(costPerToken, 4)}/token
+                    ${safeFixed(tier.costPerToken, 4)}/token
                   </span>
                 </div>
               )}
@@ -480,7 +480,7 @@ export function TierBadge({ tier, showCost, className }: TierBadgeProps) {
       {config.name}
       {showCost && (
         <span className="text-muted-foreground ml-1">
-          ${config.safeFixed(costPerToken, 4)}/tok
+          ${safeFixed(config.costPerToken, 4)}/tok
         </span>
       )}
     </Badge>
