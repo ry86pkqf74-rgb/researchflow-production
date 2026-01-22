@@ -434,7 +434,14 @@ export const requireAuth: RequestHandler = (req: Request, res: Response, next: N
   // Find user and attach to request
   const userData = getUserById(payload.sub);
   if (!userData) {
-    // Fallback to stateless JWT payload when in-memory store is empty (dev)
+    const allowStatelessFallback = process.env.AUTH_ALLOW_STATELESS_JWT === 'true';
+    if (!allowStatelessFallback) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'User not found'
+      });
+    }
+    // Fallback to stateless JWT payload when explicitly allowed (dev override)
     (req as any).user = {
       id: payload.sub,
       email: payload.email,
@@ -465,16 +472,19 @@ export const optionalAuth: RequestHandler = (req: Request, res: Response, next: 
         (req as any).user = userData.user;
         (req as any).jwtPayload = payload;
       } else {
-        // Stateless fallback for dev when memory store has been reset
-        (req as any).user = {
-          id: payload.sub,
-          email: payload.email,
-          displayName: payload.email,
-          role: payload.role,
-          createdAt: new Date(payload.iat * 1000).toISOString(),
-          updatedAt: new Date(payload.iat * 1000).toISOString()
-        } as User;
-        (req as any).jwtPayload = payload;
+        const allowStatelessFallback = process.env.AUTH_ALLOW_STATELESS_JWT === 'true';
+        if (allowStatelessFallback) {
+          // Stateless fallback when explicitly allowed (dev override)
+          (req as any).user = {
+            id: payload.sub,
+            email: payload.email,
+            displayName: payload.email,
+            role: payload.role,
+            createdAt: new Date(payload.iat * 1000).toISOString(),
+            updatedAt: new Date(payload.iat * 1000).toISOString()
+          } as User;
+          (req as any).jwtPayload = payload;
+        }
       }
     }
   }

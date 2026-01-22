@@ -24,6 +24,7 @@ interface AuthState {
 export function AuthGate({ children, requireAuth = false }: AuthGateProps) {
   const { isLive, isLoading: modeLoading } = useModeStore();
   const accessToken = useTokenStore((state) => state.accessToken);
+  const clearToken = useTokenStore((state) => state.clearToken);
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: false,
     isLoading: true,
@@ -64,6 +65,13 @@ export function AuthGate({ children, requireAuth = false }: AuthGateProps) {
             user: data.user || data,
           });
         } else {
+          // Clear any stale auth state when server rejects token
+          clearToken();
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('auth-storage');
+            localStorage.removeItem('auth-store');
+            localStorage.removeItem('auth_token');
+          }
           setAuthState({
             isAuthenticated: false,
             isLoading: false,
