@@ -57,8 +57,9 @@ async function changeMode(mode: GovernanceMode): Promise<{ mode: GovernanceMode 
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: "Failed to change mode" }));
-    throw new Error(error.message || "Failed to change mode");
+    const error = await response.json().catch(() => ({ error: "Failed to change mode", message: "Unknown error" }));
+    const errorMessage = error.message || error.error || `${response.status}: ${response.statusText}`;
+    throw new Error(errorMessage);
   }
 
   return response.json();
