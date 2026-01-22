@@ -21,6 +21,11 @@ services:
       target: development
     ports:
       - "3001:3001"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -56,6 +61,11 @@ services:
       context: ./services/worker
       dockerfile: Dockerfile
       target: development
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -97,6 +107,11 @@ services:
         - VITE_WS_URL=ws://localhost:1234
     ports:
       - "5173:80"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       - orchestrator
     networks:
@@ -120,6 +135,11 @@ services:
     ports:
       - "1234:1234"
       - "1235:1235"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       - NODE_ENV=development
       - PORT=1234
@@ -153,12 +173,17 @@ services:
   # ===================
   postgres:
     image: postgres:16-alpine
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ros}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ros}
       POSTGRES_DB: ${POSTGRES_DB:-ros}
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -177,6 +202,12 @@ services:
   # ===================
   redis:
     image: redis:7-alpine
+    command: redis-server --appendonly yes
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "6379:6379"
     volumes:
