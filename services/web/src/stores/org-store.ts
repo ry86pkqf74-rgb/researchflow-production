@@ -138,28 +138,34 @@ export const useOrgStore = create<OrgState>()(
        * @returns boolean - Whether user has the capability
        */
       hasCapability: (cap: OrgCapability) => {
-        const { membership } = get();
-        return membership?.capabilities.includes(cap) ?? false;
+        const state = get();
+        return state.membership?.capabilities.includes(cap) ?? false;
       },
 
       // Computed getters (accessed as properties, not methods)
       get canCreate() {
-        return get().hasCapability('create_research');
+        const state = get();
+        return state.membership?.capabilities.includes('create_research') ?? false;
       },
       get canEdit() {
-        return get().hasCapability('edit_research');
+        const state = get();
+        return state.membership?.capabilities.includes('edit_research') ?? false;
       },
       get canDelete() {
-        return get().hasCapability('delete_research');
+        const state = get();
+        return state.membership?.capabilities.includes('delete_research') ?? false;
       },
       get canExport() {
-        return get().hasCapability('export');
+        const state = get();
+        return state.membership?.capabilities.includes('export') ?? false;
       },
       get canManageMembers() {
-        return get().hasCapability('manage_members');
+        const state = get();
+        return state.membership?.capabilities.includes('manage_members') ?? false;
       },
       get isAdmin() {
-        return get().hasCapability('admin');
+        const state = get();
+        return state.membership?.capabilities.includes('admin') ?? false;
       },
     }),
     {
