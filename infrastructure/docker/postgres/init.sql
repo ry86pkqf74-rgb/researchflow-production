@@ -269,6 +269,29 @@ CREATE TABLE IF NOT EXISTS governance_log (
 CREATE INDEX idx_governance_log_event_type ON governance_log(event_type);
 CREATE INDEX idx_governance_log_created_at ON governance_log(created_at);
 
+-- Audit Logs (Tamper-proof audit trail with hash chaining)
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id SERIAL PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    user_id VARCHAR(255) REFERENCES users(id),
+    resource_type TEXT,
+    resource_id VARCHAR(255),
+    action TEXT NOT NULL,
+    details JSONB,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    session_id VARCHAR(255),
+    research_id VARCHAR(255),
+    previous_hash VARCHAR(64),
+    entry_hash VARCHAR(64),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX idx_audit_logs_event_type ON audit_logs(event_type);
+CREATE INDEX idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+
 -- ====================
 -- Phase F: Observability + Feature Flags
 -- ====================
