@@ -52,6 +52,16 @@ from .nlm_enrichment import (
     EnrichmentError,
 )
 
+from .nlm_client import (
+    NLMClient,
+    NLMClientError,
+    MeSHTermResult,
+    NLMClientStats,
+    get_nlm_client,
+    lookup_mesh_term,
+    lookup_mesh_terms,
+)
+
 from .cell_parser import (
     detect_narrative_columns,
     identify_extraction_targets,
@@ -93,6 +103,14 @@ __all__ = [
     "enrich_extraction",
     "enrich_terms_sync",
     "EnrichmentError",
+    # Direct NLM Client
+    "NLMClient",
+    "NLMClientError",
+    "MeSHTermResult",
+    "NLMClientStats",
+    "get_nlm_client",
+    "lookup_mesh_term",
+    "lookup_mesh_terms",
     # Cell Parser (DataFrame-level)
     "detect_narrative_columns",
     "identify_extraction_targets",
