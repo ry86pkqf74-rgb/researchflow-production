@@ -1,0 +1,89 @@
+name: PubMed Scan (Prompt Suggestions)
+
+# Run weekly on Mondays at 09:00 UTC
+# Also allows manual trigger
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-pubmed-${{ hashFiles('services/worker/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-pubmed-
+            pip-${{ runner.os }}-
+          
+      - name: Install dependencies
+        run: |
+          pip install requests pyyaml
+          # Install worker dependencies for PubMedProvider
+          pip install -r services/worker/requirements.txt || true
+          
+      - name: Run PubMed scan
+        id: scan
+        env:
+          NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
+        run: |
+          python scripts/pubmed_watch.py
+          
+          # Check if new papers were found
+          if [ -f "evals/pubmed_scans/scan_$(date +%Y-%m-%d).json" ]; then
+            NEW_COUNT=$(cat "evals/pubmed_scans/scan_$(date +%Y-%m-%d).json" | python3 -c "import json,sys; print(json.load(sys.stdin).get('new_papers', 0))")
+            echo "new_papers=$NEW_COUNT" >> $GITHUB_OUTPUT
+          else
+            echo "new_papers=0" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Generate prompt proposal
+        if: steps.scan.outputs.new_papers > 0
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python scripts/propose_prompt_update.py --from-pubmed
+          
+      - name: Commit scan results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add evals/pubmed_scans/ || true
+          git add prompts/refiner/candidates/ || true
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: PubMed scan $(date +%Y-%m-%d) - ${{ steps.scan.outputs.new_papers }} new papers"
+            git push
+          fi
+          
+      # Optional: Create PR if significant changes
+      # Uncomment to enable auto-PR creation
+      # - name: Create Pull Request
+      #   if: steps.scan.outputs.new_papers > 5
+      #   uses: peter-evans/create-pull-request@v6
+      #   with:
+      #     title: "chore: PubMed literature update"
+      #     body: |
+      #       ## PubMed Scan Results
+      #       
+      #       Found ${{ steps.scan.outputs.new_papers }} new papers since last scan.
+      #       
+      #       Please review the candidate prompt and evaluation results.
+      #     branch: pubmed-update-${{ github.run_id }}
+      #     labels: literature-update,automated
