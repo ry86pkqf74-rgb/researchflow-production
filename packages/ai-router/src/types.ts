@@ -122,12 +122,25 @@ export interface AIRouterResponse {
 
 /**
  * Quality check result
+ * 
+ * Phase 7 Enhancement: Added category and score fields for AI self-improvement loop
  */
 export interface QualityCheck {
   name: string;
   passed: boolean;
   reason?: string;
   severity: 'error' | 'warning' | 'info';
+  /** Category for grouping checks (Phase 7) */
+  category?: 'citations' | 'coverage' | 'length' | 'confidence' | 'completeness' | 'structure' | 'format';
+  /** Numeric score 0.0-1.0 for gradual feedback (Phase 7) */
+  score?: number;
+  /** Detailed check results (Phase 7) */
+  details?: {
+    expected?: unknown;
+    actual?: unknown;
+    missing?: string[];
+    found?: string[];
+  };
 }
 
 /**
