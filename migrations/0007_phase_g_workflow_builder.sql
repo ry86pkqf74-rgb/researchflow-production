@@ -3,6 +3,7 @@
 -- Purpose: Add tables for custom workflow definitions, versioning, and policies
 -- Created: 2026-01-20
 -- Implements: Items 1-10 from 100 Improvements Playbook
+-- Note: This migration uses VARCHAR types matching Drizzle ORM schema (packages/core/types/schema.ts)
 
 -- =====================
 -- WORKFLOWS TABLE (Metadata)
