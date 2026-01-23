@@ -408,8 +408,9 @@ ON CONFLICT (name, version) DO NOTHING;
 
 -- Insert test users with proper UUIDs
 -- Use uuid_generate_v5 to create deterministic UUIDs from namespace + email
-INSERT INTO users (id, email, name, role, created_at, updated_at) VALUES
-(uuid_generate_v5(uuid_ns_dns(), 'testros@researchflow.dev'), 'testros@researchflow.dev', 'Test ROS Admin', 'ADMIN', NOW(), NOW()),
+-- Password hash for 'testros-backdoor' using bcrypt with 12 rounds
+INSERT INTO users (id, email, password_hash, name, role, created_at, updated_at) VALUES
+(uuid_generate_v5(uuid_ns_dns(), 'testros@researchflow.dev'), 'testros@researchflow.dev', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.VTtYrqKDQrh2.S', 'Test ROS Admin', 'ADMIN', NOW(), NOW()),
 (uuid_generate_v5(uuid_ns_dns(), 'researcher@researchflow.dev'), 'researcher@researchflow.dev', 'Dr. Sarah Chen', 'RESEARCHER', NOW(), NOW()),
 (uuid_generate_v5(uuid_ns_dns(), 'steward@researchflow.dev'), 'steward@researchflow.dev', 'Dr. Emily Wang', 'STEWARD', NOW(), NOW()),
 (uuid_generate_v5(uuid_ns_dns(), 'viewer@researchflow.dev'), 'viewer@researchflow.dev', 'Alex Kim', 'VIEWER', NOW(), NOW())

