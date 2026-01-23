@@ -80,7 +80,8 @@ function formatBytes(bytes: number): string {
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat(formatBytes(bytes, 1).split(" ")[0])} ${sizes[i]}`;
+  const value = parseFloat((bytes / Math.pow(k, i)).toFixed(1));
+  return `${value} ${sizes[i]}`;
 }
 
 function ArtifactItem({ artifact }: { artifact: ManifestEntry }) {

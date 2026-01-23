@@ -13,6 +13,7 @@ import { AI_APPROVAL_MODE_LABELS, type AIApprovalMode } from "@/lib/governance";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useGovernanceMode } from "@/hooks/useGovernanceMode";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,6 +59,9 @@ export function Header() {
   const { phiStatus, getPhiStats } = usePhiGate();
   const phiStats = getPhiStats();
 
+  // Use authoritative governance mode from database for consistent display
+  const { mode: governanceMode } = useGovernanceMode();
+
   const getUserDisplayName = () => {
     if (user?.firstName && user?.lastName) {
       return `${user.firstName} ${user.lastName}`;
@@ -102,8 +106,8 @@ export function Header() {
             <div className="flex items-center gap-2">
               <span className="font-bold text-xl" data-testid="text-brand-name">ResearchOps</span>
               <div className="hidden sm:inline-flex">
-                <GovernanceBadge 
-                  mode={(rosStatus?.mode as 'DEMO' | 'STANDBY' | 'LIVE') || 'STANDBY'} 
+                <GovernanceBadge
+                  mode={(governanceMode as 'DEMO' | 'STANDBY' | 'LIVE') || 'DEMO'}
                   showTooltip
                   clickable
                 />

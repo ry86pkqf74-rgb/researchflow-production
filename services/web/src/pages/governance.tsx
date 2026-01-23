@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { FatiguePolicyBanner } from "@/components/ui/fatigue-policy-banner";
-import { 
+import {
   Table,
   TableBody,
   TableCell,
@@ -16,11 +16,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Clock, 
+import {
+  Shield,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
   FileText,
   AlertCircle,
   ArrowLeft,
@@ -33,6 +33,7 @@ import {
   X
 } from "lucide-react";
 import { Link } from "wouter";
+import { useGovernanceMode } from "@/hooks/useGovernanceMode";
 
 interface IncidentStep {
   id: string;
@@ -159,8 +160,11 @@ export default function GovernancePage() {
   const completedRequired = requiredSteps.filter(s => completedSteps.has(s.id)).length;
   const progress = requiredSteps.length > 0 ? (completedRequired / requiredSteps.length) * 100 : 0;
 
-  const currentMode = systemStatus?.mode || "STANDBY";
-  const operations = OPERATIONS_BY_MODE[currentMode] || OPERATIONS_BY_MODE.STANDBY;
+  // Use the authoritative governance mode from database (via useGovernanceMode hook)
+  // This ensures consistency with the ModeBanner and other mode-aware components
+  const { mode: governanceMode } = useGovernanceMode();
+  const currentMode = governanceMode || "DEMO";
+  const operations = OPERATIONS_BY_MODE[currentMode] || OPERATIONS_BY_MODE.DEMO;
 
   const activeFlags = [
     { name: "mock_only", label: "Mock Only Mode", active: systemStatus?.mock_only ?? false },
