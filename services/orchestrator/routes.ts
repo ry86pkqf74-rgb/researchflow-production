@@ -81,6 +81,8 @@ import governanceRouter from "./src/routes/governance";
 import sapRouter from "./src/routes/sap";
 import researchBriefRouter from "./src/routes/research-brief";
 import exportBundleRouter from "./src/routes/export-bundle";
+import exportRisRouter from "./src/routes/export-ris";
+import integrationsStorageRouter from "./src/routes/integrations-storage";
 import literatureRouter from "./src/routes/literature";
 import meshLookupRouter from "./src/routes/mesh-lookup";
 import qualityRouter from "./src/routes/quality";
@@ -928,6 +930,8 @@ export async function registerRoutes(
 
   // Mount Export Bundle routes (reproducibility bundle export with approval workflow)
   app.use("/api/ros/export", exportBundleRouter);
+  // RIS Export (integrations_4.pdf)
+  app.use("/api/export", exportRisRouter);
 
   // Mount Literature routes (Phase C: PubMed, Semantic Scholar, arXiv search)
   app.use("/api/literature", literatureRouter);
@@ -963,6 +967,8 @@ export async function registerRoutes(
   app.use("/api/search", searchRouter);
   // Mount Integrations routes (Tasks 85-86, 92: External integrations)
   app.use("/api/integrations", integrationsRouter);
+  // Cloud Storage Integrations (integrations_4.pdf)
+  app.use("/api/integrations/storage", integrationsStorageRouter);
   // Mount Badges routes (Task 93: Gamification)
   app.use("/api/badges", badgesRouter);
   // Mount Sustainability routes (Task 95: CO2 tracking)
