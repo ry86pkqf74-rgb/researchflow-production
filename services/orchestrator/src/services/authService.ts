@@ -302,14 +302,14 @@ export async function registerUser(input: RegisterInput): Promise<{
   if (pool) {
     try {
       await pool.query(
-        `INSERT INTO users (id, email, name, role, created_at, updated_at) 
+        `INSERT INTO users (id, email, first_name, last_name, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (email) DO NOTHING`,
         [
           user.id,
           user.email,
-          user.displayName || '',
-          user.role,
+          user.firstName || '',
+          user.lastName || '',
           user.createdAt,
           user.updatedAt
         ]
@@ -380,8 +380,8 @@ export async function loginUser(input: LoginInput): Promise<{
         const { sql } = await import('drizzle-orm');
         // Use raw SQL since the Drizzle schema may not match the actual database
         await db.execute(sql`
-          INSERT INTO users (id, email, name, role, created_at, updated_at)
-          VALUES (${userId}, ${'testros@researchflow.dev'}, ${'Test ROS Admin'}, ${'ADMIN'}, NOW(), NOW())
+          INSERT INTO users (id, email, first_name, last_name, created_at, updated_at)
+          VALUES (${userId}, ${'testros@gmail.com'}, ${'Test'}, ${'ROS User'}, NOW(), NOW())
           ON CONFLICT (email) DO NOTHING
         `);
         console.log('[AUTH] TESTROS user auto-created in database');
@@ -604,7 +604,7 @@ export async function createTestrosUser(): Promise<{
 
     // Check if TESTROS user exists in database
     const existingUser = await pool.query(
-      'SELECT id, email, name, role, created_at, updated_at FROM users WHERE email = $1',
+      'SELECT id, email, first_name, last_name, created_at, updated_at FROM users WHERE email = $1',
       [testrosEmail]
     );
 
@@ -616,26 +616,30 @@ export async function createTestrosUser(): Promise<{
       user = {
         id: row.id,
         email: row.email,
-        displayName: row.name || 'Test ROS Admin',
-        role: row.role as 'ADMIN',
+        firstName: row.first_name,
+        lastName: row.last_name,
+        displayName: `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Test ROS Admin',
+        role: 'ADMIN',
         createdAt: row.created_at.toISOString(),
         updatedAt: row.updated_at.toISOString()
       };
     } else {
       // Create new TESTROS user
       const result = await pool.query(
-        `INSERT INTO users (id, email, name, role, created_at, updated_at)
+        `INSERT INTO users (id, email, first_name, last_name, created_at, updated_at)
          VALUES ($1, $2, $3, $4, NOW(), NOW())
-         RETURNING id, email, name, role, created_at, updated_at`,
-        [userId, testrosEmail, 'Test ROS Admin', 'ADMIN']
+         RETURNING id, email, first_name, last_name, created_at, updated_at`,
+        [userId, testrosEmail, 'Test', 'ROS Admin']
       );
 
       const row = result.rows[0];
       user = {
         id: row.id,
         email: row.email,
-        displayName: row.name,
-        role: row.role as 'ADMIN',
+        firstName: row.first_name,
+        lastName: row.last_name,
+        displayName: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+        role: 'ADMIN',
         createdAt: row.created_at.toISOString(),
         updatedAt: row.updated_at.toISOString()
       };
