@@ -16,7 +16,7 @@ import { useModeStore } from "@/stores/mode-store";
 import { useOrgStore } from "@/stores/org-store";
 import { useAuth } from "@/hooks/use-auth";
 import { useAppShortcuts } from "@/hooks/useGlobalShortcuts";
-import { Loader2, Home as HomeIcon, LayoutDashboard, Workflow, Shield, Settings } from "lucide-react";
+import { Loader2, Home as HomeIcon, LayoutDashboard, Workflow, Shield, Settings as SettingsIcon } from "lucide-react";
 import '@/i18n'; // Initialize i18n
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
@@ -208,7 +208,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
               href="/settings"
               className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             >
-              <Settings className="h-4 w-4 shrink-0" />
+              <SettingsIcon className="h-4 w-4 shrink-0" />
               <span>Settings</span>
             </a>
           </nav>

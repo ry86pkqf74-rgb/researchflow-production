@@ -51,14 +51,6 @@ const classificationColors: Record<string, string> = {
   UNKNOWN: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400",
 };
 
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat(formatBytes(bytes, 2).split(" ")[0]) + " " + sizes[i];
-}
-
 export function ApprovalGateModal({
   open,
   onOpenChange,
