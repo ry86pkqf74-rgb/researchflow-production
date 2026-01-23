@@ -112,6 +112,7 @@ import analyticsRouter from "./src/routes/analytics";
 import streamRouter from "./src/routes/stream";
 import aiRouter from "./src/routes/ai-router";
 import aiExtractionRouter from "./src/routes/ai-extraction";
+import analysisExecutionRouter from "./src/routes/analysis-execution";
 import { aiProvidersRouter } from "./src/routes/aiProviders";
 import { scan as scanPhi } from "@researchflow/phi-engine";
 
@@ -988,6 +989,9 @@ export async function registerRoutes(
 
   // AI Extraction - Clinical data extraction (LLM-powered)
   app.use("/api/ai/extraction", aiExtractionRouter);
+
+  // Analysis Execution - Runs analysis via worker service
+  app.use("/api/analysis", analysisExecutionRouter);
 
   // Mode information endpoint - publicly accessible
   app.get("/api/mode", (_req, res) => {
