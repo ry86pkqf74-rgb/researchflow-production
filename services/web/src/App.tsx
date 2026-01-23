@@ -45,6 +45,7 @@ import ImportBundlePage from "@/pages/import-bundle";
 import WorkflowsPage from "@/pages/workflows";
 import ProjectsPage from "@/pages/projects";
 import ProjectDetailPage from "@/pages/projects/project-detail";
+import SpreadsheetCellParse from "@/pages/spreadsheet-cell-parse";
 import { OrgSelector } from "@/components/org";
 import { AdaptiveNavigation } from "@/components/nav";
 
@@ -377,6 +378,9 @@ function Router() {
         {() => <ProtectedRoute component={WorkflowBuilderPage} />}
       </Route>
       <Route component={NotFound} />
+      <Route path="/extraction/spreadsheet">
+        {() => <ProtectedRoute component={SpreadsheetCellParse} />}
+      </Route>
     </Switch>
   );
 }
