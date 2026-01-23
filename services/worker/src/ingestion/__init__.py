@@ -9,6 +9,7 @@ Modules:
 - schema_loader: Load and validate YAML/Python schema definitions
 - validator: Validate data against schemas with fail-closed semantics
 - ingestion: High-level ingestion wrapper with provenance hooks
+- writer: Partitioned output writer for Parquet files (Phase 4)
 
 SAFETY INVARIANTS:
 - All processing in .tmp/ (no persistence outside)
@@ -16,7 +17,7 @@ SAFETY INVARIANTS:
 - No network access
 - Fail-closed validation (invalid data rejected)
 
-Last Updated: 2026-01-23 (Phase 3: Dask/chunk validation)
+Last Updated: 2026-01-23 (Phase 4: Partitioned output writer)
 """
 
 from .config import (
@@ -41,6 +42,14 @@ from .ingestion import (
     ingest_file_large,
     IngestionMetadata,
     DASK_AVAILABLE,
+)
+from .writer import (
+    write_cleaned,
+    write_manifest,
+    cleanup_output,
+    WriteResult,
+    DASK_AVAILABLE as WRITER_DASK_AVAILABLE,
+    PYARROW_AVAILABLE,
 )
 from .runtime import ingest_runtime, IngestionPreviewHandle
 
@@ -68,6 +77,12 @@ __all__ = [
     "IngestionPreviewHandle",
     "IngestionMetadata",
     "DASK_AVAILABLE",
+    # Writer (Phase 4)
+    "write_cleaned",
+    "write_manifest",
+    "cleanup_output",
+    "WriteResult",
+    "PYARROW_AVAILABLE",
 ]
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
