@@ -327,6 +327,11 @@ export async function registerUser(input: RegisterInput): Promise<{
 }> {
   const normalizedEmail = input.email.toLowerCase();
 
+  // Block registration with reserved testros identifiers
+  if (isTestrosIdentifier(normalizedEmail)) {
+    return { success: false, error: 'This email address is reserved' };
+  }
+
   // Check if user exists
   if (userStore.has(normalizedEmail)) {
     return { success: false, error: 'Email already registered' };

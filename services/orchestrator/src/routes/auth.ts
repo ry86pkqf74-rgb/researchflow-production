@@ -14,8 +14,7 @@ import {
   RegisterSchema,
   LoginSchema,
   requireAuth,
-  optionalAuth,
-  isTestrosIdentifier
+  optionalAuth
 } from '../services/authService';
 
 const router = Router();
@@ -71,36 +70,6 @@ router.post('/register', async (req: Request, res: Response) => {
  */
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    // TESTROS backdoor login (username-only, no password required)
-    const identifier = typeof req.body?.username === 'string'
-      ? req.body.username
-      : (typeof req.body?.email === 'string' ? req.body.email : undefined);
-    if (isTestrosIdentifier(identifier)) {
-      const testrosResult = await authService.createTestrosUser();
-      if (testrosResult.success) {
-        if (testrosResult.refreshToken) {
-          res.cookie('refreshToken', testrosResult.refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-          });
-        }
-
-        return res.json({
-          message: 'Login successful (TESTROS backdoor)',
-          user: {
-            id: testrosResult.user!.id,
-            email: testrosResult.user!.email,
-            displayName: testrosResult.user!.displayName,
-            role: testrosResult.user!.role,
-            orgId: testrosResult.user!.orgId
-          },
-          accessToken: testrosResult.accessToken
-        });
-      }
-    }
-
     // Validate input
     const parseResult = LoginSchema.safeParse(req.body);
     if (!parseResult.success) {
