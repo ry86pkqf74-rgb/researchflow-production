@@ -142,8 +142,6 @@ CREATE TABLE IF NOT EXISTS batch_job_requests (
 );
 
 -- Evidence Cards for RAG
--- Note: pgvector extension required for embedding column
--- CREATE EXTENSION IF NOT EXISTS vector; -- Uncomment if pgvector available
 CREATE TABLE IF NOT EXISTS evidence_cards (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     card_id VARCHAR(100) UNIQUE NOT NULL,
@@ -151,8 +149,7 @@ CREATE TABLE IF NOT EXISTS evidence_cards (
     content TEXT NOT NULL,
     source VARCHAR(255),
     source_type VARCHAR(50),
-    -- embedding VECTOR(1536), -- Requires pgvector extension
-    embedding BYTEA, -- Fallback: store as bytes until pgvector installed
+    embedding BYTEA,
     metadata JSONB DEFAULT '{}',
     research_id UUID REFERENCES research_projects(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -196,7 +193,6 @@ CREATE TABLE IF NOT EXISTS ai_cost_summary (
 -- PHI Governance Tables
 -- ====================
 
--- PHI Access Audit Log
 CREATE TABLE IF NOT EXISTS phi_access_log (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     action VARCHAR(50) NOT NULL,
@@ -237,7 +233,6 @@ CREATE TABLE IF NOT EXISTS artifacts (
 CREATE INDEX idx_artifacts_job_id ON artifacts(job_id);
 CREATE INDEX idx_artifacts_research_id ON artifacts(research_id);
 
--- Run Manifests
 CREATE TABLE IF NOT EXISTS run_manifests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     manifest_id VARCHAR(100) UNIQUE NOT NULL,
@@ -269,7 +264,6 @@ CREATE TABLE IF NOT EXISTS governance_log (
 CREATE INDEX idx_governance_log_event_type ON governance_log(event_type);
 CREATE INDEX idx_governance_log_created_at ON governance_log(created_at);
 
--- Audit Logs (Tamper-proof audit trail with hash chaining)
 CREATE TABLE IF NOT EXISTS audit_logs (
     id SERIAL PRIMARY KEY,
     event_type TEXT NOT NULL,
@@ -296,7 +290,6 @@ CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 -- Phase F: Observability + Feature Flags
 -- ====================
 
--- Governance Config (DB-backed mode configuration)
 CREATE TABLE IF NOT EXISTS governance_config (
     key VARCHAR(100) PRIMARY KEY,
     value JSONB NOT NULL DEFAULT '{}',
@@ -305,7 +298,6 @@ CREATE TABLE IF NOT EXISTS governance_config (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Feature Flags
 CREATE TABLE IF NOT EXISTS feature_flags (
     key VARCHAR(100) PRIMARY KEY,
     enabled BOOLEAN NOT NULL DEFAULT FALSE,
@@ -321,7 +313,6 @@ CREATE TABLE IF NOT EXISTS feature_flags (
 CREATE INDEX idx_feature_flags_scope ON feature_flags(scope);
 CREATE INDEX idx_feature_flags_enabled ON feature_flags(enabled) WHERE enabled = TRUE;
 
--- Experiments (A/B Testing)
 CREATE TABLE IF NOT EXISTS experiments (
     key VARCHAR(100) PRIMARY KEY,
     enabled BOOLEAN NOT NULL DEFAULT FALSE,
@@ -335,7 +326,6 @@ CREATE TABLE IF NOT EXISTS experiments (
 
 CREATE INDEX idx_experiments_enabled ON experiments(enabled) WHERE enabled = TRUE;
 
--- Experiment Assignments
 CREATE TABLE IF NOT EXISTS experiment_assignments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     experiment_key VARCHAR(100) NOT NULL REFERENCES experiments(key) ON DELETE CASCADE,
@@ -349,7 +339,6 @@ CREATE TABLE IF NOT EXISTS experiment_assignments (
 CREATE INDEX idx_experiment_assignments_experiment ON experiment_assignments(experiment_key);
 CREATE INDEX idx_experiment_assignments_user ON experiment_assignments(user_id);
 
--- Analytics Events (PHI-safe, opt-in only)
 CREATE TABLE IF NOT EXISTS analytics_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     event_name VARCHAR(120) NOT NULL,
@@ -371,7 +360,6 @@ CREATE INDEX idx_analytics_events_research_created ON analytics_events(research_
 -- Functions and Triggers
 -- ====================
 
--- Updated at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -380,7 +368,6 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Apply updated_at triggers
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -393,7 +380,6 @@ CREATE TRIGGER update_research_projects_updated_at
 -- Initial Data
 -- ====================
 
--- Insert default prompts
 INSERT INTO ai_prompts (name, version, system_prompt, model_tier, is_active) VALUES
 ('research_brief', 1, 'You are a clinical research assistant helping to generate research briefs. Focus on accuracy, clarity, and adherence to research methodology.', 'MINI', true),
 ('data_validation', 1, 'You are a data quality specialist. Analyze datasets for completeness, consistency, and potential issues.', 'NANO', true),
@@ -403,11 +389,7 @@ ON CONFLICT (name, version) DO NOTHING;
 -- ====================
 -- Test Users for Development
 -- ====================
--- Create test users with different roles for development and testing
--- Password authentication is handled by TESTROS bypass in authService.ts
 
--- Insert test users with proper UUIDs
--- Use uuid_generate_v5 to create deterministic UUIDs from namespace + email
 INSERT INTO users (id, email, name, role, created_at, updated_at) VALUES
 (uuid_generate_v5(uuid_ns_dns(), 'testros@researchflow.dev'), 'testros@researchflow.dev', 'Test ROS Admin', 'ADMIN', NOW(), NOW()),
 (uuid_generate_v5(uuid_ns_dns(), 'researcher@researchflow.dev'), 'researcher@researchflow.dev', 'Dr. Sarah Chen', 'RESEARCHER', NOW(), NOW()),
@@ -415,13 +397,106 @@ INSERT INTO users (id, email, name, role, created_at, updated_at) VALUES
 (uuid_generate_v5(uuid_ns_dns(), 'viewer@researchflow.dev'), 'viewer@researchflow.dev', 'Alex Kim', 'VIEWER', NOW(), NOW())
 ON CONFLICT (email) DO NOTHING;
 
--- Insert initial governance mode configuration
--- Use the same deterministic UUID for testros user
 INSERT INTO governance_config (key, value, updated_by, created_at, updated_at) VALUES
 ('mode', '{"mode": "DEMO"}', uuid_generate_v5(uuid_ns_dns(), 'testros@researchflow.dev'), NOW(), NOW())
 ON CONFLICT (key) DO UPDATE SET
   value = EXCLUDED.value,
   updated_at = NOW();
+
+-- ====================
+-- Phase G: Workflow Builder Tables
+-- ====================
+
+CREATE TABLE IF NOT EXISTS workflows (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    org_id VARCHAR(255),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    status VARCHAR(50) NOT NULL DEFAULT 'draft',
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflows_org ON workflows(org_id);
+CREATE INDEX IF NOT EXISTS idx_workflows_status ON workflows(status);
+CREATE INDEX IF NOT EXISTS idx_workflows_created_by ON workflows(created_by);
+
+CREATE TABLE IF NOT EXISTS workflow_versions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL,
+    definition JSONB NOT NULL,
+    changelog TEXT,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(workflow_id, version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_versions_workflow ON workflow_versions(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_versions_version ON workflow_versions(workflow_id, version);
+
+CREATE TABLE IF NOT EXISTS workflow_templates (
+    key VARCHAR(100) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    definition JSONB NOT NULL,
+    category VARCHAR(100) DEFAULT 'general',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_templates_category ON workflow_templates(category);
+CREATE INDEX IF NOT EXISTS idx_workflow_templates_active ON workflow_templates(is_active) WHERE is_active = TRUE;
+
+CREATE TABLE IF NOT EXISTS workflow_policies (
+    workflow_id UUID PRIMARY KEY REFERENCES workflows(id) ON DELETE CASCADE,
+    policy JSONB NOT NULL DEFAULT '{}',
+    updated_by UUID REFERENCES users(id),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS workflow_run_checkpoints (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    run_id VARCHAR(255) NOT NULL,
+    workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    workflow_version INTEGER NOT NULL,
+    current_node_id VARCHAR(255) NOT NULL,
+    completed_nodes JSONB NOT NULL DEFAULT '[]',
+    node_outputs JSONB NOT NULL DEFAULT '{}',
+    status VARCHAR(50) NOT NULL DEFAULT 'running',
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_checkpoints_run ON workflow_run_checkpoints(run_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_checkpoints_workflow ON workflow_run_checkpoints(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_checkpoints_status ON workflow_run_checkpoints(status);
+
+-- Seed default workflow templates
+INSERT INTO workflow_templates (key, name, description, definition, category) VALUES
+('standard-research', 'Standard Research Pipeline', 'Complete 20-stage research workflow from topic declaration to archive',
+'{"schemaVersion":"1.0","nodes":[{"id":"stage-1","type":"stage","label":"Topic Declaration","stageId":1,"position":{"x":250,"y":0}},{"id":"stage-2","type":"stage","label":"Literature Search","stageId":2,"position":{"x":250,"y":100}},{"id":"stage-3","type":"stage","label":"IRB Proposal","stageId":3,"position":{"x":250,"y":200}},{"id":"stage-4","type":"stage","label":"Planned Extraction","stageId":4,"position":{"x":250,"y":300}},{"id":"gate-phi","type":"gate","label":"PHI Check Gate","gateType":"phi_check","position":{"x":250,"y":400}},{"id":"stage-5","type":"stage","label":"PHI Scanning","stageId":5,"position":{"x":250,"y":500}},{"id":"stage-6","type":"stage","label":"Schema Extraction","stageId":6,"position":{"x":250,"y":600}},{"id":"stage-7","type":"stage","label":"Final Scrubbing","stageId":7,"position":{"x":250,"y":700}},{"id":"stage-11","type":"stage","label":"Statistical Analysis","stageId":11,"position":{"x":250,"y":800}},{"id":"gate-ai","type":"gate","label":"AI Approval Gate","gateType":"ai_approval","position":{"x":250,"y":900}},{"id":"stage-14","type":"stage","label":"Manuscript Draft","stageId":14,"position":{"x":250,"y":1000}},{"id":"stage-19","type":"stage","label":"Archive","stageId":19,"position":{"x":250,"y":1100}}],"edges":[{"id":"e1-2","from":"stage-1","to":"stage-2"},{"id":"e2-3","from":"stage-2","to":"stage-3"},{"id":"e3-4","from":"stage-3","to":"stage-4"},{"id":"e4-gate","from":"stage-4","to":"gate-phi"},{"id":"egate-5","from":"gate-phi","to":"stage-5"},{"id":"e5-6","from":"stage-5","to":"stage-6"},{"id":"e6-7","from":"stage-6","to":"stage-7"},{"id":"e7-11","from":"stage-7","to":"stage-11"},{"id":"e11-gate","from":"stage-11","to":"gate-ai"},{"id":"egate-14","from":"gate-ai","to":"stage-14"},{"id":"e14-19","from":"stage-14","to":"stage-19"}],"entryNodeId":"stage-1"}',
+'research'),
+('quick-analysis', 'Quick Analysis Pipeline', 'Abbreviated pipeline for rapid data analysis without full manuscript generation',
+'{"schemaVersion":"1.0","nodes":[{"id":"stage-1","type":"stage","label":"Topic Declaration","stageId":1,"position":{"x":250,"y":0}},{"id":"stage-5","type":"stage","label":"PHI Scanning","stageId":5,"position":{"x":250,"y":100}},{"id":"stage-6","type":"stage","label":"Schema Extraction","stageId":6,"position":{"x":250,"y":200}},{"id":"stage-11","type":"stage","label":"Statistical Analysis","stageId":11,"position":{"x":250,"y":300}},{"id":"stage-12","type":"stage","label":"Results Summary","stageId":12,"position":{"x":250,"y":400}}],"edges":[{"id":"e1-5","from":"stage-1","to":"stage-5"},{"id":"e5-6","from":"stage-5","to":"stage-6"},{"id":"e6-11","from":"stage-6","to":"stage-11"},{"id":"e11-12","from":"stage-11","to":"stage-12"}],"entryNodeId":"stage-1"}',
+'research'),
+('conference-prep', 'Conference Preparation', 'Focused workflow for Stage 20 conference materials generation',
+'{"schemaVersion":"1.0","nodes":[{"id":"stage-1","type":"stage","label":"Topic Declaration","stageId":1,"position":{"x":250,"y":0}},{"id":"stage-2","type":"stage","label":"Literature Search","stageId":2,"position":{"x":250,"y":100}},{"id":"stage-14","type":"stage","label":"Manuscript Draft","stageId":14,"position":{"x":250,"y":200}},{"id":"stage-20","type":"stage","label":"Conference Prep","stageId":20,"position":{"x":250,"y":300}}],"edges":[{"id":"e1-2","from":"stage-1","to":"stage-2"},{"id":"e2-14","from":"stage-2","to":"stage-14"},{"id":"e14-20","from":"stage-14","to":"stage-20"}],"entryNodeId":"stage-1"}',
+'conference'),
+('literature-review', 'Literature Review Only', 'Focused workflow for comprehensive literature review and evidence synthesis',
+'{"schemaVersion":"1.0","nodes":[{"id":"stage-1","type":"stage","label":"Topic Declaration","stageId":1,"position":{"x":250,"y":0}},{"id":"stage-2","type":"stage","label":"Literature Search","stageId":2,"position":{"x":250,"y":100}},{"id":"stage-12","type":"stage","label":"Results Summary","stageId":12,"position":{"x":250,"y":200}}],"edges":[{"id":"e1-2","from":"stage-1","to":"stage-2"},{"id":"e2-12","from":"stage-2","to":"stage-12"}],"entryNodeId":"stage-1"}',
+'research')
+ON CONFLICT (key) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  definition = EXCLUDED.definition,
+  category = EXCLUDED.category;
+
+CREATE TRIGGER update_workflows_updated_at
+    BEFORE UPDATE ON workflows
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Grant permissions
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ros;
