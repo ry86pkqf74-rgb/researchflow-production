@@ -1,7 +1,8 @@
 /**
  * Model Router Service
  *
- * Implements cost-optimized model selection with automatic tier escalation.
+ * Implements cost-optimized model selection with automatic tier escalation
+ * and AI self-improvement loop (Phase 10).
  * Routes AI requests to appropriate models based on task complexity.
  */
 
@@ -16,6 +17,7 @@ import type {
   AIRouterResponse,
   AIInvocationRecord,
   EscalationDecision,
+  QualityCheck,
 } from './types';
 import {
   MODEL_CONFIGS,
@@ -24,6 +26,31 @@ import {
 } from './types';
 import { QualityGateService } from './quality-gate.service';
 import { PhiGateService } from './phi-gate.service';
+import {
+  getConfig,
+  isAutoRefineEnabled,
+  isNarrativeTask,
+  getQualityCheckOptions,
+  type AIRouterFullConfig,
+} from './config';
+import {
+  PromptRefinementService,
+  type RefinementContext,
+  type RefinementResult,
+} from './prompt-refinement.service';
+
+/**
+ * Extended response with refinement metadata (Phase 10)
+ */
+export interface AIRouterResponseWithRefinement extends AIRouterResponse {
+  /** Refinement loop metadata */
+  refinement?: {
+    applied: boolean;
+    attempts: number;
+    rulesApplied: string[];
+    escalatedDueToRefinement: boolean;
+  };
+}
 
 /**
  * Check if AI calls are allowed based on governance mode.
@@ -51,14 +78,16 @@ function checkModeGating(): { allowed: true } | { allowed: false; reason: string
  * Model Router Service
  *
  * Routes AI requests to the appropriate model tier based on task type,
- * with automatic escalation on quality gate failures.
+ * with automatic escalation on quality gate failures and AI self-improvement loop.
  */
 export class ModelRouterService {
   private anthropic: Anthropic | null = null;
   private openai: OpenAI | null = null;
   private qualityGate: QualityGateService;
   private phiGate: PhiGateService;
+  private refinementService: PromptRefinementService;
   private config: AIRouterConfig;
+  private fullConfig: AIRouterFullConfig;
 
   constructor(config: Partial<AIRouterConfig> = {}) {
     this.config = {
@@ -69,6 +98,9 @@ export class ModelRouterService {
       openaiApiKey: config.openaiApiKey || process.env.OPENAI_API_KEY,
       togetherApiKey: config.togetherApiKey || process.env.TOGETHER_API_KEY,
     };
+
+    // Load full configuration (Phase 9)
+    this.fullConfig = getConfig();
 
     // Initialize providers
     if (this.config.anthropicApiKey) {
@@ -85,12 +117,20 @@ export class ModelRouterService {
 
     this.qualityGate = new QualityGateService();
     this.phiGate = new PhiGateService();
+    
+    // Initialize refinement service (Phase 10)
+    this.refinementService = new PromptRefinementService({
+      maxAttempts: this.fullConfig.autoRefine.maxAttempts,
+      escalationThreshold: this.fullConfig.autoRefine.escalationThreshold,
+    });
   }
 
   /**
    * Route an AI request to the appropriate model
+   * 
+   * Phase 10: Includes AI self-improvement loop with automatic refinement
    */
-  async route(request: AIRouterRequest): Promise<AIRouterResponse> {
+  async route(request: AIRouterRequest): Promise<AIRouterResponseWithRefinement> {
     const startTime = Date.now();
 
     // Determine initial tier
@@ -99,6 +139,13 @@ export class ModelRouterService {
     let escalationCount = 0;
     let escalationReason: string | undefined;
     let lastError: Error | undefined;
+
+    // Refinement tracking (Phase 10)
+    let refinementAttempts = 0;
+    let refinementRulesApplied: string[] = [];
+    let refinementApplied = false;
+    let escalatedDueToRefinement = false;
+    let currentPrompt = request.prompt;
 
     // Mode gating check - block AI calls in STANDBY or NO_NETWORK mode
     const modeCheck = checkModeGating();
@@ -122,10 +169,23 @@ export class ModelRouterService {
       );
     }
 
-    // Attempt with escalation loop
+    // Build refinement context
+    const refinementContext: RefinementContext = {
+      originalPrompt: request.prompt,
+      taskType: request.taskType,
+      currentTier,
+      attemptCount: 0,
+      maxAttempts: this.fullConfig.autoRefine.maxAttempts,
+      previousFailures: [],
+      appliedRules: [],
+    };
+
+    // Attempt with escalation and refinement loop
     while (escalationCount <= this.config.maxEscalations) {
       try {
-        const response = await this.invokeModel(request, currentTier);
+        // Use potentially refined prompt
+        const effectiveRequest = { ...request, prompt: currentPrompt };
+        const response = await this.invokeModel(effectiveRequest, currentTier);
 
         // PHI scan output
         const outputPhiResult = this.phiGate.scanContent(response.content);
@@ -147,9 +207,55 @@ export class ModelRouterService {
           request.responseFormat
         );
 
+        // Add narrative-specific checks for applicable task types (Phase 10)
+        if (isNarrativeTask(request.taskType)) {
+          const narrativeChecks = this.runNarrativeChecks(response.content, request.taskType);
+          qualityResult.checks.push(...narrativeChecks);
+          qualityResult.passed = qualityResult.passed && narrativeChecks.every(c => c.passed || c.severity !== 'error');
+        }
+
         response.qualityGate = qualityResult;
 
-        // Check if escalation needed
+        // Check if refinement is needed (Phase 10)
+        if (
+          !qualityResult.passed &&
+          this.fullConfig.autoRefine.enabled &&
+          refinementAttempts < this.fullConfig.autoRefine.maxAttempts
+        ) {
+          const failedChecks = qualityResult.checks.filter(c => !c.passed);
+          
+          // Update refinement context
+          refinementContext.attemptCount = refinementAttempts;
+          refinementContext.currentTier = currentTier;
+          refinementContext.previousFailures.push(failedChecks);
+          refinementContext.appliedRules = refinementRulesApplied;
+
+          // Attempt refinement
+          const refinementResult = this.refinementService.refine(
+            currentPrompt,
+            failedChecks,
+            refinementContext
+          );
+
+          if (refinementResult.refined) {
+            currentPrompt = refinementResult.prompt;
+            refinementAttempts++;
+            refinementApplied = true;
+            refinementRulesApplied.push(...refinementResult.appliedRules.map(r => r.checkName));
+            
+            // Check if we should escalate due to refinement threshold
+            if (refinementResult.shouldEscalate && refinementResult.suggestedTier) {
+              escalatedDueToRefinement = true;
+              currentTier = refinementResult.suggestedTier;
+              escalationCount++;
+              escalationReason = 'Refinement threshold reached';
+            }
+            
+            continue; // Retry with refined prompt
+          }
+        }
+
+        // Check if tier escalation needed (original logic)
         if (!qualityResult.passed && this.config.escalationEnabled) {
           const escalation = this.qualityGate.shouldEscalate(
             qualityResult,
@@ -177,7 +283,18 @@ export class ModelRouterService {
 
         response.metrics.latencyMs = Date.now() - startTime;
 
-        return response;
+        // Add refinement metadata (Phase 10)
+        const responseWithRefinement: AIRouterResponseWithRefinement = {
+          ...response,
+          refinement: {
+            applied: refinementApplied,
+            attempts: refinementAttempts,
+            rulesApplied: [...new Set(refinementRulesApplied)],
+            escalatedDueToRefinement,
+          },
+        };
+
+        return responseWithRefinement;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
@@ -198,7 +315,7 @@ export class ModelRouterService {
     }
 
     // All attempts failed
-    return this.createFailedResponse(
+    const failedResponse = this.createFailedResponse(
       request,
       initialTier,
       currentTier,
@@ -207,6 +324,31 @@ export class ModelRouterService {
       escalationCount > 0,
       escalationReason
     );
+
+    // Add refinement metadata to failed response
+    return {
+      ...failedResponse,
+      refinement: {
+        applied: refinementApplied,
+        attempts: refinementAttempts,
+        rulesApplied: [...new Set(refinementRulesApplied)],
+        escalatedDueToRefinement,
+      },
+    };
+  }
+
+  /**
+   * Run narrative-specific quality checks (Phase 10)
+   */
+  private runNarrativeChecks(content: string, taskType: AITaskType): QualityCheck[] {
+    const options = getQualityCheckOptions(taskType);
+    return this.qualityGate.validateNarrativeContent(content, {
+      minCitations: options.minCitations,
+      minWords: options.minWords,
+      maxWords: options.maxWords,
+      checkPlaceholders: options.checkPlaceholders,
+      checkQuestionMarks: false, // Only as warning, not blocking
+    });
   }
 
   /**
