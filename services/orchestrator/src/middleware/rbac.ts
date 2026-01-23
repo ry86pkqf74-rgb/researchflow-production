@@ -80,7 +80,7 @@ export function requirePermission(permission: Permission) {
         code: 'INSUFFICIENT_PERMISSIONS',
         required: permission,
         userRole: req.user.role,
-        userPermissions: ROLE_CONFIGS[req.user.role].can
+        userPermissions: ROLE_CONFIGS[req.user.role]?.can ?? []
       });
       return;
     }

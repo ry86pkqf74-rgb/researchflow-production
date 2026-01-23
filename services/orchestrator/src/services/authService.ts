@@ -37,6 +37,17 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'logan.glosser@gmail.com')
   .split(',')
   .map(email => email.trim().toLowerCase());
 
+const ROLE_VALUES = ['ADMIN', 'RESEARCHER', 'STEWARD', 'VIEWER'] as const;
+type AuthRole = (typeof ROLE_VALUES)[number];
+
+const TESTROS_EMAIL = 'testros@researchflow.dev';
+const TESTROS_DISPLAY_NAME = 'Test ROS Admin';
+const TESTROS_IDENTIFIERS = new Set([
+  'testros',
+  TESTROS_EMAIL,
+  'testros@gmail.com',
+]);
+
 /**
  * Determine role based on email
  * Admin emails get 'ADMIN' role, others get 'RESEARCHER' by default
@@ -65,7 +76,7 @@ export const UserSchema = z.object({
   lastName: z.string().optional(),
   displayName: z.string().optional(),
   profileImageUrl: z.string().url().optional(),
-  role: z.enum(['ADMIN', 'RESEARCHER', 'STEWARD', 'VIEWER']).default('VIEWER'),
+  role: z.enum(ROLE_VALUES).default('VIEWER'),
   orgId: z.string().uuid().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()
@@ -116,6 +127,57 @@ const refreshTokenStore = new Map<string, {
   userId: string;
   expiresAt: Date;
 }>();
+
+interface DbUserRecord {
+  id: string;
+  email: string;
+  passwordHash: string | null;
+  name: string | null;
+  role: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+function normalizeRole(role?: string | null): AuthRole {
+  const normalized = (role || '').toUpperCase();
+  return ROLE_VALUES.includes(normalized as AuthRole) ? (normalized as AuthRole) : 'VIEWER';
+}
+
+export function isTestrosIdentifier(identifier?: string | null): boolean {
+  if (!identifier) return false;
+  return TESTROS_IDENTIFIERS.has(identifier.trim().toLowerCase());
+}
+
+function upsertUserStore(user: User, passwordHash: string): void {
+  const key = user.email.toLowerCase();
+  const existing = userStore.get(key);
+  if (existing) {
+    userStore.set(key, {
+      user: { ...existing.user, ...user },
+      passwordHash: passwordHash || existing.passwordHash,
+      refreshTokens: existing.refreshTokens,
+    });
+    return;
+  }
+
+  userStore.set(key, {
+    user,
+    passwordHash,
+    refreshTokens: new Set(),
+  });
+}
+
+function buildUserFromDb(record: DbUserRecord): User {
+  const displayName = record.name?.trim() || record.email.split('@')[0];
+  return {
+    id: record.id,
+    email: record.email,
+    displayName,
+    role: normalizeRole(record.role),
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  };
+}
 
 /**
  * Hash password using bcrypt
@@ -265,9 +327,25 @@ export async function registerUser(input: RegisterInput): Promise<{
 }> {
   const normalizedEmail = input.email.toLowerCase();
 
-  // Check if user exists
+  // Block registration with reserved testros identifiers
+  if (isTestrosIdentifier(normalizedEmail)) {
+    return { success: false, error: 'This email address is reserved' };
+  }
+
+  // Check if user exists in memory
   if (userStore.has(normalizedEmail)) {
     return { success: false, error: 'Email already registered' };
+  }
+
+  // Check if user exists in database (handles restart scenario)
+  if (pool) {
+    const existingDbUser = await findUserByEmail(normalizedEmail);
+    if (existingDbUser) {
+      // User exists in database but not in memory - sync to memory and reject
+      const user = buildUserFromDb(existingDbUser);
+      upsertUserStore(user, existingDbUser.passwordHash || '');
+      return { success: false, error: 'Email already registered' };
+    }
   }
 
   // Hash password
@@ -292,22 +370,19 @@ export async function registerUser(input: RegisterInput): Promise<{
   console.log(`[AUTH] User registered: ${normalizedEmail} with role: ${assignedRole}`);
 
   // Store user in memory
-  userStore.set(normalizedEmail, {
-    user,
-    passwordHash,
-    refreshTokens: new Set()
-  });
+  upsertUserStore(user, passwordHash);
 
   // Persist user to database
   if (pool) {
     try {
       await pool.query(
-        `INSERT INTO users (id, email, name, role, created_at, updated_at) 
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO users (id, email, password_hash, name, role, created_at, updated_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (email) DO NOTHING`,
         [
           user.id,
           user.email,
+          passwordHash,
           user.displayName || '',
           user.role,
           user.createdAt,
@@ -344,76 +419,37 @@ export async function loginUser(input: LoginInput): Promise<{
   error?: string;
 }> {
   const normalizedEmail = input.email.toLowerCase();
-  
-  // TESTROS bypass for development/testing - auto-create and login without password
-  if (normalizedEmail === 'testros@gmail.com') {
-    console.log('[AUTH] TESTROS bypass activated - auto-login without account creation');
-    
-    let userData = getUserByEmail(normalizedEmail);
-    
-    // Create TESTROS user if it doesn't exist
-    if (!userData) {
-      const now = new Date().toISOString();
-      const userId = crypto.randomUUID();
-      const user: User = {
-        id: userId,
-        email: 'testros@gmail.com',
-        firstName: 'Test',
-        lastName: 'ROS',
-        displayName: 'Test ROS User',
-        role: 'ADMIN', // Give admin access for testing
-        createdAt: now,
-        updatedAt: now
-      };
-      
-      // Store with dummy password hash in memory
-      const dummyHash = await hashPassword('dummy');
-      userStore.set(normalizedEmail, {
-        user,
-        passwordHash: dummyHash,
-        refreshTokens: new Set()
-      });
-      
-      // Also insert into database so foreign keys work
-      try {
-        const { db } = await import('../../db.js');
-        const { sql } = await import('drizzle-orm');
-        // Use raw SQL since the Drizzle schema may not match the actual database
-        await db.execute(sql`
-          INSERT INTO users (id, email, name, role, created_at, updated_at)
-          VALUES (${userId}, ${'testros@researchflow.dev'}, ${'Test ROS Admin'}, ${'ADMIN'}, NOW(), NOW())
-          ON CONFLICT (email) DO NOTHING
-        `);
-        console.log('[AUTH] TESTROS user auto-created in database');
-      } catch (dbError) {
-        console.warn('[AUTH] Failed to create TESTROS user in database:', dbError);
-        // Continue anyway - in-memory user still works for most things
-      }
-      
-      console.log('[AUTH] TESTROS user auto-created with ADMIN role');
-      userData = getUserByEmail(normalizedEmail);
-    }
-    
-    if (!userData) {
-      return { success: false, error: 'Failed to create TESTROS user' };
-    }
-    
-    // Generate tokens without password verification
-    const accessToken = generateAccessToken(userData.user);
-    const refreshToken = generateRefreshToken(userData.user.id);
-    
-    return {
-      success: true,
-      user: userData.user,
-      accessToken,
-      refreshToken
-    };
+
+  // Testros backdoor: allow passwordless login for Testros identifiers
+  if (isTestrosIdentifier(normalizedEmail)) {
+    return createTestrosUser();
   }
-  
+
   const userData = getUserByEmail(normalizedEmail);
 
   if (!userData) {
-    return { success: false, error: 'Invalid email or password' };
+    const dbUser = await findUserByEmail(normalizedEmail);
+    if (!dbUser || !dbUser.passwordHash) {
+      return { success: false, error: 'Invalid email or password' };
+    }
+
+    const isValid = await verifyPassword(input.password, dbUser.passwordHash);
+    if (!isValid) {
+      return { success: false, error: 'Invalid email or password' };
+    }
+
+    const user = buildUserFromDb(dbUser);
+    upsertUserStore(user, dbUser.passwordHash);
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user.id);
+
+    return {
+      success: true,
+      user,
+      accessToken,
+      refreshToken
+    };
   }
 
   // Verify password
@@ -599,59 +635,65 @@ export async function createTestrosUser(): Promise<{
   error?: string;
 }> {
   try {
-    const testrosEmail = 'testros@researchflow.dev';
-    const userId = crypto.randomUUID();
-
-    // Check if TESTROS user exists in database
-    const existingUser = await pool.query(
-      'SELECT id, email, name, role, created_at, updated_at FROM users WHERE email = $1',
-      [testrosEmail]
-    );
-
+    const testrosEmail = TESTROS_EMAIL;
+    const defaultPasswordHash = await hashPassword('testros-backdoor');
+    let passwordHash = defaultPasswordHash;
     let user: User;
 
-    if (existingUser.rows.length > 0) {
-      // User exists, use existing
-      const row = existingUser.rows[0];
-      user = {
-        id: row.id,
-        email: row.email,
-        displayName: row.name || 'Test ROS Admin',
-        role: row.role as 'ADMIN',
-        createdAt: row.created_at.toISOString(),
-        updatedAt: row.updated_at.toISOString()
-      };
-    } else {
-      // Create new TESTROS user
-      const result = await pool.query(
-        `INSERT INTO users (id, email, name, role, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, NOW(), NOW())
-         RETURNING id, email, name, role, created_at, updated_at`,
-        [userId, testrosEmail, 'Test ROS Admin', 'ADMIN']
+    if (pool) {
+      // Check if TESTROS user exists in database
+      const existingUser = await pool.query(
+        `SELECT id, email, name, role, created_at, updated_at,
+                password_hash as "passwordHash"
+         FROM users WHERE email = $1`,
+        [testrosEmail]
       );
 
-      const row = result.rows[0];
+      if (existingUser.rows.length > 0) {
+        const row = existingUser.rows[0] as DbUserRecord;
+        user = buildUserFromDb(row);
+        if (row.passwordHash) {
+          passwordHash = row.passwordHash;
+        }
+      } else {
+        const userId = crypto.randomUUID();
+        const result = await pool.query(
+          `INSERT INTO users (id, email, password_hash, name, role, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+           RETURNING id, email, name, role, created_at, updated_at,
+                     password_hash as "passwordHash"`,
+          [userId, testrosEmail, defaultPasswordHash, TESTROS_DISPLAY_NAME, 'ADMIN']
+        );
+
+        const row = result.rows[0] as DbUserRecord;
+        user = buildUserFromDb(row);
+      }
+    } else {
+      const now = new Date().toISOString();
       user = {
-        id: row.id,
-        email: row.email,
-        displayName: row.name,
-        role: row.role as 'ADMIN',
-        createdAt: row.created_at.toISOString(),
-        updatedAt: row.updated_at.toISOString()
+        id: crypto.randomUUID(),
+        email: testrosEmail,
+        displayName: TESTROS_DISPLAY_NAME,
+        role: 'ADMIN',
+        createdAt: now,
+        updatedAt: now
       };
     }
 
+    upsertUserStore(user, passwordHash);
+
     // Generate tokens
     const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const refreshToken = generateRefreshToken(user.id);
 
-    // Store refresh token
-    await pool.query(
-      `INSERT INTO refresh_tokens (user_id, token, expires_at, created_at)
-       VALUES ($1, $2, $3, NOW())
-       ON CONFLICT DO NOTHING`,
-      [user.id, refreshToken, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
-    );
+    if (pool) {
+      await pool.query(
+        `INSERT INTO refresh_tokens (user_id, token, expires_at, created_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT DO NOTHING`,
+        [user.id, refreshToken, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
+      );
+    }
 
     console.log('[AUTH] TESTROS user authenticated:', user.email);
 
@@ -673,10 +715,12 @@ export async function createTestrosUser(): Promise<{
 /**
  * Find user by email
  */
-async function findUserByEmail(email: string): Promise<{ id: string; email: string; passwordHash: string } | null> {
+async function findUserByEmail(email: string): Promise<DbUserRecord | null> {
   try {
     const result = await pool.query(
-      'SELECT id, email, password_hash as "passwordHash" FROM users WHERE email = $1',
+      `SELECT id, email, password_hash as "passwordHash", name, role,
+              created_at as "createdAt", updated_at as "updatedAt"
+       FROM users WHERE email = $1`,
       [email.toLowerCase()]
     );
 
@@ -684,7 +728,7 @@ async function findUserByEmail(email: string): Promise<{ id: string; email: stri
       return null;
     }
 
-    return result.rows[0];
+    return result.rows[0] as DbUserRecord;
   } catch (error) {
     console.error('[Auth] Error finding user by email:', error);
     return null;
@@ -803,6 +847,7 @@ export const authService = {
   optionalAuth,
   devOrRequireAuth,
   devFallbackUser,
+  isTestrosIdentifier,
   createTestrosUser,
   findUserByEmail,
   generatePasswordResetToken,
