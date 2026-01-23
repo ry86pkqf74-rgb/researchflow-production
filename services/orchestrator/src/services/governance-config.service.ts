@@ -9,10 +9,27 @@
  */
 
 import { db } from '../../db';
-import { governanceConfig, type GovernanceMode, GOVERNANCE_MODES } from '@researchflow/core/schema';
+import { governanceConfig, users, type GovernanceMode, GOVERNANCE_MODES } from '@researchflow/core/schema';
 import { eq } from 'drizzle-orm';
 import { logAction } from './audit-service';
 import { eventBus } from './event-bus';
+
+/**
+ * Check if a user exists in the database
+ */
+async function userExists(userId: string): Promise<boolean> {
+  if (!db || !userId) return false;
+  try {
+    const result = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    return result.length > 0;
+  } catch {
+    return false;
+  }
+}
 
 // Default mode when no DB config exists
 const DEFAULT_MODE: GovernanceMode = 'DEMO';
@@ -100,20 +117,24 @@ export async function setMode(mode: GovernanceMode, actorUserId: string): Promis
     throw new Error('Database not available');
   }
 
+  // Check if user exists in database to avoid foreign key constraint violation
+  // If user doesn't exist (e.g., demo/mock user), set updatedBy to null
+  const validUserId = await userExists(actorUserId) ? actorUserId : null;
+
   // Upsert the mode config
   await db
     .insert(governanceConfig)
     .values({
       key: 'mode',
       value: { mode },
-      updatedBy: actorUserId,
+      updatedBy: validUserId,
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: governanceConfig.key,
       set: {
         value: { mode },
-        updatedBy: actorUserId,
+        updatedBy: validUserId,
         updatedAt: new Date(),
       },
     });
@@ -183,19 +204,22 @@ export async function setConfig(key: string, value: unknown, actorUserId: string
     throw new Error('Database not available');
   }
 
+  // Check if user exists in database to avoid foreign key constraint violation
+  const validUserId = await userExists(actorUserId) ? actorUserId : null;
+
   await db
     .insert(governanceConfig)
     .values({
       key,
       value: value as Record<string, unknown>,
-      updatedBy: actorUserId,
+      updatedBy: validUserId,
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: governanceConfig.key,
       set: {
         value: value as Record<string, unknown>,
-        updatedBy: actorUserId,
+        updatedBy: validUserId,
         updatedAt: new Date(),
       },
     });
