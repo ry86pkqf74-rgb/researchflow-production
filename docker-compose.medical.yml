@@ -1,0 +1,43 @@
+# ============================================
+# ResearchFlow - Medical Integrations Override
+# ============================================
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.medical.yml up -d
+#
+# This override adds medical integration environment variables
+# from document_pdf.pdf specification.
+
+services:
+  worker:
+    environment:
+      # REDCap Integration
+      - REDCAP_API_URL=${REDCAP_API_URL}
+      - REDCAP_API_TOKEN=${REDCAP_API_TOKEN}
+      - REDCAP_TIMEOUT_S=${REDCAP_TIMEOUT_S:-60}
+      
+      # Epic FHIR Integration (SMART Backend Services)
+      - EPIC_FHIR_BASE_URL=${EPIC_FHIR_BASE_URL}
+      - EPIC_TOKEN_URL=${EPIC_TOKEN_URL}
+      - EPIC_CLIENT_ID=${EPIC_CLIENT_ID}
+      - EPIC_PRIVATE_KEY_PEM=${EPIC_PRIVATE_KEY_PEM}
+      - EPIC_JWT_KID=${EPIC_JWT_KID}
+      - EPIC_SCOPE=${EPIC_SCOPE}
+      - EPIC_TIMEOUT_S=${EPIC_TIMEOUT_S:-60}
+      
+      # PubMed/NCBI
+      - NCBI_API_KEY=${NCBI_API_KEY}
+      - PUBMED_TIMEOUT_S=${PUBMED_TIMEOUT_S:-30}
+      - PUBMED_CACHE_TTL_S=${PUBMED_CACHE_TTL_S:-86400}
+      
+      # Redis Cache (Python worker)
+      - CACHE_TTL_S=${CACHE_TTL_S:-86400}
+      - CACHE_PREFIX=${CACHE_PREFIX:-worker}
+      - CACHE_FERNET_KEY=${CACHE_FERNET_KEY}
+      
+      # Execution Backend
+      - EXECUTION_BACKEND=${EXECUTION_BACKEND:-local}
+      - RAY_ADDRESS=${RAY_ADDRESS}
+      - RAY_NUM_ACTORS=${RAY_NUM_ACTORS:-8}
+      - RAY_MAX_IN_FLIGHT=${RAY_MAX_IN_FLIGHT:-64}
+      
+      # Simulation Module (optional)
+      - ENABLE_SIMULATION=${ENABLE_SIMULATION:-0}
