@@ -4,6 +4,11 @@ Stage 04: Schema Validation
 Validates data against expected schemas before PHI scanning.
 This ensures data structure is correct before expensive operations.
 
+Phase 5 Enhancement:
+- Integrated with ingestion module for large-file handling
+- Supports Dask DataFrame and chunked validation
+- Uses IngestionConfig for configuration
+
 Note: PHI scanning is in stage 05. This stage validates structure only.
 """
 
@@ -11,10 +16,27 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 from ..types import StageContext, StageResult
 from ..registry import register_stage
+
+# Import ingestion module for large-data support (Phase 5)
+try:
+    from src.ingestion import (
+        IngestionConfig,
+        get_ingestion_config,
+        ingest_file_large,
+        validate_data,
+        ValidationResult,
+        IngestionMetadata,
+        DASK_AVAILABLE,
+    )
+    INGESTION_AVAILABLE = True
+except ImportError:
+    INGESTION_AVAILABLE = False
+    DASK_AVAILABLE = False
 
 logger = logging.getLogger("workflow_engine.stage_04_validate")
 
@@ -31,6 +53,7 @@ def detect_format(file_path: str) -> str:
     ext = os.path.splitext(file_path)[1].lower()
     format_map = {
         ".csv": "csv",
+        ".tsv": "tsv",
         ".json": "json",
         ".jsonl": "jsonl",
         ".parquet": "parquet",
@@ -126,6 +149,88 @@ def validate_csv_structure(file_path: str) -> tuple[bool, str, Dict[str, Any]]:
         return False, f"CSV validation error: {str(e)}", {}
 
 
+def validate_csv_large(
+    file_path: str,
+    config: Optional[IngestionConfig] = None,
+) -> tuple[bool, str, Dict[str, Any]]:
+    """Validate CSV file using large-data handling.
+    
+    Uses ingestion module for files > large_file_bytes threshold.
+    Supports Dask DataFrame and chunked validation.
+    
+    Args:
+        file_path: Path to CSV file
+        config: Optional IngestionConfig
+        
+    Returns:
+        Tuple of (is_valid, error_message, metadata)
+    """
+    if not INGESTION_AVAILABLE:
+        # Fall back to standard validation
+        return validate_csv_structure(file_path)
+    
+    try:
+        if config is None:
+            config = get_ingestion_config()
+        
+        # Get file size to determine handling
+        file_size = os.path.getsize(file_path)
+        is_large = file_size >= config.large_file_bytes
+        
+        if not is_large:
+            # Use standard validation for small files
+            return validate_csv_structure(file_path)
+        
+        # Use large-file ingestion
+        logger.info(f"Using large-file validation for {file_path} ({file_size} bytes)")
+        
+        data, ingestion_meta = ingest_file_large(
+            file_path,
+            file_format="csv",
+            config=config,
+        )
+        
+        # Build schema metadata from first rows
+        import pandas as pd
+        
+        if ingestion_meta.is_dask:
+            # Get columns and sample from first partition
+            first_partition = data.get_partition(0).compute()
+            columns = list(first_partition.columns)
+            row_count = len(data)  # Triggers computation
+        elif ingestion_meta.is_chunked:
+            # Get columns from first chunk
+            first_chunk = next(iter(data))
+            columns = list(first_chunk.columns)
+            # Estimate row count (can't know exact without consuming iterator)
+            estimated_rows = file_size // 100  # Rough estimate
+            row_count = estimated_rows
+        else:
+            columns = list(data.columns)
+            row_count = len(data)
+        
+        metadata = {
+            "column_count": len(columns),
+            "row_count": row_count,
+            "columns": columns[:20],
+            "file_size_bytes": file_size,
+            "is_large_file": is_large,
+            "processing_mode": (
+                "dask" if ingestion_meta.is_dask 
+                else "chunked" if ingestion_meta.is_chunked 
+                else "pandas"
+            ),
+            "partition_count": ingestion_meta.partition_count,
+            "dask_available": DASK_AVAILABLE,
+        }
+        
+        return True, "", metadata
+        
+    except Exception as e:
+        logger.error(f"Large-file validation error: {e}")
+        return False, f"Large-file validation error: {str(e)}", {}
+
+
 def validate_jsonl_structure(file_path: str) -> tuple[bool, str, Dict[str, Any]]:
     """Validate JSONL file structure.
 
@@ -175,6 +280,11 @@ class SchemaValidationStage:
     """Stage 04: Schema Validation
 
     Validates file structure and schema before PHI scanning.
+    
+    Phase 5 Enhancement:
+    - Uses ingestion module for large-file handling
+    - Supports Dask DataFrame validation
+    - Supports chunked validation for memory efficiency
     """
 
     stage_id = 4
@@ -213,6 +323,13 @@ class SchemaValidationStage:
         output["detected_format"] = file_format
         logger.info(f"Validating {file_format} file: {file_path}")
 
+        # Get ingestion config if available
+        config = None
+        if INGESTION_AVAILABLE:
+            config = get_ingestion_config()
+            output["large_file_threshold"] = config.large_file_bytes
+            output["dask_enabled"] = config.dask_enabled
+
         # Validate based on format
         is_valid = False
         error_msg = ""
@@ -220,10 +337,28 @@ class SchemaValidationStage:
 
         if file_format == "json":
             is_valid, error_msg, metadata = validate_json_structure(file_path)
-        elif file_format == "csv":
-            is_valid, error_msg, metadata = validate_csv_structure(file_path)
+        elif file_format in ("csv", "tsv"):
+            # Use large-file validation for CSV/TSV
+            if INGESTION_AVAILABLE:
+                is_valid, error_msg, metadata = validate_csv_large(file_path, config)
+            else:
+                is_valid, error_msg, metadata = validate_csv_structure(file_path)
         elif file_format == "jsonl":
             is_valid, error_msg, metadata = validate_jsonl_structure(file_path)
+        elif file_format == "parquet":
+            # Parquet files are self-describing
+            try:
+                import pandas as pd
+                df = pd.read_parquet(file_path)
+                is_valid = True
+                metadata = {
+                    "column_count": len(df.columns),
+                    "row_count": len(df),
+                    "columns": list(df.columns)[:20],
+                }
+            except Exception as e:
+                is_valid = False
+                error_msg = f"Invalid Parquet: {str(e)}"
         elif file_format in ("xml", "hl7", "fhir"):
             # Basic existence check for medical formats
             # Full validation would require specific parsers
@@ -248,6 +383,14 @@ class SchemaValidationStage:
             errors.append(error_msg)
 
         output["schema_metadata"] = metadata
+        
+        # Store data handling info for stage 05
+        if metadata.get("is_large_file"):
+            output["large_file_info"] = {
+                "processing_mode": metadata.get("processing_mode"),
+                "partition_count": metadata.get("partition_count"),
+                "file_size_bytes": metadata.get("file_size_bytes"),
+            }
 
         completed_at = datetime.utcnow().isoformat() + "Z"
         started_dt = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
@@ -269,5 +412,7 @@ class SchemaValidationStage:
             metadata={
                 "governance_mode": context.governance_mode,
                 "format_validated": file_format,
+                "ingestion_module_available": INGESTION_AVAILABLE,
+                "dask_available": DASK_AVAILABLE,
             },
         )
