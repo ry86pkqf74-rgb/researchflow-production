@@ -54,7 +54,10 @@ export function GovernanceBadge({ mode: propMode, showTooltip = false, clickable
       variant="outline"
       className={`${config.className} ${clickable ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
       aria-label={`Current governance mode: ${config.label}`}
-      onClick={clickable ? () => {
+      onClick={clickable ? (e: React.MouseEvent) => {
+        // Stop propagation to prevent parent anchor tags from navigating
+        e.stopPropagation();
+        e.preventDefault();
         console.log('[GovernanceBadge] Badge clicked, opening switcher');
         setSwitcherOpen(true);
       } : undefined}

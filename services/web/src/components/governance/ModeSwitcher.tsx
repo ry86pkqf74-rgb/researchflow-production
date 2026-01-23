@@ -49,16 +49,14 @@ const MODE_OPTIONS: ModeOption[] = [
 ];
 
 async function changeMode(mode: GovernanceMode): Promise<{ mode: GovernanceMode }> {
-  // Get auth token from localStorage or Zustand store
   const token = localStorage.getItem('auth_token');
   
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
   
-  // Add auth token if available
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers['Authorization'] = `Bearer ` + token;
   }
   
   const response = await fetch("/api/governance/mode", {
@@ -70,7 +68,7 @@ async function changeMode(mode: GovernanceMode): Promise<{ mode: GovernanceMode 
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: "Failed to change mode", message: "Unknown error" }));
-    const errorMessage = error.message || error.error || `${response.status}: ${response.statusText}`;
+    const errorMessage = error.message || error.error || response.status + ": " + response.statusText;
     throw new Error(errorMessage);
   }
 
@@ -86,16 +84,14 @@ export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherPr
   const mutation = useMutation({
     mutationFn: changeMode,
     onSuccess: (data) => {
-      // Update both Zustand store AND React Query cache for consistency
       setModeStore(data.mode);
 
-      // Invalidate governance mode query to refetch
       queryClient.invalidateQueries({ queryKey: ["/api/governance/mode"] });
       queryClient.invalidateQueries({ queryKey: ["/api/governance/state"] });
 
       toast({
         title: "Mode changed successfully",
-        description: `Switched to ${data.mode} mode`,
+        description: "Switched to " + data.mode + " mode",
       });
 
       onOpenChange(false);
@@ -109,7 +105,6 @@ export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherPr
     },
   });
 
-  // Check if user can switch to LIVE mode (requires authentication)
   const canSwitchToLive = isAuthenticated;
 
   const selectedOption = MODE_OPTIONS.find((opt) => opt.value === selectedMode);
@@ -129,7 +124,6 @@ export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherPr
           <RadioGroup
             value={selectedMode}
             onValueChange={(value) => {
-              // Only allow switching to LIVE if authenticated
               if (value === 'LIVE' && !canSwitchToLive) {
                 toast({
                   title: "Authentication Required",
@@ -152,11 +146,12 @@ export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherPr
                 return (
                   <div
                     key={option.value}
-                    className={`relative flex items-start space-x-3 rounded-lg border p-4 transition-colors ${
-                      isSelected
+                    className={"relative flex items-start space-x-3 rounded-lg border p-4 transition-colors " +
+                      (isSelected
                         ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
-                    } ${isCurrent ? "ring-2 ring-green-500 ring-offset-2" : ""} ${isLocked ? "opacity-50 cursor-not-allowed" : ""}`}
+                        : "border-border hover:border-primary/50") +
+                      (isCurrent ? " ring-2 ring-green-500 ring-offset-2" : "") +
+                      (isLocked ? " opacity-50 cursor-not-allowed" : "")}
                   >
                     <RadioGroupItem
                       value={option.value}
@@ -169,7 +164,7 @@ export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherPr
                         <Icon className="h-4 w-4" />
                         <Label
                           htmlFor={option.value}
-                          className={`font-medium flex items-center gap-2 ${isLocked ? "cursor-not-allowed" : "cursor-pointer"}`}
+                          className={"font-medium flex items-center gap-2 " + (isLocked ? "cursor-not-allowed" : "cursor-pointer")}
                         >
                           {option.label}
                           {isCurrent && (
