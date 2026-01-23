@@ -82,6 +82,7 @@ import sapRouter from "./src/routes/sap";
 import researchBriefRouter from "./src/routes/research-brief";
 import exportBundleRouter from "./src/routes/export-bundle";
 import literatureRouter from "./src/routes/literature";
+import meshLookupRouter from "./src/routes/mesh-lookup";
 import qualityRouter from "./src/routes/quality";
 // Phase D: AI Ethics & Security routes
 import consentRouter from "./src/routes/consent";
@@ -928,6 +929,9 @@ export async function registerRoutes(
 
   // Mount Literature routes (Phase C: PubMed, Semantic Scholar, arXiv search)
   app.use("/api/literature", literatureRouter);
+  
+  // Mount MeSH lookup routes (Clinical term enrichment via NLM E-utilities)
+  app.use("/api/literature/mesh", meshLookupRouter);
 
   // Mount Quality routes (Phase C: Data quality dashboard and profiling)
   app.use("/api/quality", qualityRouter);
