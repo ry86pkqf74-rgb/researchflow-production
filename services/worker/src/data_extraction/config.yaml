@@ -1,0 +1,169 @@
+# =============================================================================
+# ResearchFlow Data Extraction Configuration
+# =============================================================================
+# This file configures the cell-level block text parsing and large sheet
+# processing pipeline. Values here can be overridden by environment variables
+# or runtime job options.
+
+# -----------------------------------------------------------------------------
+# Block Text Detection Configuration
+# -----------------------------------------------------------------------------
+# These settings control how the system identifies cells containing narrative
+# clinical text that should be sent for LLM extraction.
+
+block_text:
+  # Minimum character count to consider a cell for extraction
+  min_chars: 120
+  
+  # Minimum number of newlines to trigger extraction (regardless of length)
+  min_newlines: 2
+  
+  # Minimum ratio of alphabetic characters (excludes pure numeric cells)
+  min_alpha_ratio: 0.40
+  
+  # Regex pattern for detecting clinical section headings
+  clinical_heading_regex: "(?i)\\b(HPI|ROS|PMH|PSH|A/P|Assessment|Plan|PE|Vitals|Labs|Impression)\\b"
+  
+  # Minimum number of clinical marker tokens to trigger extraction
+  min_clinical_markers: 1
+  
+  # Clinical marker tokens to detect (case-insensitive)
+  clinical_marker_tokens:
+    # Section headings
+    - "HPI"
+    - "ROS"
+    - "PMH"
+    - "PSH"
+    - "A/P"
+    - "Assessment"
+    - "Plan"
+    - "PE"
+    - "Vitals"
+    - "Labs"
+    - "Impression"
+    # Clinical patterns
+    - "denies"
+    - "reports"
+    - "complains of"
+    - "post-op"
+    - "POD"
+    - "ECOG"
+    - "ASA"
+    - "HbA1c"
+    - "WBC"
+    - "CBC"
+    - "BMP"
+    - "CT scan"
+    - "MRI"
+    - "biopsy"
+    - "pathology"
+    - "diagnosis"
+    - "prognosis"
+    - "follow-up"
+  
+  # Columns to NEVER process (identifiers, PHI-heavy)
+  deny_columns:
+    - "mrn"
+    - "patient_id"
+    - "dob"
+    - "ssn"
+    - "id"
+    - "row_id"
+    - "index"
+    - "name"
+    - "patient_name"
+    - "address"
+    - "phone"
+    - "email"
+    - "insurance_id"
+    - "account_number"
+  
+  # Columns to ALWAYS process if they exist
+  allow_columns:
+    - "ros"
+    - "review_of_systems"
+    - "clinical_notes"
+    - "clinical_note"
+    - "op_note"
+    - "operative_note"
+    - "discharge_summary"
+    - "hpi"
+    - "history_of_present_illness"
+    - "assessment_plan"
+    - "a_p"
+    - "history"
+    - "physical_exam"
+    - "pe"
+    - "notes"
+    - "comments"
+    - "narrative"
+    - "findings"
+    - "impression"
+    - "progress_note"
+    - "consult_note"
+
+# -----------------------------------------------------------------------------
+# Large Sheet Processing Configuration
+# -----------------------------------------------------------------------------
+# These settings control memory-safe processing of large CSV/Excel files.
+
+large_sheet:
+  # Files larger than this (MB) trigger chunked processing
+  large_csv_mb: 200
+  
+  # Number of rows per chunk for streaming processing
+  chunk_rows: 50000
+  
+  # Maximum concurrent LLM API calls
+  llm_concurrency: 24
+  
+  # Number of cells to batch into single LLM request (micro-batching)
+  llm_batch_size: 20
+  
+  # Write checkpoint after this many chunks
+  task_checkpoint_every_chunks: 1
+  
+  # Output format for extraction results
+  # Options: "parquet" (recommended for large datasets) or "jsonl"
+  output_format: "parquet"
+  
+  # Whether to join extractions back to source sheet
+  join_back_to_sheet: false
+  
+  # Enable Dask for parallel processing (requires dask installed)
+  enable_dask: false
+  
+  # Dask blocksize for reading large CSVs
+  dask_blocksize: "64MB"
+
+# -----------------------------------------------------------------------------
+# Prompt Pack Configuration
+# -----------------------------------------------------------------------------
+# Names of prompt templates to use for different extraction tasks.
+# Templates are stored in the prompts/ directory.
+
+prompt_pack:
+  # Base clinical note extraction prompt
+  cell_extract: "clinical_note_extract_v2"
+  
+  # ROS-specific extraction prompt
+  ros_extract: "ros_extract_v1"
+  
+  # Outcome/complication extraction prompt
+  outcome_extract: "outcome_extract_v1"
+  
+  # Note type classification prompt
+  note_classify: "note_type_classify_v1"
+  
+  # JSON repair prompt for malformed outputs
+  json_repair: "clinical_note_repair_json_v2"
+
+# -----------------------------------------------------------------------------
+# Runtime Settings (typically set via environment variables)
+# -----------------------------------------------------------------------------
+# These are documented here but usually configured via .env or docker-compose
+
+# AI_ROUTER_URL: http://localhost:3001/api/ai/extraction/generate
+# ORCHESTRATOR_URL: http://localhost:3001
+# EXTRACTION_TIMEOUT_SECONDS: 60
+# ENRICHMENT_TIMEOUT_SECONDS: 30
