@@ -86,9 +86,15 @@ export function Onboarding() {
 
   const handleOrgNameChange = (value: string) => {
     setOrgName(value);
+    setError(null); // Clear error when user changes input
     if (!orgSlug || orgSlug === generateSlug(orgName)) {
       setOrgSlug(generateSlug(value));
     }
+  };
+
+  const handleOrgSlugChange = (value: string) => {
+    setOrgSlug(value.toLowerCase().replace(/[^a-z0-9-]/g, '-'));
+    setError(null); // Clear error when user changes input
   };
 
   const handleNext = async () => {
@@ -106,7 +112,7 @@ export function Onboarding() {
           if (accessToken) {
             headers['Authorization'] = `Bearer ${accessToken}`;
           }
-          
+
           const response = await fetch('/api/org', {
             method: 'POST',
             headers,
@@ -171,7 +177,7 @@ export function Onboarding() {
       if (accessToken) {
         headers['Authorization'] = `Bearer ${accessToken}`;
       }
-      
+
       await fetch('/api/user/onboarding/complete', {
         method: 'POST',
         headers,
@@ -260,7 +266,7 @@ export function Onboarding() {
                     id="orgSlug"
                     placeholder="my-research-lab"
                     value={orgSlug}
-                    onChange={(e) => setOrgSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                    onChange={(e) => handleOrgSlugChange(e.target.value)}
                   />
                 </div>
               </div>
