@@ -9,3 +9,17 @@ export { ManuscriptDraftStreaming } from './ManuscriptDraftStreaming';
 export { StatisticalAnalysisStreaming } from './StatisticalAnalysisStreaming';
 export { LiteratureSearchStreaming } from './LiteratureSearchStreaming';
 export { ResearchBriefStreaming } from './ResearchBriefStreaming';
+
+// Model tier selection components
+export {
+  ModelTierSelect,
+  ModelTierCards,
+  AIRoutingIndicator,
+  CostEstimation,
+  BudgetProgress,
+  TierBadge,
+  AISettingsPanel,
+  MODEL_TIERS,
+  type ModelTier,
+  type ModelTierConfig,
+} from './ModelTierSelector';

@@ -1,7 +1,8 @@
 /**
  * Workflow Stages Page Object Model
  *
- * Selectors and actions for the 19-stage workflow page.
+ * Selectors and actions for the 20-stage workflow page.
+ * Updated to match the official stage definitions in stages.ts.
  */
 
 import { Page, Locator } from '@playwright/test';
@@ -13,67 +14,91 @@ import { BasePage } from './base.page';
 export type StageStatus = 'AVAILABLE' | 'REQUIRES_APPROVAL' | 'LOCKED' | 'COMING_SOON' | 'COMPLETED';
 
 /**
+ * Stage category types matching stages.ts.
+ */
+export type StageCategory = 'discovery' | 'collection' | 'analysis' | 'validation' | 'dissemination';
+
+/**
  * Stage information.
  */
 export interface StageInfo {
   number: number;
   name: string;
-  status: StageStatus;
+  category: StageCategory;
+  status?: StageStatus;
   requiresPhi: boolean;
+  optional: boolean;
 }
 
 /**
- * The 19 workflow stages organized by phase.
+ * The 20 workflow stages organized by category.
+ * Matches the official definition in services/web/src/workflow/stages.ts
  */
-export const WORKFLOW_STAGES = {
-  // Phase 3: Data Preparation (Stages 1-4)
-  dataPreparation: [
-    { number: 1, name: 'Topic Declaration' },
-    { number: 2, name: 'Literature Search' },
-    { number: 3, name: 'IRB Proposal' },
-    { number: 4, name: 'Planned Extraction' },
+export const WORKFLOW_STAGES: Record<StageCategory, StageInfo[]> = {
+  discovery: [
+    { number: 1, name: 'Hypothesis Generation', category: 'discovery', requiresPhi: false, optional: false },
+    { number: 2, name: 'Literature Review', category: 'discovery', requiresPhi: false, optional: false },
+    { number: 3, name: 'Experimental Design', category: 'discovery', requiresPhi: false, optional: false },
   ],
-  // Phase 3: Data Processing (Stages 5-8)
-  dataProcessing: [
-    { number: 5, name: 'PHI Scanning' },
-    { number: 6, name: 'Schema Extraction' },
-    { number: 7, name: 'Final Scrubbing' },
-    { number: 8, name: 'Data Validation' },
+  collection: [
+    { number: 4, name: 'Data Collection', category: 'collection', requiresPhi: true, optional: false },
+    { number: 5, name: 'Data Preprocessing', category: 'collection', requiresPhi: true, optional: false },
   ],
-  // Phase 4: Analysis & Ideation (Stages 9-11)
   analysis: [
-    { number: 9, name: 'Summary Characteristics' },
-    { number: 10, name: 'Literature Gap Analysis' },
-    { number: 11, name: 'Manuscript Ideation' },
+    { number: 6, name: 'Analysis', category: 'analysis', requiresPhi: false, optional: false },
+    { number: 7, name: 'Statistical Modeling', category: 'analysis', requiresPhi: false, optional: false },
+    { number: 8, name: 'Visualization', category: 'analysis', requiresPhi: false, optional: false },
+    { number: 11, name: 'Iteration', category: 'analysis', requiresPhi: false, optional: true },
   ],
-  // Phase 4: Manuscript Development (Stages 12-14)
-  manuscript: [
-    { number: 12, name: 'Manuscript Selection' },
-    { number: 13, name: 'Statistical Analysis' },
-    { number: 14, name: 'Manuscript Drafting' },
+  validation: [
+    { number: 9, name: 'Interpretation', category: 'validation', requiresPhi: false, optional: false },
+    { number: 10, name: 'Validation', category: 'validation', requiresPhi: false, optional: false },
+    { number: 13, name: 'Internal Review', category: 'validation', requiresPhi: false, optional: true },
+    { number: 14, name: 'Ethical Review', category: 'validation', requiresPhi: true, optional: false },
   ],
-  // Phase 5: Finalization (Stages 15-16)
-  finalization: [
-    { number: 15, name: 'Polish Manuscript' },
-    { number: 16, name: 'Submission Readiness' },
-  ],
-  // Phase 5: Conference Readiness (Stages 17-19)
-  conference: [
-    { number: 17, name: 'Poster Preparation' },
-    { number: 18, name: 'Symposium Materials' },
-    { number: 19, name: 'Presentation Preparation' },
+  dissemination: [
+    { number: 12, name: 'Documentation', category: 'dissemination', requiresPhi: true, optional: false },
+    { number: 15, name: 'Artifact Bundling', category: 'dissemination', requiresPhi: true, optional: false },
+    { number: 16, name: 'Collaboration Handoff', category: 'dissemination', requiresPhi: true, optional: true },
+    { number: 17, name: 'Archiving', category: 'dissemination', requiresPhi: false, optional: false },
+    { number: 18, name: 'Impact Assessment', category: 'dissemination', requiresPhi: false, optional: true },
+    { number: 19, name: 'Dissemination', category: 'dissemination', requiresPhi: true, optional: false },
+    { number: 20, name: 'Conference Preparation', category: 'dissemination', requiresPhi: true, optional: false },
   ],
 };
 
 /**
+ * Get all stages as a flat array.
+ */
+export function getAllStages(): StageInfo[] {
+  return Object.values(WORKFLOW_STAGES).flat().sort((a, b) => a.number - b.number);
+}
+
+/**
  * Stages that require PHI gate passage.
  */
-export const PHI_REQUIRED_STAGES = [9, 13, 14, 17, 18, 19];
+export const PHI_REQUIRED_STAGES = [4, 5, 12, 14, 15, 16, 19, 20];
+
+/**
+ * Optional stages that can be skipped.
+ */
+export const OPTIONAL_STAGES = [11, 13, 16, 18];
 
 /**
  * Total number of stages.
  */
-export const TOTAL_STAGES = 19;
+export const TOTAL_STAGES = 20;
+
+/**
+ * Category display names.
+ */
+export const CATEGORY_NAMES: Record<StageCategory, string> = {
+  discovery: 'Discovery',
+  collection: 'Collection',
+  analysis: 'Analysis',
+  validation: 'Validation',
+  dissemination: 'Dissemination',
+};
 
 export class WorkflowPage extends BasePage {
   constructor(page: Page) {
@@ -159,6 +184,16 @@ export class WorkflowPage extends BasePage {
   async getStageStatus(stageNumber: number): Promise<StageStatus | null> {
     const badge = this.getStageBadge(stageNumber);
     if (!(await badge.isVisible().catch(() => false))) {
+      // Try getting status from card text
+      const card = this.getStageCard(stageNumber);
+      const text = (await card.textContent())?.toUpperCase() || '';
+
+      if (text.includes('AVAILABLE')) return 'AVAILABLE';
+      if (text.includes('APPROVAL')) return 'REQUIRES_APPROVAL';
+      if (text.includes('LOCKED')) return 'LOCKED';
+      if (text.includes('COMING')) return 'COMING_SOON';
+      if (text.includes('COMPLETED')) return 'COMPLETED';
+
       return null;
     }
 
@@ -178,7 +213,14 @@ export class WorkflowPage extends BasePage {
    */
   async hasPhiGateIndicator(stageNumber: number): Promise<boolean> {
     const badge = this.getPhiGateBadge(stageNumber);
-    return badge.isVisible().catch(() => false);
+    const hasBadge = await badge.isVisible().catch(() => false);
+
+    if (hasBadge) return true;
+
+    // Also check for PHI text in the card
+    const card = this.getStageCard(stageNumber);
+    const cardText = (await card.textContent())?.toLowerCase() || '';
+    return cardText.includes('phi') || cardText.includes('scan');
   }
 
   /**
@@ -195,19 +237,19 @@ export class WorkflowPage extends BasePage {
   }
 
   /**
-   * Get a phase group container.
+   * Get a category section container.
    */
-  getPhaseGroup(phaseName: string): Locator {
-    return this.page.locator(`[data-testid="phase-${phaseName.toLowerCase().replace(/\s+/g, '-')}"]`);
+  getCategorySection(category: StageCategory): Locator {
+    return this.page.locator(`[data-testid="category-${category}"]`);
   }
 
   /**
-   * Count stages in a specific phase group.
+   * Count stages in a specific category.
    */
-  async countStagesInPhase(phaseName: string): Promise<number> {
-    const phase = this.getPhaseGroup(phaseName);
-    const cards = phase.locator('[data-testid^="card-stage-"]');
-    return cards.count();
+  async countStagesInCategory(category: StageCategory): Promise<number> {
+    const section = this.getCategorySection(category);
+    const cards = section.locator('[data-testid^="card-stage-"]');
+    return cards.count().catch(() => 0);
   }
 
   /**
@@ -222,5 +264,59 @@ export class WorkflowPage extends BasePage {
     }
 
     return results;
+  }
+
+  /**
+   * Get stage info by number.
+   */
+  getStageInfo(stageNumber: number): StageInfo | undefined {
+    return getAllStages().find((s) => s.number === stageNumber);
+  }
+
+  /**
+   * Check if a stage is optional.
+   */
+  isOptionalStage(stageNumber: number): boolean {
+    return OPTIONAL_STAGES.includes(stageNumber);
+  }
+
+  /**
+   * Check if a stage requires PHI scanning.
+   */
+  requiresPhiScan(stageNumber: number): boolean {
+    return PHI_REQUIRED_STAGES.includes(stageNumber);
+  }
+
+  /**
+   * Get stages by category.
+   */
+  getStagesByCategory(category: StageCategory): StageInfo[] {
+    return WORKFLOW_STAGES[category];
+  }
+
+  /**
+   * Scroll to a specific stage.
+   */
+  async scrollToStage(stageNumber: number): Promise<void> {
+    const card = this.getStageCard(stageNumber);
+    await card.scrollIntoViewIfNeeded();
+  }
+
+  /**
+   * Verify all 20 stages are visible.
+   */
+  async verifyAllStagesVisible(): Promise<boolean> {
+    const visibility = await this.getAllStagesVisibility();
+
+    for (let i = 1; i <= TOTAL_STAGES; i++) {
+      if (!visibility.get(i)) {
+        // Try scrolling to it
+        await this.scrollToStage(i);
+        const isVisible = await this.isStageVisible(i);
+        if (!isVisible) return false;
+      }
+    }
+
+    return true;
   }
 }
