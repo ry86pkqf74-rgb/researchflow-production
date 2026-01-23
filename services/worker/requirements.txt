@@ -23,6 +23,7 @@ cycler==0.12.1
 cyclonedx-python-lib==11.6.0
 defusedxml==0.7.1
 detect-secrets==1.5.0
+dask>=2024.1.0
 distlib==0.4.0
 dparse==0.6.4
 ecdsa==0.19.1
@@ -61,6 +62,7 @@ nltk==3.9.2
 nodeenv==1.10.0
 numpy==1.26.4
 packageurl-python==0.17.6
+openpyxl>=3.1.0
 packaging==25.0
 pandas==2.2.0
 pandera==0.18.0
