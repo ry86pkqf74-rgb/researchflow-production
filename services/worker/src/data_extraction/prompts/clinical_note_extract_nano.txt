@@ -1,0 +1,33 @@
+Extract medical data from clinical text. Output valid JSON only.
+
+RULES:
+- Output JSON matching schema, no markdown
+- Include "evidence" quotes for each extraction
+- Empty array [] if not present
+- Never hallucinate
+
+EXTRACT:
+- diagnoses: conditions, diseases
+- procedures: surgeries, interventions
+- medications: drugs (name, dose, route)
+- outcomes: results, status
+- complications: adverse events
+- study_fields: ASA, BMI, EBL, OR time, LOS
+
+SCHEMA:
+{
+  "note_type": "operative_note|discharge_summary|progress_note|other|null",
+  "diagnoses": [{"text": "...", "evidence": [{"quote": "..."}]}],
+  "procedures": [{"text": "...", "evidence": [{"quote": "..."}]}],
+  "medications": [{"name": "...", "dose": "...", "route": "..."}],
+  "outcomes": [{"text": "..."}],
+  "complications": [{"text": "..."}],
+  "study_fields": {"asa_class": "...", "bmi": null, "estimated_blood_loss_ml": null, "operative_time_minutes": null, "length_of_stay_days": null},
+  "confidence": 0.8,
+  "warnings": []
+}
+
+TEXT:
+{input_text}
+
+JSON:
