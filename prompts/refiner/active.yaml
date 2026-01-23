@@ -1,0 +1,15 @@
+# Prompt Version Configuration
+# This file points to the currently active prompt version for the refiner.
+#
+# To change the active prompt:
+# 1. Create a new version file in prompts/refiner/ (e.g., v1.0.1.md)
+# 2. Update active_version below
+# 3. Submit PR - CI will run evals before merge
+#
+# NEVER auto-modify this file - all changes require human review.
+
+active_version: "v1.0.0"
+
+# Metadata
+last_updated: "2025-01-23"
+updated_by: "initial-setup"
