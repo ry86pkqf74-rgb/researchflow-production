@@ -52,6 +52,19 @@ from .nlm_enrichment import (
     EnrichmentError,
 )
 
+from .cell_parser import (
+    detect_narrative_columns,
+    identify_extraction_targets,
+    parse_block_text,
+    parse_block_text_sync,
+    extract_cell_with_phi_guard,
+    CellTarget,
+    CellExtractionResult,
+    BatchExtractionManifest,
+    PHIScanner,
+    PHIScanResult,
+)
+
 __all__ = [
     # Schemas
     "ClinicalExtraction",
@@ -80,6 +93,17 @@ __all__ = [
     "enrich_extraction",
     "enrich_terms_sync",
     "EnrichmentError",
+    # Cell Parser (DataFrame-level)
+    "detect_narrative_columns",
+    "identify_extraction_targets",
+    "parse_block_text",
+    "parse_block_text_sync",
+    "extract_cell_with_phi_guard",
+    "CellTarget",
+    "CellExtractionResult",
+    "BatchExtractionManifest",
+    "PHIScanner",
+    "PHIScanResult",
 ]
 
 __version__ = "1.0.0"
