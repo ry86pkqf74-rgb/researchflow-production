@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -43,11 +43,14 @@ import NotificationsPage from "@/pages/notifications";
 import XRPage from "@/pages/xr";
 import ImportBundlePage from "@/pages/import-bundle";
 import WorkflowsPage from "@/pages/workflows";
-import WorkflowBuilderPage from "@/pages/workflow-builder";
 import ProjectsPage from "@/pages/projects";
 import ProjectDetailPage from "@/pages/projects/project-detail";
 import { OrgSelector } from "@/components/org";
 import { AdaptiveNavigation } from "@/components/nav";
+
+// Lazy load components that depend on reactflow (which may fail to load)
+// This prevents the entire app from failing if reactflow is unavailable
+const WorkflowBuilderPage = lazy(() => import("@/pages/workflow-builder"));
 
 function ModeInitializer() {
   const setMode = useModeStore((state) => state.setMode);
@@ -224,9 +227,22 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * Lazy loading fallback component
+ */
+function LazyFallback() {
+  return (
+    <div className="flex items-center justify-center p-8">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <span className="ml-2 text-muted-foreground">Loading...</span>
+    </div>
+  );
+}
+
+/**
  * Protected route wrapper for LIVE mode
  * Waits for mode resolution before rendering.
  * In LIVE mode, requires authentication. In DEMO mode, accessible to all.
+ * Supports lazy-loaded components with Suspense.
  */
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isLive, isLoading } = useModeStore();
@@ -240,7 +256,9 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     return (
       <AuthGate requireAuth>
         <MainLayout>
-          <Component />
+          <Suspense fallback={<LazyFallback />}>
+            <Component />
+          </Suspense>
         </MainLayout>
       </AuthGate>
     );
@@ -248,7 +266,9 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
   return (
     <MainLayout>
-      <Component />
+      <Suspense fallback={<LazyFallback />}>
+        <Component />
+      </Suspense>
     </MainLayout>
   );
 }
