@@ -197,8 +197,8 @@ def format_instruction(rule: RefinementRule, check: QualityCheck) -> str:
     if isinstance(expected, dict):
         replacements["min_count"] = str(expected.get("min", "several"))
         replacements["max_count"] = str(expected.get("max", "fewer"))
-        min_val = expected.get("min", 0)
-        max_val = expected.get("max", 1000)
+        min_val = expected.get("min") or 0
+        max_val = expected.get("max") or 1000
         replacements["target_words"] = str(int((min_val + max_val) / 2))
         replacements["min_words"] = str(min_val)
         replacements["max_words"] = str(max_val)
