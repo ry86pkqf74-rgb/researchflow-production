@@ -21,7 +21,8 @@
         "artifact_generation",
         "data_ingestion",
         "qc_check",
-        "report_generation"
+        "report_generation",
+        "SPREADSHEET_CELL_PARSE"
       ]
     },
     "datasetPointer": {
@@ -54,6 +55,113 @@
         }
       },
       "additionalProperties": true
+    },
+    "spreadsheetConfig": {
+      "type": "object",
+      "description": "Configuration for SPREADSHEET_CELL_PARSE jobs",
+      "properties": {
+        "artifactPath": {
+          "type": "string",
+          "description": "Path to the uploaded spreadsheet artifact"
+        },
+        "fileType": {
+          "type": "string",
+          "enum": ["csv", "xlsx", "xls", "tsv"],
+          "default": "csv",
+          "description": "Type of spreadsheet file"
+        },
+        "sheetName": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Sheet name for Excel files (null = first sheet)"
+        },
+        "blockTextConfig": {
+          "type": "object",
+          "description": "Block text detection settings",
+          "properties": {
+            "minChars": {
+              "type": "integer",
+              "default": 120,
+              "description": "Minimum characters to classify as block text"
+            },
+            "minNewlines": {
+              "type": "integer",
+              "default": 2,
+              "description": "Minimum newlines to classify as block text"
+            },
+            "minClinicalMarkers": {
+              "type": "integer",
+              "default": 1,
+              "description": "Minimum clinical markers to classify as block text"
+            },
+            "denyColumns": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": ["mrn", "patient_id", "dob", "ssn", "id"],
+              "description": "Column names to always exclude"
+            },
+            "allowColumns": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": ["ros", "clinical_notes", "op_note", "discharge_summary"],
+              "description": "Column names to always include"
+            }
+          }
+        },
+        "largeSheetConfig": {
+          "type": "object",
+          "description": "Large sheet processing settings",
+          "properties": {
+            "chunkRows": {
+              "type": "integer",
+              "default": 50000,
+              "description": "Number of rows per chunk"
+            },
+            "llmConcurrency": {
+              "type": "integer",
+              "default": 24,
+              "description": "Maximum concurrent LLM requests"
+            },
+            "llmBatchSize": {
+              "type": "integer",
+              "default": 20,
+              "description": "Cells per LLM batch request"
+            },
+            "joinBackToSheet": {
+              "type": "boolean",
+              "default": false,
+              "description": "Whether to join extractions back to original sheet"
+            },
+            "enableDask": {
+              "type": "boolean",
+              "default": false,
+              "description": "Enable Dask for parallel scanning (CSV only)"
+            }
+          }
+        },
+        "promptPack": {
+          "type": "object",
+          "description": "Prompt template selection",
+          "properties": {
+            "cellExtract": {
+              "type": "string",
+              "default": "cell_extract_v1",
+              "description": "Default extraction prompt"
+            },
+            "rosExtract": {
+              "type": "string",
+              "default": "ros_extract_v1",
+              "description": "ROS-specific extraction prompt"
+            },
+            "outcomeExtract": {
+              "type": "string",
+              "default": "outcome_extract_v1",
+              "description": "Outcomes extraction prompt"
+            }
+          }
+        }
+      },
+      "required": ["artifactPath"]
     },
     "stages": {
       "type": "array",
