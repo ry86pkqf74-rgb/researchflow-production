@@ -1,0 +1,206 @@
+# ============================================
+# ResearchFlow - E2E Testing Docker Compose
+# ============================================
+# Usage: docker-compose -f docker-compose.test.yml up --abort-on-container-exit
+#
+# This configuration runs Playwright E2E tests against the full stack.
+# All services are started with test-specific configurations.
+
+services:
+  # ===================
+  # Playwright Test Runner
+  # ===================
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.40.0-jammy
+    working_dir: /app
+    environment:
+      - BASE_URL=http://web:80
+      - API_URL=http://orchestrator:3001
+      - CI=true
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+    depends_on:
+      web:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+      worker:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - ./playwright-report:/app/playwright-report
+      - ./test-results:/app/test-results
+    command: >
+      sh -c "
+        npm ci &&
+        npx playwright test --reporter=html,list
+      "
+    networks:
+      - researchflow-test
+
+  # ===================
+  # Orchestrator - Node.js API (Test Mode)
+  # ===================
+  orchestrator:
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+      target: development
+    environment:
+      - NODE_ENV=test
+      - PORT=3001
+      - DATABASE_URL=postgresql://ros:ros@postgres-test:5432/ros_test
+      - REDIS_URL=redis://redis-test:6379
+      - WORKER_CALLBACK_URL=http://worker:8000
+      - GOVERNANCE_MODE=DEMO
+      - AUTH_ALLOW_STATELESS_JWT=true
+      - JWT_SECRET=test-secret-key-for-e2e-testing
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-test-key}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-test-key}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    volumes:
+      - shared-test-data:/data
+    networks:
+      - researchflow-test
+
+  # ===================
+  # Worker - Python FastAPI (Test Mode)
+  # ===================
+  worker:
+    build:
+      context: ./services/worker
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://ros:ros@postgres-test:5432/ros_test
+      - REDIS_URL=redis://redis-test:6379
+      - ARTIFACT_PATH=/data/artifacts
+      - LOG_PATH=/data/logs
+      - GOVERNANCE_MODE=DEMO
+      - TESTING=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    volumes:
+      - shared-test-data:/data
+    networks:
+      - researchflow-test
+
+  # ===================
+  # Web - React Frontend (Test Mode)
+  # ===================
+  web:
+    build:
+      context: .
+      dockerfile: services/web/Dockerfile
+      target: production
+      args:
+        - VITE_WS_URL=ws://collab-test:1234
+        - VITE_API_URL=http://orchestrator:3001
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    depends_on:
+      - orchestrator
+    networks:
+      - researchflow-test
+
+  # ===================
+  # Collab - Real-time Collaboration Server (Test Mode)
+  # ===================
+  collab-test:
+    build:
+      context: .
+      dockerfile: services/collab/Dockerfile
+      target: development
+    environment:
+      - NODE_ENV=test
+      - PORT=1234
+      - HEALTH_PORT=1235
+      - HOST=0.0.0.0
+      - APP_MODE=DEMO
+      - REDIS_URL=redis://redis-test:6379
+      - DATABASE_URL=postgresql://ros:ros@postgres-test:5432/ros_test
+      - JWT_SECRET=test-secret-key-for-e2e-testing
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - researchflow-test
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:1235/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===================
+  # PostgreSQL Database (Test Instance)
+  # ===================
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ros
+      POSTGRES_PASSWORD: ros
+      POSTGRES_DB: ros_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - researchflow-test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ros -d ros_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  # ===================
+  # Redis Cache (Test Instance)
+  # ===================
+  redis-test:
+    image: redis:7-alpine
+    command: redis-server --appendonly no
+    tmpfs:
+      - /data
+    networks:
+      - researchflow-test
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+
+volumes:
+  shared-test-data:
+    driver: local
+
+networks:
+  researchflow-test:
+    driver: bridge
