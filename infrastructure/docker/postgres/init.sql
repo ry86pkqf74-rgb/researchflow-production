@@ -404,7 +404,7 @@ ON CONFLICT (name, version) DO NOTHING;
 -- Test Users for Development
 -- ====================
 -- Create test users with different roles for development and testing
--- Password authentication is handled by TESTROS bypass in authService.ts
+-- Password authentication is bypassed for Testros backdoor in authService.ts
 
 -- Insert test users with proper UUIDs
 -- Use uuid_generate_v5 to create deterministic UUIDs from namespace + email

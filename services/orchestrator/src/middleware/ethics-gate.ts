@@ -237,6 +237,7 @@ export function ethicsGate(options: EthicsGateOptions) {
       // Create new approval request
       const justification = req.body.ethicsJustification || req.headers['x-ethics-justification'] as string;
       const confirmed = req.body.ethicsConfirmed === true || req.headers['x-ethics-confirmed'] === 'true';
+      const confirmationSatisfied = !requireConfirmation || confirmed;
 
       // For low risk, require explicit confirmation if enabled
       if (riskLevel === 'LOW' && requireConfirmation && !confirmed) {
@@ -280,7 +281,7 @@ export function ethicsGate(options: EthicsGateOptions) {
       });
 
       // For low risk with confirmation, auto-approve and proceed
-      if (riskLevel === 'LOW' && confirmed) {
+      if (riskLevel === 'LOW' && confirmationSatisfied) {
         await logAction({
           eventType: 'ETHICS_GATE',
           action: 'AUTO_APPROVED',
