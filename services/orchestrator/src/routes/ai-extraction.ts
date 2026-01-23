@@ -73,8 +73,8 @@ router.post(
     
     // PHI scan before sending to LLM
     try {
-      const phiResult = await scan(input);
-      if (phiResult.findings && phiResult.findings.length > 0) {
+      const phiFindings = scan(input);  // scan() returns PhiFinding[] directly
+      if (phiFindings && phiFindings.length > 0) {
         // Log PHI detection attempt
         await logAction({
           userId: req.user?.id || 'anonymous',
@@ -84,7 +84,7 @@ router.post(
           metadata: {
             task,
             tier,
-            phi_findings_count: phiResult.findings.length,
+            phi_findings_count: phiFindings.length,
           },
         });
         
@@ -92,7 +92,7 @@ router.post(
           error: 'PHI_DETECTED',
           message: 'Input contains potential PHI. Sanitize data before extraction.',
           request_id: requestId,
-          findings_count: phiResult.findings.length,
+          findings_count: phiFindings.length,
         });
       }
     } catch (phiError) {
