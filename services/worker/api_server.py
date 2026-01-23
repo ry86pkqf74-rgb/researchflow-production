@@ -24,6 +24,15 @@ import tempfile
 # Import ROS runtime config first
 from runtime_config import RuntimeConfig
 
+# Import extraction router for LLM-powered clinical data extraction
+try:
+    from data_extraction.api_routes import router as extraction_router
+    EXTRACTION_AVAILABLE = True
+    print("[ROS] Data extraction module loaded")
+except ImportError as e:
+    EXTRACTION_AVAILABLE = False
+    print(f"[ROS] Data extraction module not available: {e}")
+
 # Get runtime config - should be LIVE mode from environment
 config = RuntimeConfig.from_env_and_optional_yaml()
 print(f"[ROS] Mode: {config.ros_mode}, mock_only: {config.mock_only}, no_network: {config.no_network}")
@@ -32,7 +41,7 @@ app = FastAPI(
     title="Research Operating System API",
     description="Backend API for ROS pipeline stages",
     version="1.0.0"
-)
+# CORS middleware end
 
 # CORS for frontend access
 app.add_middleware(
@@ -41,7 +50,13 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
+# CORS middleware end
+
+# Register extraction router if available
+if EXTRACTION_AVAILABLE:
+    app.include_router(extraction_router, prefix="/api", tags=["extraction"])
+    print("[ROS] Extraction router registered at /api/extraction/*")
+# CORS middleware end
 
 # ============ Data Models ============
 
