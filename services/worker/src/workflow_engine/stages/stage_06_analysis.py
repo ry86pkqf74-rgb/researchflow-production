@@ -6,6 +6,7 @@ Handles computational analysis of datasets including:
 - Statistical analysis
 - Correlation analysis
 - Distribution analysis
+- Clinical data extraction (LLM-powered)
 
 This stage simulates analysis job execution with progress tracking
 and generates mock analysis results.
@@ -15,10 +16,18 @@ import asyncio
 import logging
 import random
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from ..types import StageContext, StageResult
 from ..registry import register_stage
+
+# Clinical extraction imports (optional - graceful degradation if unavailable)
+try:
+    from data_extraction import extract_clinical_from_cell, extract_batch, ClinicalExtraction
+    from data_extraction.nlm_enrichment import enrich_extraction
+    EXTRACTION_AVAILABLE = True
+except ImportError:
+    EXTRACTION_AVAILABLE = False
 
 logger = logging.getLogger("workflow_engine.stage_06_analysis")
 
@@ -30,6 +39,7 @@ SUPPORTED_ANALYSIS_TYPES = {
     "distribution": "Distribution Analysis",
     "regression": "Regression Analysis",
     "clustering": "Clustering Analysis",
+    "clinical_extraction": "Clinical Data Extraction (LLM)",
 }
 
 # Default parameters for each analysis type
@@ -64,6 +74,15 @@ DEFAULT_PARAMETERS = {
         "algorithm": "kmeans",
         "n_clusters": 5,
         "max_iterations": 100,
+    },
+    "clinical_extraction": {
+        "extract_diagnoses": True,
+        "extract_procedures": True,
+        "extract_medications": True,
+        "extract_labs": True,
+        "enrich_with_mesh": True,
+        "batch_concurrency": 5,
+        "force_tier": None,  # NANO, MINI, or FRONTIER
     },
 }
 
@@ -178,6 +197,122 @@ def generate_resource_usage(duration_ms: int) -> Dict[str, Any]:
         "worker_id": f"worker-{random.randint(1, 10):02d}",
     }
 
+
+async def perform_clinical_extraction(
+    cells: List[Dict[str, Any]],
+    parameters: Dict[str, Any],
+    context: StageContext,
+) -> Dict[str, Any]:
+    """Perform LLM-powered clinical data extraction.
+
+    Args:
+        cells: List of cells to extract from, each with 'text' and optional 'metadata'
+        parameters: Extraction parameters (enrich_with_mesh, force_tier, etc.)
+        context: Stage execution context
+
+    Returns:
+        Dictionary containing extraction results and statistics
+    """
+    if not EXTRACTION_AVAILABLE:
+        logger.warning("Clinical extraction module not available, returning mock results")
+        return {
+            "status": "unavailable",
+            "message": "data_extraction module not installed",
+            "mock_results": True,
+            "cell_count": len(cells),
+            "extractions": [],
+        }
+
+    results = {
+        "cell_count": len(cells),
+        "successful": 0,
+        "failed": 0,
+        "extractions": [],
+        "total_cost_usd": 0.0,
+        "total_tokens": {"input": 0, "output": 0},
+        "tier_usage": {},
+    }
+
+    force_tier = parameters.get("force_tier")
+    enrich_with_mesh = parameters.get("enrich_with_mesh", True)
+    batch_concurrency = parameters.get("batch_concurrency", 5)
+
+    logger.info(
+        f"Starting clinical extraction for {len(cells)} cells "
+        f"(concurrency={batch_concurrency}, enrich_mesh={enrich_with_mesh})"
+    )
+
+    try:
+        # Process cells in batch
+        batch_input = [
+            {
+                "text": cell.get("text", ""),
+                "metadata": {
+                    **cell.get("metadata", {}),
+                    "job_id": context.job_id,
+                    "governance_mode": context.governance_mode,
+                },
+            }
+            for cell in cells
+            if cell.get("text", "").strip()
+        ]
+
+        if not batch_input:
+            logger.warning("No valid cells to extract from")
+            return results
+
+        # Run batch extraction
+        extraction_responses = await extract_batch(batch_input, concurrency=batch_concurrency)
+
+        for i, response in enumerate(extraction_responses):
+            extraction_dict = response.extraction.model_dump() if response.extraction else {}
+
+            # Enrich with MeSH terms if enabled
+            if enrich_with_mesh and extraction_dict:
+                try:
+                    extraction_dict = await enrich_extraction(
+                        extraction_dict, 
+                        request_id=response.request_id
+                    )
+                except Exception as e:
+                    logger.warning(f"MeSH enrichment failed for cell {i}: {e}")
+                    extraction_dict.setdefault("warnings", []).append(
+                        f"MeSH enrichment failed: {str(e)}"
+                    )
+
+            # Track statistics
+            if response.extraction and response.extraction.confidence > 0.1:
+                results["successful"] += 1
+            else:
+                results["failed"] += 1
+
+            results["total_cost_usd"] += response.cost_usd
+            results["total_tokens"]["input"] += response.tokens.get("input", 0)
+            results["total_tokens"]["output"] += response.tokens.get("output", 0)
+
+            tier = response.tier_used
+            results["tier_usage"][tier] = results["tier_usage"].get(tier, 0) + 1
+
+            results["extractions"].append({
+                "cell_index": i,
+                "request_id": response.request_id,
+                "extraction": extraction_dict,
+                "tier_used": response.tier_used,
+                "model": response.model,
+                "cost_usd": response.cost_usd,
+                "processing_time_ms": response.processing_time_ms,
+            })
+
+        logger.info(
+            f"Clinical extraction completed: {results['successful']} successful, "
+            f"{results['failed']} failed, ${results['total_cost_usd']:.4f} total cost"
+        )
+
+    except Exception as e:
+        logger.error(f"Clinical extraction batch failed: {e}")
+        results["error"] = str(e)
+
+    return results
 
 @register_stage
 class AnalysisStage:
@@ -329,6 +464,46 @@ class AnalysisStage:
                     },
                 }
 
+            elif analysis_type == "clinical_extraction":
+                # Get clinical text cells from config or previous stage results
+                cells = context.config.get("cells", [])
+                
+                # If no cells provided, check for data from previous stages
+                if not cells and context.previous_results:
+                    # Try to get data from Stage 5 (PHI) or Stage 4 (Validate)
+                    for stage_id in [5, 4, 1]:
+                        prev_result = context.previous_results.get(stage_id)
+                        if prev_result and prev_result.output:
+                            # Look for uploaded data or processed cells
+                            cells = prev_result.output.get("cells", [])
+                            if cells:
+                                logger.info(f"Using {len(cells)} cells from stage {stage_id}")
+                                break
+                
+                if not cells:
+                    warnings.append(
+                        "No cells provided for clinical extraction; "
+                        "provide 'cells' in config or ensure previous stages output data"
+                    )
+                    analysis_results["clinical_extraction"] = {
+                        "status": "no_input",
+                        "message": "No cells available for extraction",
+                    }
+                else:
+                    # Perform LLM-powered clinical extraction
+                    extraction_results = await perform_clinical_extraction(
+                        cells=cells,
+                        parameters=effective_params,
+                        context=context,
+                    )
+                    analysis_results["clinical_extraction"] = extraction_results
+                    
+                    # Add extraction-specific metadata
+                    if extraction_results.get("total_cost_usd"):
+                        output["ai_cost_usd"] = extraction_results["total_cost_usd"]
+                    if extraction_results.get("tier_usage"):
+                        output["ai_tier_usage"] = extraction_results["tier_usage"]
+
             output["analysis_results"] = analysis_results
 
             # Generate job metadata
@@ -360,6 +535,12 @@ class AnalysisStage:
 
             if analysis_type == "clustering":
                 artifacts.append(f"{artifact_base}/cluster_visualization.png")
+
+            if analysis_type == "clinical_extraction":
+                artifacts.append(f"{artifact_base}/extractions.json")
+                artifacts.append(f"{artifact_base}/extraction_summary.csv")
+                if effective_params.get("enrich_with_mesh"):
+                    artifacts.append(f"{artifact_base}/mesh_mappings.json")
 
             logger.info(f"Analysis completed, generated {len(artifacts)} artifacts")
 
