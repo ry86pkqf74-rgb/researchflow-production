@@ -1,9 +1,19 @@
+import { useLocation } from "wouter";
 import { useGovernanceMode } from "@/hooks/useGovernanceMode";
+
+// Pages where the DEMO watermark should NOT appear (public/landing pages)
+const LANDING_PAGES = ['/', '/landing', '/demo', '/login', '/register', '/forgot-password', '/terms', '/privacy'];
 
 export function DemoWatermark() {
   const { isDemo, isLoading } = useGovernanceMode();
+  const [location] = useLocation();
 
   if (isLoading || !isDemo) {
+    return null;
+  }
+
+  // Hide watermark on landing/public pages
+  if (LANDING_PAGES.includes(location)) {
     return null;
   }
 
