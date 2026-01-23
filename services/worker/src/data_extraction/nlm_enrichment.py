@@ -38,17 +38,17 @@ async def enrich_terms_with_mesh(
             result = response.json()
             
             mappings, unmapped = [], []
-            for term_result in result.get("results", []):
-                term = term_result.get("term", "")
-                matches = term_result.get("matches", [])
-                if matches:
+            # results is a dict: {term: [MeshTerm, ...], ...}
+            for term, matches in result.get("results", {}).items():
+                if matches and matches[0].get("mesh_id"):
                     for match in matches[:max_results_per_term]:
-                        mappings.append(MeSHMapping(
-                            original_term=term, mesh_id=match.get("mesh_id", ""),
-                            mesh_label=match.get("label", ""), confidence=match.get("confidence", 0.5),
-                            tree_numbers=match.get("tree_numbers", []),
-                            synonyms=match.get("synonyms", []) if include_synonyms else [],
-                        ))
+                        if match.get("mesh_id"):
+                            mappings.append(MeSHMapping(
+                                original_term=term, mesh_id=match.get("mesh_id", ""),
+                                mesh_label=match.get("mesh_name", ""), confidence=match.get("confidence", 0.5),
+                                tree_numbers=match.get("tree_numbers", []),
+                                synonyms=match.get("synonyms", []) if include_synonyms else [],
+                            ))
                 else:
                     unmapped.append(term)
             
