@@ -332,9 +332,20 @@ export async function registerUser(input: RegisterInput): Promise<{
     return { success: false, error: 'This email address is reserved' };
   }
 
-  // Check if user exists
+  // Check if user exists in memory
   if (userStore.has(normalizedEmail)) {
     return { success: false, error: 'Email already registered' };
+  }
+
+  // Check if user exists in database (handles restart scenario)
+  if (pool) {
+    const existingDbUser = await findUserByEmail(normalizedEmail);
+    if (existingDbUser) {
+      // User exists in database but not in memory - sync to memory and reject
+      const user = buildUserFromDb(existingDbUser);
+      upsertUserStore(user, existingDbUser.passwordHash || '');
+      return { success: false, error: 'Email already registered' };
+    }
   }
 
   // Hash password
