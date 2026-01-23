@@ -110,6 +110,7 @@ import submissionsRouter from "./src/routes/submissions";
 import analyticsRouter from "./src/routes/analytics";
 import streamRouter from "./src/routes/stream";
 import aiRouter from "./src/routes/ai-router";
+import aiExtractionRouter from "./src/routes/ai-extraction";
 import { aiProvidersRouter } from "./src/routes/aiProviders";
 import { scan as scanPhi } from "@researchflow/phi-engine";
 
@@ -980,6 +981,9 @@ export async function registerRoutes(
 
   // AI Router - Model tier selection (Tasks 64-68)
   app.use("/api/ai/router", aiRouter);
+
+  // AI Extraction - Clinical data extraction (LLM-powered)
+  app.use("/api/ai/extraction", aiExtractionRouter);
 
   // Mode information endpoint - publicly accessible
   app.get("/api/mode", (_req, res) => {
