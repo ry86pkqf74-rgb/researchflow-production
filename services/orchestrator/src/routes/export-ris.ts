@@ -19,8 +19,7 @@ const router = Router();
  */
 function risEscape(s: string | null | undefined): string {
   if (!s) return '';
-  return s.replace(//g, ' ').replace(/
-/g, ' ').trim();
+  return s.replace(/\r/g, ' ').replace(/\n/g, ' ').trim();
 }
 
 /**
@@ -101,9 +100,7 @@ function toRisArticle(article: {
   lines.push('ER  -');
 
   // RIS uses CRLF
-  return lines.join('
-') + '
-';
+  return lines.join('\r\n') + '\r\n';
 }
 
 /**
@@ -173,8 +170,7 @@ router.post(
 
     // Convert to RIS
     const risEntries = articles.map(toRisArticle);
-    const risContent = risEntries.join('
-');
+    const risContent = risEntries.join('\r\n');
 
     // Log export
     await logAction({
