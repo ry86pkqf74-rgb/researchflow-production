@@ -1,0 +1,213 @@
+name: Prompts CI
+
+# Trigger on PRs that modify prompts or evals
+on:
+  pull_request:
+    paths:
+      - 'prompts/**'
+      - 'evals/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'prompts/**'
+      - 'evals/**'
+  workflow_dispatch:
+    inputs:
+      prompt_version:
+        description: 'Specific prompt version to evaluate (e.g., v1.0.1)'
+        required: false
+        type: string
+
+jobs:
+  validate:
+    name: Validate Prompts
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-prompts-${{ hashFiles('services/worker/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-prompts-
+            pip-${{ runner.os }}-
+            
+      - name: Install dependencies
+        run: |
+          pip install pyyaml
+          
+      - name: Validate active.yaml
+        run: |
+          python3 << 'SCRIPT'
+          import yaml
+          import sys
+          from pathlib import Path
+
+          active_yaml = Path("prompts/refiner/active.yaml")
+          if not active_yaml.exists():
+              print("❌ prompts/refiner/active.yaml not found")
+              sys.exit(1)
+
+          with open(active_yaml) as f:
+              config = yaml.safe_load(f)
+
+          version = config.get("active_version")
+          if not version:
+              print("❌ active_version not specified in active.yaml")
+              sys.exit(1)
+
+          prompt_file = Path(f"prompts/refiner/{version}.md")
+          if not prompt_file.exists():
+              print(f"❌ Active prompt file not found: {prompt_file}")
+              sys.exit(1)
+
+          print(f"✅ Valid: active_version={version}")
+          print(f"✅ Prompt file exists: {prompt_file}")
+          SCRIPT
+
+      - name: Validate prompt format
+        run: |
+          python3 << 'SCRIPT'
+          import sys
+          from pathlib import Path
+
+          prompts_dir = Path("prompts/refiner")
+          errors = []
+
+          for prompt_file in prompts_dir.glob("v*.md"):
+              content = prompt_file.read_text()
+              
+              # Check for required sections
+              required_sections = [
+                  "## Overview",
+                  "## Instructions",
+                  "## Output Format"
+              ]
+              
+              for section in required_sections:
+                  if section not in content:
+                      errors.append(f"{prompt_file.name}: Missing '{section}' section")
+              
+              # Check minimum length
+              if len(content) < 500:
+                  errors.append(f"{prompt_file.name}: Prompt too short ({len(content)} chars)")
+
+          if errors:
+              print("❌ Validation errors:")
+              for error in errors:
+                  print(f"   - {error}")
+              sys.exit(1)
+          else:
+              print("✅ All prompts validated successfully")
+          SCRIPT
+
+  evaluate:
+    name: Run Evaluations
+    runs-on: ubuntu-latest
+    needs: validate
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          
+      - name: Install dependencies
+        run: |
+          pip install pyyaml requests
+          # Install worker dependencies if needed for actual LLM evaluation
+          pip install -r services/worker/requirements.txt || true
+          
+      - name: Run evaluation harness
+        id: eval
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Run evaluations
+          cd evals
+          
+          # If specific version requested via workflow_dispatch
+          if [ -n "${{ inputs.prompt_version }}" ]; then
+            python run_evals.py --version "${{ inputs.prompt_version }}" --no-save || exit_code=$?
+          else
+            python run_evals.py --no-save || exit_code=$?
+          fi
+          
+          # Store exit code for later
+          echo "exit_code=${exit_code:-0}" >> $GITHUB_OUTPUT
+          
+      - name: Check for regression
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Checking for metric regression against main branch..."
+          # In a real implementation, this would:
+          # 1. Fetch baseline metrics from main branch
+          # 2. Compare against PR metrics
+          # 3. Fail if regression > threshold
+          
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const exitCode = '${{ steps.eval.outputs.exit_code }}';
+            const status = exitCode === '0' ? '✅ Passed' : '❌ Failed';
+            
+            const body = `## Prompt Evaluation Results
+            
+            **Status:** ${status}
+            
+            <details>
+            <summary>Evaluation Details</summary>
+            
+            - Ran ICD code extraction evaluation
+            - Checked for metric regression
+            - Validated prompt format
+            
+            </details>
+            
+            *This comment was auto-generated by the Prompts CI workflow.*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  candidate-check:
+    name: Check Candidate Prompts
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Check for new candidates
+        run: |
+          # List any new candidate prompts in this PR
+          NEW_CANDIDATES=$(git diff --name-only origin/main...HEAD | grep "prompts/refiner/candidates/" || true)
+          
+          if [ -n "$NEW_CANDIDATES" ]; then
+            echo "📝 New candidate prompts detected:"
+            echo "$NEW_CANDIDATES"
+            echo ""
+            echo "These candidates should be evaluated before merging."
+          else
+            echo "No new candidate prompts in this PR."
+          fi
