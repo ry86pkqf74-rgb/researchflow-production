@@ -44,6 +44,8 @@ import XRPage from "@/pages/xr";
 import ImportBundlePage from "@/pages/import-bundle";
 import WorkflowsPage from "@/pages/workflows";
 import WorkflowBuilderPage from "@/pages/workflow-builder";
+import ProjectsPage from "@/pages/projects";
+import ProjectDetailPage from "@/pages/projects/project-detail";
 import { OrgSelector } from "@/components/org";
 import { AdaptiveNavigation } from "@/components/nav";
 
@@ -349,6 +351,14 @@ function Router() {
       </Route>
       <Route path="/import">
         {() => <ProtectedRoute component={ImportBundlePage} />}
+      </Route>
+
+      {/* Project Manager Routes (Phase 1) */}
+      <Route path="/projects">
+        {() => <ProtectedRoute component={ProjectsPage} />}
+      </Route>
+      <Route path="/projects/:id">
+        {() => <ProtectedRoute component={ProjectDetailPage} />}
       </Route>
 
       <Route path="/workflows">
