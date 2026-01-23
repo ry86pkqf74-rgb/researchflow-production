@@ -1,5 +1,5 @@
 """
-AI Feedback Module (Phase 7-8)
+AI Feedback Module (Phase 7-9)
 
 Quality checks and feedback collection for AI self-improvement loop.
 
@@ -7,6 +7,7 @@ Modules:
 - quality_checks: Enhanced quality validation for AI-generated content
 - feedback_types: Data models for feedback records
 - refinement_engine: Prompt refinement based on failed checks (Phase 8)
+- config: Configuration and feature flags (Phase 9)
 
 Last Updated: 2026-01-23
 """
@@ -38,6 +39,16 @@ from .refinement_engine import (
     get_applicable_rules,
     format_instruction,
 )
+from .config import (
+    AIFeedbackConfig,
+    AutoRefineConfig,
+    QualityGateConfig,
+    get_ai_feedback_config,
+    reset_config,
+    is_auto_refine_enabled,
+    is_narrative_task,
+    get_quality_check_options,
+)
 
 __all__ = [
     # Quality Checks
@@ -64,6 +75,15 @@ __all__ = [
     "refine_prompt",
     "get_applicable_rules",
     "format_instruction",
+    # Configuration (Phase 9)
+    "AIFeedbackConfig",
+    "AutoRefineConfig",
+    "QualityGateConfig",
+    "get_ai_feedback_config",
+    "reset_config",
+    "is_auto_refine_enabled",
+    "is_narrative_task",
+    "get_quality_check_options",
 ]
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
