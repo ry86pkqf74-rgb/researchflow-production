@@ -75,6 +75,18 @@ from .cell_parser import (
     PHIScanResult,
 )
 
+from .prompt_manager import (
+    PromptManager,
+    PromptInfo,
+    PromptError,
+    get_prompt_manager,
+    get_extraction_prompt,
+    get_repair_prompt,
+    get_classify_prompt,
+    estimate_tokens,
+    get_optimal_tier,
+)
+
 __all__ = [
     # Schemas
     "ClinicalExtraction",
@@ -122,6 +134,16 @@ __all__ = [
     "BatchExtractionManifest",
     "PHIScanner",
     "PHIScanResult",
+    # Prompt Manager
+    "PromptManager",
+    "PromptInfo",
+    "PromptError",
+    "get_prompt_manager",
+    "get_extraction_prompt",
+    "get_repair_prompt",
+    "get_classify_prompt",
+    "estimate_tokens",
+    "get_optimal_tier",
 ]
 
 __version__ = "1.0.0"
