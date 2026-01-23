@@ -39,6 +39,11 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      # AI Router integrations
+      - AI_INTEGRATIONS_OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AI_INTEGRATIONS_ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # NLM/NCBI for MeSH term enrichment
+      - NCBI_API_KEY=${NCBI_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,6 +82,11 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      # LLM Extraction System
+      - AI_ROUTER_URL=http://orchestrator:3001/api/ai/extraction/generate
+      - ORCHESTRATOR_URL=http://orchestrator:3001
+      - EXTRACTION_TIMEOUT_SECONDS=60
+      - ENRICHMENT_TIMEOUT_SECONDS=30
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
