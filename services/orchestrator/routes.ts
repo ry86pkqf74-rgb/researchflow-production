@@ -113,6 +113,7 @@ import streamRouter from "./src/routes/stream";
 import aiRouter from "./src/routes/ai-router";
 import aiExtractionRouter from "./src/routes/ai-extraction";
 import analysisExecutionRouter from "./src/routes/analysis-execution";
+import spreadsheetCellParseRouter from "./src/routes/spreadsheet-cell-parse";
 import { aiProvidersRouter } from "./src/routes/aiProviders";
 import { scan as scanPhi } from "@researchflow/phi-engine";
 
@@ -992,6 +993,7 @@ export async function registerRoutes(
 
   // Analysis Execution - Runs analysis via worker service
   app.use("/api/analysis", analysisExecutionRouter);
+  app.use("/api/extraction/spreadsheet", spreadsheetCellParseRouter);
 
   // Mode information endpoint - publicly accessible
   app.get("/api/mode", (_req, res) => {
