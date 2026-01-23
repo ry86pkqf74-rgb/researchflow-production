@@ -41,7 +41,7 @@ app = FastAPI(
     title="Research Operating System API",
     description="Backend API for ROS pipeline stages",
     version="1.0.0"
-# CORS middleware end
+)
 
 # CORS for frontend access
 app.add_middleware(
@@ -50,13 +50,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-# CORS middleware end
+)
 
 # Register extraction router if available
 if EXTRACTION_AVAILABLE:
     app.include_router(extraction_router, prefix="/api", tags=["extraction"])
     print("[ROS] Extraction router registered at /api/extraction/*")
-# CORS middleware end
 
 # ============ Data Models ============
 
