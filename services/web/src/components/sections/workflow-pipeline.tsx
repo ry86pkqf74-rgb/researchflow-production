@@ -1211,9 +1211,6 @@ export function WorkflowPipeline() {
           transition={{ duration: 0.5 }}
           className="text-center mb-12 lg:mb-16"
         >
-          <Badge variant="secondary" className="mb-4 px-4 py-1.5 bg-ros-workflow/10 text-ros-workflow border-ros-workflow/20" data-testid="badge-workflow-section">
-            Interactive Execution Demo
-          </Badge>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-foreground mb-4" data-testid="text-workflow-heading">
             Execute the Full Research Pipeline
           </h2>

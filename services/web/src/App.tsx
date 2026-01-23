@@ -52,50 +52,36 @@ import { AdaptiveNavigation } from "@/components/nav";
 // This prevents the entire app from failing if reactflow is unavailable
 const WorkflowBuilderPage = lazy(() => import("@/pages/workflow-builder"));
 
+/**
+ * Mode Initializer
+ *
+ * Determines the effective mode based on:
+ * - DEMO: Unauthenticated users
+ * - LIVE: Authenticated + AI enabled
+ * - OFFLINE: Authenticated + AI disabled
+ */
 function ModeInitializer() {
   const setMode = useModeStore((state) => state.setMode);
+  const aiEnabled = useModeStore((state) => state.aiEnabled);
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
-    let cancelled = false;
+    if (authLoading) return;
 
-    async function fetchMode() {
-      try {
-        console.log('[ModeInitializer] Fetching governance mode...');
-        const response = await fetch('/api/governance/mode', {
-          credentials: 'include',
-        });
+    // Determine mode based on auth status and AI setting
+    let effectiveMode: 'DEMO' | 'LIVE' | 'OFFLINE';
 
-        if (cancelled) return;
-
-        console.log('[ModeInitializer] Response status:', response.status);
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('[ModeInitializer] Received mode:', data.mode);
-          if (data.mode === 'LIVE' || data.mode === 'DEMO') {
-            setMode(data.mode);
-          } else {
-            console.warn('[ModeInitializer] Invalid mode, defaulting to DEMO');
-            setMode('DEMO');
-          }
-        } else {
-          console.warn('[ModeInitializer] Failed to fetch mode, defaulting to DEMO');
-          setMode('DEMO');
-        }
-      } catch (error) {
-        console.error('[ModeInitializer] Error fetching mode:', error);
-        if (!cancelled) {
-          setMode('DEMO');
-        }
-      }
+    if (!isAuthenticated) {
+      effectiveMode = 'DEMO';
+    } else if (aiEnabled) {
+      effectiveMode = 'LIVE';
+    } else {
+      effectiveMode = 'OFFLINE';
     }
 
-    fetchMode();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [setMode]);
+    console.log('[ModeInitializer] Setting mode:', effectiveMode, '(authenticated:', isAuthenticated, ', aiEnabled:', aiEnabled, ')');
+    setMode(effectiveMode);
+  }, [isAuthenticated, aiEnabled, authLoading, setMode]);
 
   return null;
 }
@@ -104,21 +90,22 @@ function ModeInitializer() {
  * Organization Context Initializer (Task 102)
  *
  * Fetches organization context when user is authenticated.
- * Runs after mode is initialized.
+ * Runs after mode is initialized. Works for both LIVE and OFFLINE modes.
  */
 function OrgInitializer() {
-  const { isLive, isLoading: modeLoading } = useModeStore();
+  const { isLive, isOffline, isLoading: modeLoading } = useModeStore();
   const { user } = useAuth();
   const { fetchContext } = useOrgStore();
 
   useEffect(() => {
-    // Only fetch org context in LIVE mode when user is authenticated
-    if (!modeLoading && isLive && user) {
+    // Fetch org context when user is authenticated (LIVE or OFFLINE mode)
+    const isAuthenticated = isLive || isOffline;
+    if (!modeLoading && isAuthenticated && user) {
       fetchContext().catch((error) => {
         console.error('[OrgInitializer] Failed to fetch org context:', error);
       });
     }
-  }, [modeLoading, isLive, user, fetchContext]);
+  }, [modeLoading, isLive, isOffline, user, fetchContext]);
 
   return null;
 }
@@ -151,15 +138,16 @@ function ShortcutsInitializer() {
  * Main Layout with Adaptive Navigation (Task 102)
  *
  * Provides sidebar with org selector and role-adaptive navigation
- * for authenticated pages in LIVE mode.
+ * for authenticated pages in LIVE or OFFLINE mode.
  * Includes breadcrumbs for deep navigation (Task 11).
  */
 function MainLayout({ children }: { children: React.ReactNode }) {
-  const { isLive } = useModeStore();
+  const { isLive, isOffline } = useModeStore();
   const { user, isAuthenticated } = useAuth();
 
-  // Only show sidebar in LIVE mode when authenticated
-  if (!isLive || !isAuthenticated) {
+  // Show sidebar when authenticated (LIVE or OFFLINE mode)
+  const showSidebar = (isLive || isOffline) && isAuthenticated;
+  if (!showSidebar) {
     return <>{children}</>;
   }
 
@@ -239,20 +227,21 @@ function LazyFallback() {
 }
 
 /**
- * Protected route wrapper for LIVE mode
+ * Protected route wrapper for LIVE/OFFLINE modes
  * Waits for mode resolution before rendering.
- * In LIVE mode, requires authentication. In DEMO mode, accessible to all.
+ * In LIVE/OFFLINE mode, requires authentication. In DEMO mode, accessible to all.
  * Supports lazy-loaded components with Suspense.
  */
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isLive, isLoading } = useModeStore();
+  const { isLive, isOffline, isLoading } = useModeStore();
 
   // Wait for mode to resolve before rendering protected content
   if (isLoading) {
     return <ModeLoader />;
   }
 
-  if (isLive) {
+  // LIVE or OFFLINE mode requires authentication
+  if (isLive || isOffline) {
     return (
       <AuthGate requireAuth>
         <MainLayout>
@@ -264,6 +253,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     );
   }
 
+  // DEMO mode - accessible to all
   return (
     <MainLayout>
       <Suspense fallback={<LazyFallback />}>

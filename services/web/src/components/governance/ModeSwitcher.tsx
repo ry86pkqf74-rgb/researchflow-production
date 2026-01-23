@@ -1,5 +1,3 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,10 +7,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertTriangle, CheckCircle2, Database, Power, Zap, Lock } from "lucide-react";
+import { Zap, WifiOff, Lock, Info } from "lucide-react";
 import { GovernanceMode } from "@/hooks/useGovernanceMode";
 import { toast } from "@/hooks/use-toast";
 import { useModeStore } from "@/stores/mode-store";
@@ -24,209 +22,157 @@ interface ModeSwitcherProps {
   onOpenChange: (open: boolean) => void;
 }
 
-interface ModeOption {
-  value: GovernanceMode;
-  label: string;
-  description: string;
-  icon: typeof Database;
-  warning?: string;
-}
-
-const MODE_OPTIONS: ModeOption[] = [
-  {
-    value: "DEMO",
-    label: "Demo Mode",
-    description: "Safe exploration with synthetic data. No real patient data accessible.",
-    icon: Database,
-  },
-  {
-    value: "LIVE",
-    label: "Live Mode",
-    description: "Full system access with real data and all features enabled.",
-    icon: Zap,
-    warning: "This enables access to real patient data. Ensure proper IRB approval.",
-  },
-];
-
-async function changeMode(mode: GovernanceMode): Promise<{ mode: GovernanceMode }> {
-  const token = localStorage.getItem('auth_token');
-  
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ` + token;
-  }
-  
-  const response = await fetch("/api/governance/mode", {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify({ mode }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Failed to change mode", message: "Unknown error" }));
-    const errorMessage = error.message || error.error || response.status + ": " + response.statusText;
-    throw new Error(errorMessage);
-  }
-
-  return response.json();
-}
-
+/**
+ * ModeSwitcher - AI Enablement Toggle
+ *
+ * Mode Logic (automatic based on state):
+ * - DEMO: Unauthenticated (landing page only)
+ * - LIVE: Authenticated + AI enabled
+ * - OFFLINE: Authenticated + AI disabled
+ */
 export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherProps) {
-  const [selectedMode, setSelectedMode] = useState<GovernanceMode>(currentMode);
-  const queryClient = useQueryClient();
-  const setModeStore = useModeStore((state) => state.setMode);
   const { isAuthenticated } = useAuth();
+  const aiEnabled = useModeStore((state) => state.aiEnabled);
+  const setAIEnabled = useModeStore((state) => state.setAIEnabled);
+  const setModeStore = useModeStore((state) => state.setMode);
 
-  const mutation = useMutation({
-    mutationFn: changeMode,
-    onSuccess: (data) => {
-      setModeStore(data.mode);
+  const handleAIToggle = (enabled: boolean) => {
+    setAIEnabled(enabled);
 
-      queryClient.invalidateQueries({ queryKey: ["/api/governance/mode"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/governance/state"] });
+    // Update mode based on new AI setting
+    if (isAuthenticated) {
+      const newMode = enabled ? 'LIVE' : 'OFFLINE';
+      setModeStore(newMode);
 
       toast({
-        title: "Mode changed successfully",
-        description: "Switched to " + data.mode + " mode",
+        title: enabled ? "AI Enabled" : "AI Disabled",
+        description: enabled
+          ? "You are now in Live Mode with AI assistance"
+          : "You are now in Offline Mode without AI",
       });
+    }
 
-      onOpenChange(false);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Failed to change mode",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+    onOpenChange(false);
+  };
 
-  const canSwitchToLive = isAuthenticated;
+  // For unauthenticated users, show login prompt
+  if (!isAuthenticated) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              Login Required
+            </DialogTitle>
+            <DialogDescription>
+              You are currently viewing the Demo. Log in to access the full system.
+            </DialogDescription>
+          </DialogHeader>
 
-  const selectedOption = MODE_OPTIONS.find((opt) => opt.value === selectedMode);
-  const hasChanged = selectedMode !== currentMode;
+          <div className="py-4">
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Demo Mode</strong> allows you to explore the interface with synthetic data.
+                <br /><br />
+                <a href="/login" className="text-primary underline font-medium">
+                  Log in
+                </a> to access Live Mode with AI assistance or Offline Mode without AI.
+              </AlertDescription>
+            </Alert>
+          </div>
 
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Continue Demo
+            </Button>
+            <Button onClick={() => window.location.href = '/login'}>
+              Log In
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // For authenticated users, show AI toggle
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
-          <DialogTitle>Switch Governance Mode</DialogTitle>
+          <DialogTitle>AI Settings</DialogTitle>
           <DialogDescription>
-            Change the system's governance mode. This affects data access and feature availability.
+            Control AI assistance for your research workflow.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <RadioGroup
-            value={selectedMode}
-            onValueChange={(value) => {
-              if (value === 'LIVE' && !canSwitchToLive) {
-                toast({
-                  title: "Authentication Required",
-                  description: "Please log in to switch to Live Mode",
-                  variant: "destructive",
-                });
-                return;
-              }
-              setSelectedMode(value as GovernanceMode);
-            }}
-            disabled={mutation.isPending}
-          >
-            <div className="space-y-3">
-              {MODE_OPTIONS.map((option) => {
-                const Icon = option.icon;
-                const isSelected = selectedMode === option.value;
-                const isCurrent = currentMode === option.value;
-                const isLocked = option.value === 'LIVE' && !canSwitchToLive;
-
-                return (
-                  <div
-                    key={option.value}
-                    className={"relative flex items-start space-x-3 rounded-lg border p-4 transition-colors " +
-                      (isSelected
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50") +
-                      (isCurrent ? " ring-2 ring-green-500 ring-offset-2" : "") +
-                      (isLocked ? " opacity-50 cursor-not-allowed" : "")}
-                  >
-                    <RadioGroupItem
-                      value={option.value}
-                      id={option.value}
-                      className="mt-1"
-                      disabled={isLocked}
-                    />
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4" />
-                        <Label
-                          htmlFor={option.value}
-                          className={"font-medium flex items-center gap-2 " + (isLocked ? "cursor-not-allowed" : "cursor-pointer")}
-                        >
-                          {option.label}
-                          {isCurrent && (
-                            <span className="text-xs text-green-600 dark:text-green-400">
-                              (Current)
-                            </span>
-                          )}
-                          {isLocked && (
-                            <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-                              <Lock className="h-3 w-3" />
-                              Login Required
-                            </span>
-                          )}
-                        </Label>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{option.description}</p>
-                      {isLocked && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                          <a href="/login" className="underline hover:no-underline">Log in</a> to access Live Mode
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+        <div className="space-y-6 py-4">
+          {/* Current Mode Display */}
+          <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/50">
+            <div className="flex items-center gap-3">
+              {aiEnabled ? (
+                <Zap className="h-5 w-5 text-green-500" />
+              ) : (
+                <WifiOff className="h-5 w-5 text-amber-500" />
+              )}
+              <div>
+                <p className="font-medium">
+                  {aiEnabled ? "Live Mode" : "Offline Mode"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {aiEnabled
+                    ? "AI assistance is enabled"
+                    : "Working without AI assistance"}
+                </p>
+              </div>
             </div>
-          </RadioGroup>
+          </div>
 
-          {selectedOption?.warning && hasChanged && canSwitchToLive && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>{selectedOption.warning}</AlertDescription>
-            </Alert>
-          )}
+          {/* AI Toggle */}
+          <div className="flex items-center justify-between p-4 rounded-lg border">
+            <div className="space-y-1">
+              <Label htmlFor="ai-toggle" className="font-medium cursor-pointer">
+                Enable AI Assistance
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                AI helps with literature search, analysis, and manuscript drafting
+              </p>
+            </div>
+            <Switch
+              id="ai-toggle"
+              checked={aiEnabled}
+              onCheckedChange={handleAIToggle}
+            />
+          </div>
 
-          {!hasChanged && (
-            <Alert>
-              <CheckCircle2 className="h-4 w-4" />
-              <AlertDescription>You are currently in {currentMode} mode</AlertDescription>
-            </Alert>
-          )}
+          {/* Mode Explanation */}
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+              <Zap className="h-4 w-4 text-green-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-green-700 dark:text-green-400">Live Mode</p>
+                <p className="text-xs text-muted-foreground">
+                  Full AI-powered features including literature search, IRB generation, statistical analysis, and manuscript drafting.
+                </p>
+              </div>
+            </div>
 
-          {selectedMode === 'LIVE' && !canSwitchToLive && hasChanged && (
-            <Alert>
-              <Lock className="h-4 w-4" />
-              <AlertDescription>
-                You must <a href="/login" className="underline font-medium">log in</a> to switch to Live Mode
-              </AlertDescription>
-            </Alert>
-          )}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <WifiOff className="h-4 w-4 text-amber-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Offline Mode</p>
+                <p className="text-xs text-muted-foreground">
+                  Work without AI assistance. Manual data entry and analysis only. No AI API calls.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={mutation.isPending}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => mutation.mutate(selectedMode)}
-            disabled={!hasChanged || mutation.isPending || (selectedMode === 'LIVE' && !canSwitchToLive)}
-          >
-            {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {mutation.isPending ? "Switching..." : "Switch Mode"}
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
           </Button>
         </DialogFooter>
       </DialogContent>

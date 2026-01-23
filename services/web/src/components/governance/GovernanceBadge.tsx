@@ -23,14 +23,19 @@ interface ModeConfig {
 
 const MODE_CONFIGS: Record<GovernanceMode, ModeConfig> = {
   DEMO: {
-    label: "Demo Mode",
+    label: "Demo",
     className: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700",
-    tooltipText: "Demo mode uses synthetic data only. No real patient data is accessible.",
+    tooltipText: "Demo mode - viewing with synthetic data. Log in to access full features.",
   },
   LIVE: {
     label: "Live Mode",
     className: "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700",
-    tooltipText: "Live mode with full access to real data and all features enabled.",
+    tooltipText: "Live mode with AI assistance enabled. Full access to all features.",
+  },
+  OFFLINE: {
+    label: "Offline",
+    className: "bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-900/30 dark:text-slate-300 dark:border-slate-700",
+    tooltipText: "Offline mode - AI assistance is disabled. Click to enable AI.",
   },
 };
 
