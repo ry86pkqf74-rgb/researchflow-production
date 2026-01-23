@@ -18,7 +18,7 @@ from .schemas import (
     ExtractionResponse, get_clinical_extraction_schema, get_note_classification_schema,
 )
 
-AI_ROUTER_URL = os.getenv("AI_ROUTER_URL", "http://localhost:3001/api/ai/route")
+AI_ROUTER_URL = os.getenv("AI_ROUTER_URL", "http://localhost:3001/api/ai/extraction/generate")
 REQUEST_TIMEOUT = int(os.getenv("EXTRACTION_TIMEOUT_SECONDS", "60"))
 NANO_MAX_CHARS = 400
 MINI_MAX_CHARS = 3000
