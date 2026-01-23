@@ -57,18 +57,18 @@ function ModeInitializer() {
 
   useEffect(() => {
     let cancelled = false;
-    
+
     async function fetchMode() {
       try {
         console.log('[ModeInitializer] Fetching governance mode...');
         const response = await fetch('/api/governance/mode', {
           credentials: 'include',
         });
-        
+
         if (cancelled) return;
-        
+
         console.log('[ModeInitializer] Response status:', response.status);
-        
+
         if (response.ok) {
           const data = await response.json();
           console.log('[ModeInitializer] Received mode:', data.mode);
@@ -89,9 +89,9 @@ function ModeInitializer() {
         }
       }
     }
-    
+
     fetchMode();
-    
+
     return () => {
       cancelled = true;
     };
@@ -274,29 +274,28 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 }
 
 /**
- * Home route that shows different content based on mode:
- * - DEMO mode: Marketing landing page
- * - LIVE mode: Workflow interface (requires auth)
+ * Home route that shows different content based on auth status:
+ * - Authenticated users: Workflow interface (with sidebar in LIVE mode)
+ * - Unauthenticated users: Marketing landing page
  */
 function HomeRoute() {
   const { isLive, isLoading } = useModeStore();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return <ModeLoader />;
   }
 
-  // In LIVE mode, show the workflow interface with auth requirement
-  if (isLive) {
+  // Authenticated users always see the workflow interface
+  if (isAuthenticated) {
     return (
-      <AuthGate requireAuth>
-        <MainLayout>
-          <WorkflowPage />
-        </MainLayout>
-      </AuthGate>
+      <MainLayout>
+        <WorkflowPage />
+      </MainLayout>
     );
   }
 
-  // In DEMO mode, show the marketing landing page (no sidebar)
+  // Unauthenticated users see the marketing landing page
   return <Home />;
 }
 
