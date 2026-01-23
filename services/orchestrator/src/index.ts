@@ -56,6 +56,30 @@ import workflowStagesRoutes from './routes/workflow-stages';
 import workflowsRoutes from './routes/workflows';
 import organizationsRoutes from './routes/organizations';
 import userSettingsRoutes from './routes/user-settings';
+// Previously Unregistered Routes - Now Integrated
+import aiFeedbackRoutes from './routes/ai-feedback';
+import aiRouterRoutes from './routes/ai-router';
+import aiStreamingRoutes from './routes/ai-streaming';
+import analyticsRoutes from './routes/analytics';
+import artifactGraphRoutes from './routes/artifact-graph';
+import artifactVersionsRoutes from './routes/artifact-versions';
+import billingRoutes from './routes/billing';
+import claimsRoutes from './routes/claims';
+import collaborationExportRoutes from './routes/collaborationExport';
+import exportBundleRoutes from './routes/export-bundle';
+import governanceSimulateRoutes from './routes/governance-simulate';
+import literatureRoutes from './routes/literature';
+import metricsRoutes from './routes/metrics';
+import mfaRoutes from './routes/mfa';
+import notificationsRoutes from './routes/notifications';
+import phiScannerRoutes from './routes/phi-scanner';
+import qualityRoutes from './routes/quality';
+import researchBriefRoutes from './routes/research-brief';
+import rosWorkerProxyRoutes from './routes/ros-worker-proxy';
+import sapRoutes from './routes/sap';
+import sharesRoutes from './routes/shares';
+import streamRoutes from './routes/stream';
+import topicsRoutes from './routes/topics';
 import { mockAuthMiddleware } from './middleware/auth.js';
 import { optionalAuth } from './services/authService';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -161,6 +185,31 @@ app.use('/api/workflow', workflowStagesRoutes);  // Workflow stage management an
 app.use('/api/workflows', workflowsRoutes);  // Workflow CRUD, versioning, templates
 app.use('/api/org', organizationsRoutes);  // Organization management (Task 81)
 app.use('/api/user', userSettingsRoutes);  // User settings and preferences
+
+// Previously Unregistered Routes - Now Active
+app.use('/api/ai/feedback', aiFeedbackRoutes);  // AI output feedback collection
+app.use('/api/ai/router', aiRouterRoutes);  // Intelligent model tier routing
+app.use('/api/ai/streaming', aiStreamingRoutes);  // SSE streaming for AI responses
+app.use('/api/analytics', analyticsRoutes);  // Analytics events and tracking
+app.use('/api/ros/artifacts/graph', artifactGraphRoutes);  // Artifact provenance graph
+app.use('/api/ros/artifacts/versions', artifactVersionsRoutes);  // Artifact version management
+app.use('/api/billing', billingRoutes);  // Stripe billing integration
+app.use('/api/ros/claims', claimsRoutes);  // Claim extraction and verification
+app.use('/api/collaboration/export', collaborationExportRoutes);  // Yjs document export
+app.use('/api/export', exportBundleRoutes);  // Reproducibility bundle export
+app.use('/api/governance/simulate', governanceSimulateRoutes);  // Governance simulation/preview
+app.use('/api/ros/literature', literatureRoutes);  // Literature management
+app.use('/api/metrics', metricsRoutes);  // Prometheus metrics endpoint
+app.use('/api/auth/mfa', mfaRoutes);  // Multi-factor authentication
+app.use('/api/notifications', notificationsRoutes);  // Notification center
+app.use('/api/ros/phi', phiScannerRoutes);  // PHI scanning API
+app.use('/api/quality', qualityRoutes);  // Quality dashboard data
+app.use('/api/ros/research-brief', researchBriefRoutes);  // Research brief generation
+app.use('/api/ros/worker', rosWorkerProxyRoutes);  // Worker job proxy
+app.use('/api/sap', sapRoutes);  // Statistical Analysis Plan builder
+app.use('/api/shares', sharesRoutes);  // Document sharing management
+app.use('/api/stream', streamRoutes);  // SSE event stream
+app.use('/api/topics', topicsRoutes);  // Topic management
 
 // 404 handler
 app.use((req, res) => {
