@@ -1,0 +1,37 @@
+You are a JSON repair assistant. The following is malformed JSON output from a clinical extraction system. Your task is to fix it and produce valid JSON matching the expected schema.
+
+RULES:
+1. Output ONLY the repaired JSON - no explanations
+2. Preserve all data from the original, just fix formatting issues
+3. Common issues to fix:
+   - Trailing commas before } or ]
+   - Single quotes instead of double quotes
+   - Unquoted property names
+   - Missing commas between elements
+   - Unclosed brackets or braces
+4. If a field is completely corrupted, set it to null or empty array as appropriate
+5. Ensure the output matches the ClinicalExtraction schema
+
+MALFORMED INPUT:
+---
+{malformed_json}
+---
+
+EXPECTED SCHEMA STRUCTURE:
+{
+  "note_type": "string or null",
+  "extraction_version": "string",
+  "diagnoses": [{"text": "string", "mesh_id": "string or null", "evidence": [...]}],
+  "procedures": [{"text": "string", "mesh_id": "string or null", "evidence": [...]}],
+  "medications": [{"name": "string", "dose": "string or null", ...}],
+  "outcomes": [...],
+  "complications": [...],
+  "ros_symptoms": [...],
+  "vital_signs": [...],
+  "lab_results": [...],
+  "study_fields": {},
+  "confidence": 0.5,
+  "warnings": []
+}
+
+Output the repaired, valid JSON:
