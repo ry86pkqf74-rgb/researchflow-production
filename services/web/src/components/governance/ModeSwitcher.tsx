@@ -12,9 +12,11 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertTriangle, CheckCircle2, Database, Power, Zap } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2, Database, Power, Zap, Lock } from "lucide-react";
 import { GovernanceMode } from "@/hooks/useGovernanceMode";
 import { toast } from "@/hooks/use-toast";
+import { useModeStore } from "@/stores/mode-store";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ModeSwitcherProps {
   currentMode: GovernanceMode;
@@ -78,19 +80,24 @@ async function changeMode(mode: GovernanceMode): Promise<{ mode: GovernanceMode 
 export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherProps) {
   const [selectedMode, setSelectedMode] = useState<GovernanceMode>(currentMode);
   const queryClient = useQueryClient();
+  const setModeStore = useModeStore((state) => state.setMode);
+  const { isAuthenticated } = useAuth();
 
   const mutation = useMutation({
     mutationFn: changeMode,
     onSuccess: (data) => {
+      // Update both Zustand store AND React Query cache for consistency
+      setModeStore(data.mode);
+
       // Invalidate governance mode query to refetch
       queryClient.invalidateQueries({ queryKey: ["/api/governance/mode"] });
       queryClient.invalidateQueries({ queryKey: ["/api/governance/state"] });
-      
+
       toast({
         title: "Mode changed successfully",
         description: `Switched to ${data.mode} mode`,
       });
-      
+
       onOpenChange(false);
     },
     onError: (error: Error) => {
@@ -101,6 +108,9 @@ export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherPr
       });
     },
   });
+
+  // Check if user can switch to LIVE mode (requires authentication)
+  const canSwitchToLive = isAuthenticated;
 
   const selectedOption = MODE_OPTIONS.find((opt) => opt.value === selectedMode);
   const hasChanged = selectedMode !== currentMode;
@@ -118,7 +128,18 @@ export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherPr
         <div className="space-y-4 py-4">
           <RadioGroup
             value={selectedMode}
-            onValueChange={(value) => setSelectedMode(value as GovernanceMode)}
+            onValueChange={(value) => {
+              // Only allow switching to LIVE if authenticated
+              if (value === 'LIVE' && !canSwitchToLive) {
+                toast({
+                  title: "Authentication Required",
+                  description: "Please log in to switch to Live Mode",
+                  variant: "destructive",
+                });
+                return;
+              }
+              setSelectedMode(value as GovernanceMode);
+            }}
             disabled={mutation.isPending}
           >
             <div className="space-y-3">
@@ -126,6 +147,7 @@ export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherPr
                 const Icon = option.icon;
                 const isSelected = selectedMode === option.value;
                 const isCurrent = currentMode === option.value;
+                const isLocked = option.value === 'LIVE' && !canSwitchToLive;
 
                 return (
                   <div
@@ -134,15 +156,20 @@ export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherPr
                       isSelected
                         ? "border-primary bg-primary/5"
                         : "border-border hover:border-primary/50"
-                    } ${isCurrent ? "ring-2 ring-green-500 ring-offset-2" : ""}`}
+                    } ${isCurrent ? "ring-2 ring-green-500 ring-offset-2" : ""} ${isLocked ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
-                    <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
+                    <RadioGroupItem
+                      value={option.value}
+                      id={option.value}
+                      className="mt-1"
+                      disabled={isLocked}
+                    />
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center gap-2">
                         <Icon className="h-4 w-4" />
                         <Label
                           htmlFor={option.value}
-                          className="font-medium cursor-pointer flex items-center gap-2"
+                          className={`font-medium flex items-center gap-2 ${isLocked ? "cursor-not-allowed" : "cursor-pointer"}`}
                         >
                           {option.label}
                           {isCurrent && (
@@ -150,9 +177,20 @@ export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherPr
                               (Current)
                             </span>
                           )}
+                          {isLocked && (
+                            <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                              <Lock className="h-3 w-3" />
+                              Login Required
+                            </span>
+                          )}
                         </Label>
                       </div>
                       <p className="text-sm text-muted-foreground">{option.description}</p>
+                      {isLocked && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                          <a href="/login" className="underline hover:no-underline">Log in</a> to access Live Mode
+                        </p>
+                      )}
                     </div>
                   </div>
                 );
@@ -160,7 +198,7 @@ export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherPr
             </div>
           </RadioGroup>
 
-          {selectedOption?.warning && hasChanged && (
+          {selectedOption?.warning && hasChanged && canSwitchToLive && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>{selectedOption.warning}</AlertDescription>
@@ -173,6 +211,15 @@ export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherPr
               <AlertDescription>You are currently in {currentMode} mode</AlertDescription>
             </Alert>
           )}
+
+          {selectedMode === 'LIVE' && !canSwitchToLive && hasChanged && (
+            <Alert>
+              <Lock className="h-4 w-4" />
+              <AlertDescription>
+                You must <a href="/login" className="underline font-medium">log in</a> to switch to Live Mode
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
 
         <DialogFooter>
@@ -181,7 +228,7 @@ export function ModeSwitcher({ currentMode, open, onOpenChange }: ModeSwitcherPr
           </Button>
           <Button
             onClick={() => mutation.mutate(selectedMode)}
-            disabled={!hasChanged || mutation.isPending}
+            disabled={!hasChanged || mutation.isPending || (selectedMode === 'LIVE' && !canSwitchToLive)}
           >
             {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {mutation.isPending ? "Switching..." : "Switch Mode"}
