@@ -25,9 +25,25 @@ from ..registry import register_stage
 try:
     from data_extraction import extract_clinical_from_cell, extract_batch, ClinicalExtraction
     from data_extraction.nlm_enrichment import enrich_extraction
+    from data_extraction.cell_parser import (
+        parse_block_text,
+        detect_narrative_columns,
+        identify_extraction_targets,
+        PHIScanner,
+        BatchExtractionManifest,
+    )
     EXTRACTION_AVAILABLE = True
-except ImportError:
+    CELL_PARSER_AVAILABLE = True
+except ImportError as e:
     EXTRACTION_AVAILABLE = False
+    CELL_PARSER_AVAILABLE = False
+
+# Pandas for DataFrame operations
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
 
 logger = logging.getLogger("workflow_engine.stage_06_analysis")
 
@@ -40,6 +56,7 @@ SUPPORTED_ANALYSIS_TYPES = {
     "regression": "Regression Analysis",
     "clustering": "Clustering Analysis",
     "clinical_extraction": "Clinical Data Extraction (LLM)",
+    "dataframe_extraction": "DataFrame Clinical Extraction with PHI Scanning",
 }
 
 # Default parameters for each analysis type
@@ -83,6 +100,16 @@ DEFAULT_PARAMETERS = {
         "enrich_with_mesh": True,
         "batch_concurrency": 5,
         "force_tier": None,  # NANO, MINI, or FRONTIER
+    },
+    "dataframe_extraction": {
+        "columns": None,  # Auto-detect narrative columns if None
+        "min_text_length": 100,  # Minimum chars to trigger extraction
+        "enable_phi_scanning": True,  # Pre/post PHI scanning
+        "block_on_phi": True,  # Block extraction when PHI detected
+        "enable_nlm_enrichment": True,  # MeSH term enrichment
+        "force_tier": None,  # NANO, MINI, or FRONTIER
+        "max_concurrent": 5,  # Concurrent API calls
+        "output_format": "parquet",  # Output file format
     },
 }
 
@@ -314,6 +341,169 @@ async def perform_clinical_extraction(
 
     return results
 
+
+async def perform_dataframe_extraction(
+    file_path: str,
+    parameters: Dict[str, Any],
+    context: StageContext,
+) -> Dict[str, Any]:
+    """Perform LLM-powered clinical data extraction on a DataFrame with PHI scanning.
+    
+    This function uses the cell_parser module for comprehensive extraction:
+    - Automatic detection of narrative text columns
+    - PHI pre-scanning before sending to AI
+    - PHI post-scanning of extraction results
+    - Optional MeSH enrichment
+    - Batch processing with concurrency control
+    
+    Args:
+        file_path: Path to data file (CSV, Parquet, Excel)
+        parameters: Extraction parameters including:
+            - columns: Optional list of columns to extract (auto-detect if None)
+            - min_text_length: Minimum text length to trigger extraction
+            - enable_phi_scanning: Enable PHI pre/post scanning
+            - block_on_phi: Block extraction when PHI detected in input
+            - enable_nlm_enrichment: Enable MeSH term enrichment
+            - force_tier: Force specific model tier (NANO, MINI, FRONTIER)
+            - max_concurrent: Maximum concurrent API calls
+        context: Stage execution context
+        
+    Returns:
+        Dictionary containing extraction results, manifest, and statistics
+    """
+    if not CELL_PARSER_AVAILABLE:
+        logger.warning("Cell parser module not available, falling back to basic extraction")
+        return {
+            "status": "unavailable",
+            "message": "cell_parser module not available",
+            "fallback_used": True,
+        }
+    
+    if not PANDAS_AVAILABLE:
+        logger.warning("Pandas not available for DataFrame extraction")
+        return {
+            "status": "unavailable",
+            "message": "pandas not installed",
+        }
+    
+    results = {
+        "file_path": file_path,
+        "status": "pending",
+        "columns_detected": [],
+        "columns_processed": [],
+        "total_cells": 0,
+        "successful": 0,
+        "failed": 0,
+        "phi_blocked": 0,
+        "total_cost_usd": 0.0,
+        "total_tokens": {"input": 0, "output": 0},
+        "manifest": None,
+        "extraction_meta": {},
+    }
+    
+    # Load DataFrame based on file type
+    try:
+        if file_path.endswith('.csv'):
+            df = pd.read_csv(file_path)
+        elif file_path.endswith('.parquet'):
+            df = pd.read_parquet(file_path)
+        elif file_path.endswith(('.xlsx', '.xls')):
+            df = pd.read_excel(file_path)
+        elif file_path.endswith('.tsv'):
+            df = pd.read_csv(file_path, sep='\t')
+        else:
+            # Try CSV as default
+            df = pd.read_csv(file_path)
+        
+        results["row_count"] = len(df)
+        results["column_count"] = len(df.columns)
+        logger.info(f"Loaded DataFrame: {len(df)} rows, {len(df.columns)} columns")
+        
+    except Exception as e:
+        logger.error(f"Failed to load file {file_path}: {e}")
+        results["status"] = "failed"
+        results["error"] = f"Failed to load file: {str(e)}"
+        return results
+    
+    # Get parameters with defaults
+    columns = parameters.get("columns")  # None = auto-detect
+    min_text_length = parameters.get("min_text_length", 100)
+    enable_phi_scanning = parameters.get("enable_phi_scanning", True)
+    block_on_phi = parameters.get("block_on_phi", True)
+    enable_nlm_enrichment = parameters.get("enable_nlm_enrichment", True)
+    force_tier = parameters.get("force_tier")
+    max_concurrent = parameters.get("max_concurrent", 5)
+    
+    # Auto-detect narrative columns if not specified
+    if columns is None:
+        columns = detect_narrative_columns(df, min_text_length=min_text_length)
+        results["columns_detected"] = columns
+        logger.info(f"Auto-detected narrative columns: {columns}")
+    else:
+        results["columns_detected"] = columns
+    
+    if not columns:
+        logger.warning("No narrative columns found for extraction")
+        results["status"] = "completed"
+        results["message"] = "No narrative columns detected"
+        return results
+    
+    # Governance check
+    if context.governance_mode == "DEMO":
+        logger.info("DEMO mode: Extraction will proceed with synthetic data flag")
+        extraction_metadata = {"synthetic_data_only": True, "demo_mode": True}
+    else:
+        extraction_metadata = {"governance_mode": context.governance_mode}
+    
+    extraction_metadata.update({
+        "job_id": context.job_id,
+        "file_path": file_path,
+    })
+    
+    # Perform extraction with PHI scanning
+    try:
+        df_result, manifest = await parse_block_text(
+            df=df,
+            columns=columns,
+            min_text_length=min_text_length,
+            max_concurrent=max_concurrent,
+            enable_phi_scanning=enable_phi_scanning,
+            block_on_phi=block_on_phi,
+            enable_nlm_enrichment=enable_nlm_enrichment,
+            force_tier=force_tier,
+            metadata=extraction_metadata,
+        )
+        
+        # Update results from manifest
+        results["status"] = "completed"
+        results["total_cells"] = manifest.total_cells
+        results["successful"] = manifest.successful
+        results["failed"] = manifest.failed
+        results["phi_blocked"] = manifest.phi_blocked
+        results["total_cost_usd"] = manifest.total_cost_usd
+        results["total_tokens"] = manifest.total_tokens
+        results["columns_processed"] = manifest.columns_processed
+        results["manifest"] = manifest.to_dict()
+        results["extraction_meta"] = manifest.config
+        
+        # Add extracted columns info
+        extracted_columns = [col for col in df_result.columns if col.endswith("_extracted")]
+        results["extracted_columns"] = extracted_columns
+        
+        logger.info(
+            f"DataFrame extraction completed: {manifest.successful} successful, "
+            f"{manifest.failed} failed, {manifest.phi_blocked} PHI-blocked, "
+            f"${manifest.total_cost_usd:.4f} total cost"
+        )
+        
+    except Exception as e:
+        logger.error(f"DataFrame extraction failed: {e}")
+        results["status"] = "failed"
+        results["error"] = str(e)
+    
+    return results
+
+
 @register_stage
 class AnalysisStage:
     """Stage 06: Analysis
@@ -504,6 +694,36 @@ class AnalysisStage:
                     if extraction_results.get("tier_usage"):
                         output["ai_tier_usage"] = extraction_results["tier_usage"]
 
+            elif analysis_type == "dataframe_extraction":
+                # DataFrame-level clinical extraction with PHI scanning
+                if not dataset_pointer:
+                    warnings.append(
+                        "No dataset_pointer provided for DataFrame extraction; "
+                        "provide a valid file path to CSV, Parquet, or Excel file"
+                    )
+                    analysis_results["dataframe_extraction"] = {
+                        "status": "no_input",
+                        "message": "No dataset file path provided",
+                    }
+                else:
+                    # Perform DataFrame-level extraction with PHI scanning
+                    extraction_results = await perform_dataframe_extraction(
+                        file_path=dataset_pointer,
+                        parameters=effective_params,
+                        context=context,
+                    )
+                    analysis_results["dataframe_extraction"] = extraction_results
+                    
+                    # Add extraction-specific metadata
+                    if extraction_results.get("total_cost_usd"):
+                        output["ai_cost_usd"] = extraction_results["total_cost_usd"]
+                    if extraction_results.get("total_tokens"):
+                        output["ai_tokens"] = extraction_results["total_tokens"]
+                    if extraction_results.get("phi_blocked"):
+                        output["phi_blocked_count"] = extraction_results["phi_blocked"]
+                    if extraction_results.get("manifest"):
+                        output["extraction_manifest"] = extraction_results["manifest"]
+
             output["analysis_results"] = analysis_results
 
             # Generate job metadata
@@ -541,6 +761,14 @@ class AnalysisStage:
                 artifacts.append(f"{artifact_base}/extraction_summary.csv")
                 if effective_params.get("enrich_with_mesh"):
                     artifacts.append(f"{artifact_base}/mesh_mappings.json")
+
+            if analysis_type == "dataframe_extraction":
+                output_format = effective_params.get("output_format", "parquet")
+                artifacts.append(f"{artifact_base}/extracted_data.{output_format}")
+                artifacts.append(f"{artifact_base}/extraction_manifest.json")
+                artifacts.append(f"{artifact_base}/phi_scan_report.json")
+                if effective_params.get("enable_nlm_enrichment"):
+                    artifacts.append(f"{artifact_base}/mesh_enrichment.json")
 
             logger.info(f"Analysis completed, generated {len(artifacts)} artifacts")
 
