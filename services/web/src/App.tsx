@@ -1,5 +1,5 @@
 import { useEffect, lazy, Suspense } from "react";
-import { Switch, Route } from "wouter";
+import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -48,6 +48,7 @@ import ProjectDetailPage from "@/pages/projects/project-detail";
 import SpreadsheetCellParse from "@/pages/spreadsheet-cell-parse";
 import { OrgSelector } from "@/components/org";
 import { AdaptiveNavigation } from "@/components/nav";
+import { ErrorBoundary } from "@/components/errors/ErrorBoundary";
 
 // Lazy load components that depend on reactflow (which may fail to load)
 // This prevents the entire app from failing if reactflow is unavailable
@@ -166,43 +167,43 @@ function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {/* Simple navigation links that always work */}
+          {/* SPA navigation links using wouter Link */}
           <nav className="space-y-1 px-2 py-3">
-            <a
-              href="/"
+            <Link
+              to="/"
               className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               <HomeIcon className="h-4 w-4 shrink-0" />
               <span>Pipeline</span>
-            </a>
-            <a
-              href="/pipeline"
+            </Link>
+            <Link
+              to="/pipeline"
               className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               <LayoutDashboard className="h-4 w-4 shrink-0" />
               <span>Dashboard</span>
-            </a>
-            <a
-              href="/workflows"
+            </Link>
+            <Link
+              to="/workflows"
               className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               <Workflow className="h-4 w-4 shrink-0" />
               <span>Workflows</span>
-            </a>
-            <a
-              href="/governance"
+            </Link>
+            <Link
+              to="/governance"
               className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               <Shield className="h-4 w-4 shrink-0" />
               <span>Governance</span>
-            </a>
-            <a
-              href="/settings"
+            </Link>
+            <Link
+              to="/settings"
               className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               <SettingsIcon className="h-4 w-4 shrink-0" />
               <span>Settings</span>
-            </a>
+            </Link>
           </nav>
         </div>
       </aside>
@@ -231,7 +232,7 @@ function LazyFallback() {
  * Protected route wrapper for LIVE/OFFLINE modes
  * Waits for mode resolution before rendering.
  * In LIVE/OFFLINE mode, requires authentication. In DEMO mode, accessible to all.
- * Supports lazy-loaded components with Suspense.
+ * Supports lazy-loaded components with Suspense and ErrorBoundary for graceful failure handling.
  */
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isLive, isOffline, isLoading } = useModeStore();
@@ -246,9 +247,11 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     return (
       <AuthGate requireAuth>
         <MainLayout>
-          <Suspense fallback={<LazyFallback />}>
-            <Component />
-          </Suspense>
+          <ErrorBoundary context="Protected Route">
+            <Suspense fallback={<LazyFallback />}>
+              <Component />
+            </Suspense>
+          </ErrorBoundary>
         </MainLayout>
       </AuthGate>
     );
@@ -257,9 +260,11 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   // DEMO mode - accessible to all
   return (
     <MainLayout>
-      <Suspense fallback={<LazyFallback />}>
-        <Component />
-      </Suspense>
+      <ErrorBoundary context="Protected Route">
+        <Suspense fallback={<LazyFallback />}>
+          <Component />
+        </Suspense>
+      </ErrorBoundary>
     </MainLayout>
   );
 }
