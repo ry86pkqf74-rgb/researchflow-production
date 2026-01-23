@@ -56,6 +56,40 @@ import workflowStagesRoutes from './routes/workflow-stages';
 import workflowsRoutes from './routes/workflows';
 import organizationsRoutes from './routes/organizations';
 import userSettingsRoutes from './routes/user-settings';
+
+// Phase 1: Critical AI & Extraction Routes (Integration Plan)
+import aiExtractionRoutes from './routes/ai-extraction';
+import aiFeedbackRoutes from './routes/ai-feedback';
+import aiRouterRoutes from './routes/ai-router';
+import aiStreamingRoutes from './routes/ai-streaming';
+import spreadsheetCellParseRoutes from './routes/spreadsheet-cell-parse';
+import phiScannerRoutes from './routes/phi-scanner';
+
+// Phase 2: Core API Routes (Integration Plan)
+import artifactGraphRoutes from './routes/artifact-graph';
+import artifactVersionsRoutes from './routes/artifact-versions';
+import exportBundleRoutes from './routes/export-bundle';
+import rosWorkerProxyRoutes from './routes/ros-worker-proxy';
+import streamRoutes from './routes/stream';
+import analysisExecutionRoutes from './routes/analysis-execution';
+import claimsRoutes from './routes/claims';
+import literatureRoutes from './routes/literature';
+import meshLookupRoutes from './routes/mesh-lookup';
+import metricsRoutes from './routes/metrics';
+
+// Phase 3: Secondary Routes (Integration Plan)
+import governanceSimulateRoutes from './routes/governance-simulate';
+import qualityRoutes from './routes/quality';
+import mfaRoutes from './routes/mfa';
+import notificationsRoutes from './routes/notifications';
+import billingRoutes from './routes/billing';
+import collaborationExportRoutes from './routes/collaborationExport';
+import sapRoutes from './routes/sap';
+import researchBriefRoutes from './routes/research-brief';
+import integrationsRoutes from './routes/integrations';
+import sharesRoutes from './routes/shares';
+import topicsRoutes from './routes/topics';
+import analyticsRoutes from './routes/analytics';
 import { mockAuthMiddleware } from './middleware/auth.js';
 import { optionalAuth } from './services/authService';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -162,6 +196,46 @@ app.use('/api/workflows', workflowsRoutes);  // Workflow CRUD, versioning, templ
 app.use('/api/org', organizationsRoutes);  // Organization management (Task 81)
 app.use('/api/user', userSettingsRoutes);  // User settings and preferences
 
+// =============================================================================
+// Integration Plan Routes - Phase 1: Critical AI & Extraction
+// =============================================================================
+app.use('/api/ai/extraction', aiExtractionRoutes);  // LLM clinical extraction
+app.use('/api/ai/feedback', aiFeedbackRoutes);  // AI output feedback collection
+app.use('/api/ai/router', aiRouterRoutes);  // Intelligent model routing
+app.use('/api/ai/streaming', aiStreamingRoutes);  // SSE for AI responses
+app.use('/api/extraction/spreadsheet', spreadsheetCellParseRoutes);  // Cell-level extraction
+app.use('/api/ros/phi', phiScannerRoutes);  // PHI scanning API
+
+// =============================================================================
+// Integration Plan Routes - Phase 2: Core API Routes
+// =============================================================================
+app.use('/api/ros/artifacts/graph', artifactGraphRoutes);  // Provenance graph API
+app.use('/api/ros/artifacts/versions', artifactVersionsRoutes);  // Version management
+app.use('/api/export', exportBundleRoutes);  // Reproducibility bundles
+app.use('/api/ros/worker', rosWorkerProxyRoutes);  // Worker job proxy
+app.use('/api/stream', streamRoutes);  // SSE event stream
+app.use('/api/ros/analysis', analysisExecutionRoutes);  // Analysis job execution
+app.use('/api/ros/claims', claimsRoutes);  // Claim extraction
+app.use('/api/ros/literature', literatureRoutes);  // Literature search API
+app.use('/api/literature/mesh', meshLookupRoutes);  // MeSH term lookup
+app.use('/api/metrics', metricsRoutes);  // Prometheus metrics
+
+// =============================================================================
+// Integration Plan Routes - Phase 3: Secondary Routes
+// =============================================================================
+app.use('/api/governance/simulate', governanceSimulateRoutes);  // Governance simulation
+app.use('/api/ros/quality', qualityRoutes);  // Quality dashboard data
+app.use('/api/auth/mfa', mfaRoutes);  // Multi-factor auth
+app.use('/api/notifications', notificationsRoutes);  // Notification center
+app.use('/api/billing', billingRoutes);  // Stripe integration
+app.use('/api/collaboration/export', collaborationExportRoutes);  // Yjs document export
+app.use('/api/ros/sap', sapRoutes);  // Statistical Analysis Plan
+app.use('/api/ros/research-brief', researchBriefRoutes);  // Research brief generation
+app.use('/api/integrations/external', integrationsRoutes);  // External integrations
+app.use('/api/shares', sharesRoutes);  // Document sharing
+app.use('/api/topics', topicsRoutes);  // Topic management
+app.use('/api/analytics', analyticsRoutes);  // Analytics events
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
@@ -259,6 +333,24 @@ httpServer.listen(PORT, () => {
   console.log('  ✓ Lifecycle State Service');
   console.log('  ✓ Static Data Extraction');
   console.log('  ✓ Workflow Stage Management');
+  console.log('='.repeat(60));
+  console.log('Integration Plan: ALL ROUTES REGISTERED');
+  console.log('  ✓ AI Extraction Pipeline');
+  console.log('  ✓ AI Router & Streaming');
+  console.log('  ✓ PHI Scanner API');
+  console.log('  ✓ Artifact Graph & Versions');
+  console.log('  ✓ Export Bundles');
+  console.log('  ✓ Worker Proxy');
+  console.log('  ✓ Literature & MeSH Lookup');
+  console.log('  ✓ Spreadsheet Cell Parsing');
+  console.log('  ✓ Claims & Analysis Execution');
+  console.log('  ✓ Governance Simulation');
+  console.log('  ✓ Quality Dashboard');
+  console.log('  ✓ Notifications & Billing');
+  console.log('  ✓ Collaboration Export');
+  console.log('  ✓ SAP & Research Briefs');
+  console.log('  ✓ Document Sharing');
+  console.log('  ✓ Topics & Analytics');
   console.log('='.repeat(60));
 });
 

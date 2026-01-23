@@ -57,6 +57,12 @@ services:
     networks:
       - researchflow
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # ===================
   # Worker - Python FastAPI
@@ -66,6 +72,8 @@ services:
       context: ./services/worker
       dockerfile: Dockerfile
       target: development
+    ports:
+      - "8000:8000"  # Expose worker API for external access
     logging:
       driver: "json-file"
       options:
@@ -97,6 +105,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      orchestrator:
         condition: service_healthy
     volumes:
       - shared-data:/data
