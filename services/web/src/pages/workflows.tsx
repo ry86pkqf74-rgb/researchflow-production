@@ -55,6 +55,7 @@ import {
 } from "lucide-react";
 import { useAuth, useAccessToken } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkflowPersistence } from "@/hooks/use-workflow-persistence";
 
 interface WorkflowSummary {
   id: string;
@@ -186,6 +187,7 @@ export default function WorkflowsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newWorkflowName, setNewWorkflowName] = useState("");
   const [newWorkflowDesc, setNewWorkflowDesc] = useState("");
+  const { clearWorkflowState } = useWorkflowPersistence();
   const [selectedTemplate, setSelectedTemplate] = useState<string>(NO_TEMPLATE_VALUE);
   
   const { user } = useAuth();
@@ -210,6 +212,8 @@ export default function WorkflowsPage() {
     mutationFn: (payload: { name: string; description?: string; template_id?: string; definition?: object }) =>
       createWorkflow(payload, accessToken),
     onSuccess: (data) => {
+      // Clear persisted workflow state so new workflow starts fresh
+      clearWorkflowState();
       queryClient.invalidateQueries({ queryKey: ["workflows"] });
       setCreateDialogOpen(false);
       setNewWorkflowName("");
