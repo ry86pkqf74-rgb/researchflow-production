@@ -18,7 +18,7 @@
 
 import { Router, Request, Response } from 'express';
 import { logAction } from '../services/audit-service';
-import { validateWordBudget, DEFAULT_BUDGETS } from '@researchflow/manuscript-engine/validators/word-budget';
+import { validateWordBudget, DEFAULT_BUDGETS } from '@researchflow/manuscript-engine';
 
 const router = Router();
 

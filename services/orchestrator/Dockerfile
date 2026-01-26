@@ -58,6 +58,14 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages ./packages
 COPY services/orchestrator/ ./
 
+# Ensure @researchflow packages are accessible in node_modules (symlinks don't transfer)
+RUN mkdir -p ./node_modules/@researchflow && \
+    rm -rf ./node_modules/@researchflow/core ./node_modules/@researchflow/phi-engine ./node_modules/@researchflow/ai-router ./node_modules/@researchflow/manuscript-engine && \
+    cp -r ./packages/core ./node_modules/@researchflow/core && \
+    cp -r ./packages/phi-engine ./node_modules/@researchflow/phi-engine && \
+    cp -r ./packages/ai-router ./node_modules/@researchflow/ai-router && \
+    cp -r ./packages/manuscript-engine ./node_modules/@researchflow/manuscript-engine
+
 ENV NODE_ENV=development
 ENV NODE_PATH=/app/node_modules
 EXPOSE 3001
