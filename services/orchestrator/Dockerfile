@@ -42,6 +42,12 @@ COPY packages/ai-router/package.json ./packages/ai-router/
 COPY packages/ai-router/index.ts ./packages/ai-router/
 COPY packages/ai-router/src ./packages/ai-router/src
 
+# Copy manuscript-engine package (required for manuscript generation routes)
+COPY packages/manuscript-engine/package.json ./packages/manuscript-engine/
+COPY packages/manuscript-engine/index.ts ./packages/manuscript-engine/
+COPY packages/manuscript-engine/src ./packages/manuscript-engine/src
+COPY packages/manuscript-engine/validators ./packages/manuscript-engine/validators
+
 # Install dependencies
 RUN npm install
 
@@ -75,10 +81,11 @@ COPY services/orchestrator/ ./
 # Ensure @researchflow packages are accessible in node_modules
 # (file: dependencies create symlinks that don't transfer between build stages)
 RUN mkdir -p ./node_modules/@researchflow && \
-    rm -rf ./node_modules/@researchflow/core ./node_modules/@researchflow/phi-engine ./node_modules/@researchflow/ai-router && \
+    rm -rf ./node_modules/@researchflow/core ./node_modules/@researchflow/phi-engine ./node_modules/@researchflow/ai-router ./node_modules/@researchflow/manuscript-engine && \
     cp -r ./packages/core ./node_modules/@researchflow/core && \
     cp -r ./packages/phi-engine ./node_modules/@researchflow/phi-engine && \
-    cp -r ./packages/ai-router ./node_modules/@researchflow/ai-router
+    cp -r ./packages/ai-router ./node_modules/@researchflow/ai-router && \
+    cp -r ./packages/manuscript-engine ./node_modules/@researchflow/manuscript-engine
 
 # Create data directories and fix permissions for nodejs user
 RUN mkdir -p /data/artifacts /data/logs /data/manifests && \
