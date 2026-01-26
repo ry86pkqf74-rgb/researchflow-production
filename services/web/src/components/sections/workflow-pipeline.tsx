@@ -403,12 +403,9 @@ export function WorkflowPipeline() {
 
       // Safely access overallAssessment.strength with fallback
       const strength = response.data?.overallAssessment?.strength || 'unknown';
-
-      
       addAuditEntry(createAuditEntry('AI_INTERACTION', {
         stageId: 1,
         stageName: 'Topic Declaration',
-        
         reason: `AI recommendations generated (strength: ${strength})`,
         approvedBy: response.approvedBy,
       }));
@@ -426,8 +423,7 @@ export function WorkflowPipeline() {
     
     handleScopeChange(field, suggestion);
     
-    
-      addAuditEntry(createAuditEntry('AI_INTERACTION', {
+    addAuditEntry(createAuditEntry('AI_INTERACTION', {
       stageId: 1,
       stageName: 'Topic Declaration',
       reason: `Applied AI recommendation to ${field}`,

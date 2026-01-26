@@ -152,7 +152,7 @@ export function TopicCardRecommendations({
           <Alert className={`${STRENGTH_COLORS[data.overallAssessment?.strength || 'moderate']} border`}>
             <TrendingUp className="h-4 w-4" />
             <AlertTitle className="font-semibold">
-              Current Topic Strength: {data.overallAssessment?.strength || 'moderate'.charAt(0).toUpperCase() + data.overallAssessment?.strength || 'moderate'.slice(1)}
+              Current Topic Strength: {(data.overallAssessment?.strength || 'unknown').charAt(0).toUpperCase() + (data.overallAssessment?.strength || 'unknown').slice(1)}
             </AlertTitle>
             <AlertDescription className="mt-2">
               {data.overallAssessment?.summary || 'Assessment pending'}
@@ -160,13 +160,15 @@ export function TopicCardRecommendations({
           </Alert>
 
           {/* Improvement Potential */}
-          <Alert className="bg-blue-50 border-blue-200">
-            <ArrowRight className="h-4 w-4 text-blue-600" />
-            <AlertTitle className="text-blue-900 font-semibold">What These Recommendations Will Do</AlertTitle>
-            <AlertDescription className="mt-2 text-blue-800">
-              {data.overallAssessment?.improvementPotential}
-            </AlertDescription>
-          </Alert>
+          {data.overallAssessment?.improvementPotential && (
+            <Alert className="bg-blue-50 border-blue-200">
+              <ArrowRight className="h-4 w-4 text-blue-600" />
+              <AlertTitle className="text-blue-900 font-semibold">What These Recommendations Will Do</AlertTitle>
+              <AlertDescription className="mt-2 text-blue-800">
+                {data.overallAssessment.improvementPotential}
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       </Card>
 
