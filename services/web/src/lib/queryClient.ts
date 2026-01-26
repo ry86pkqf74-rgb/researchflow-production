@@ -7,6 +7,45 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+/**
+ * Get authentication token from storage
+ */
+function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  
+  // Try to get from Zustand store first
+  try {
+    const { useTokenStore } = require('@/hooks/use-auth');
+    const storeToken = useTokenStore.getState().accessToken;
+    if (storeToken) return storeToken;
+  } catch (e) {
+    // Fallback if import fails
+  }
+  
+  // Fallback to localStorage
+  const token = localStorage.getItem('auth_token');
+  return token;
+}
+
+/**
+ * Build headers with optional auth token
+ */
+function buildRequestHeaders(includeContentType: boolean = false): Record<string, string> {
+  const headers: Record<string, string> = {};
+  
+  if (includeContentType) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  // Add auth token if available
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+}
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -14,7 +53,7 @@ export async function apiRequest(
 ): Promise<Response> {
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: buildRequestHeaders(!!data),
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -30,6 +69,7 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const res = await fetch(queryKey.join("/") as string, {
+      headers: buildRequestHeaders(false),
       credentials: "include",
     });
 

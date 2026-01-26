@@ -1,7 +1,15 @@
 import OpenAI from "openai";
 
+// Get OpenAI API key with fallback
+const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+
+if (!apiKey) {
+  console.warn('[AI-Research] WARNING: No OpenAI API key configured. AI features will fail.');
+  console.warn('[AI-Research] Set OPENAI_API_KEY or AI_INTEGRATIONS_OPENAI_API_KEY in .env');
+}
+
 const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  apiKey: apiKey || 'missing-key-will-fail',
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
   dangerouslyAllowBrowser: process.env.NODE_ENV === 'test',
 });

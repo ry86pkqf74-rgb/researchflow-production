@@ -3,68 +3,63 @@
 
 ---
 
-## 🎯 IMMEDIATE FOCUS
-**Issue #2: AI Insights Button** - Ready to execute
-- Plan file: `FIX_PLAN_AI_INSIGHTS.md`
+## ✅ ISSUES FIXED TODAY
+
+| Issue | Status | Action Required |
+|-------|--------|-----------------|
+| Manuscript generation routes | ✅ COMPLETE | None |
+| AI API endpoints configuration | ✅ CODE FIXED | **Add OpenAI API key to .env** |
 
 ---
 
-## ✅ Recently Fixed
-| Issue | Status | Commit |
-|-------|--------|--------|
-| Manuscript generation routes | ✅ FIXED | `784971d` |
+## ⚠️ USER ACTION REQUIRED
 
----
-
-## 🔄 Ready to Execute
-| Issue | Plan File | Likely Cause |
-|-------|-----------|--------------|
-| AI Insights button | `FIX_PLAN_AI_INSIGHTS.md` | API key / mode / auth |
-
----
-
-## Quick Investigation Commands
+### Add Your OpenAI API Key
 
 ```bash
-cd /Users/ros/Documents/GitHub/researchflow-production
+# Edit .env and add:
+OPENAI_API_KEY=sk-your-actual-api-key-here
 
-# Step 1: Check env vars
-grep -E "OPENAI|GOVERNANCE|JWT" .env
+# Then restart:
+docker-compose restart orchestrator
+```
 
-# Step 2: Check if services running
-curl http://localhost:3001/health
-curl http://localhost:8000/health
+Get key from: https://platform.openai.com/api-keys
 
-# Step 3: Test AI endpoint
+---
+
+## Code Fixes Applied
+
+### 1. Environment Configuration (`.env`)
+- Added all required variables with defaults
+- `GOVERNANCE_MODE=LIVE` enables real AI calls
+- `JWT_SECRET` configured for auth
+
+### 2. Auth Headers (`queryClient.ts`)
+- `apiRequest()` now sends Authorization header
+- Tokens retrieved from auth store/localStorage
+
+### 3. API Key Fallback (`ai-research.ts`)
+- Checks both `AI_INTEGRATIONS_OPENAI_API_KEY` and `OPENAI_API_KEY`
+- Logs warning when key is missing
+
+---
+
+## Quick Test Commands
+
+```bash
+# After adding API key, test:
 curl -X POST http://localhost:3001/api/ai/research-brief \
   -H "Content-Type: application/json" \
-  -d '{"topicId":"test"}'
+  -d '{"topic":"diabetes management"}'
+
+# Check for API key warning:
+docker-compose logs orchestrator | grep "OpenAI"
 ```
 
 ---
 
-## Key Files for Issue #2
-
-| File | Check For |
-|------|-----------|
-| `.env` | OPENAI_API_KEY, GOVERNANCE_MODE |
-| `middleware/mode-guard.ts` | blockAIInDemo logic |
-| `ai-insights-panel.tsx` | How frontend calls API |
-| `routes.ts` | Route middleware chain |
-
----
-
-## After Fix Complete
-
-```bash
-git add -A
-git commit -m "fix(ai-insights): [description]"
-git push origin main
-```
-
----
-
-## Reference Docs
-- `MASTER_ARCHIVE.md` - Full project archive
-- `FIX_PLAN_AI_INSIGHTS.md` - Detailed execution plan
-- `CHECKPOINT_2026_01_26.md` - Progress checkpoint
+## Documentation Files
+- `FIX_COMPLETE_AI_ENDPOINTS.md` - Full fix details
+- `FIX_COMPLETE_MANUSCRIPT_ROUTES.md` - Manuscript fix details
+- `MASTER_ARCHIVE.md` - Complete project archive
