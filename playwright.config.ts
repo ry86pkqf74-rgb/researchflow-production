@@ -9,8 +9,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e',
 
-  /* Maximum time one test can run for */
-  timeout: 30 * 1000,
+  /* Maximum time one test can run for (increased for AI operations) */
+  timeout: 120 * 1000,
 
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -33,8 +33,8 @@ export default defineConfig({
 
   /* Shared settings for all projects */
   use: {
-    /* Base URL for navigation */
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    /* Base URL for navigation (default to web service port) */
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://localhost:5173',
 
     /* Collect trace on failure */
     trace: 'on-first-retry',
@@ -67,9 +67,10 @@ export default defineConfig({
   ],
 
   /* Web server configuration for local development */
+  /* Note: When running with docker compose, set reuseExistingServer=true */
   webServer: process.env.CI ? undefined : {
     command: 'npm run dev',
-    url: 'http://localhost:3000',
+    url: 'http://localhost:5173',
     reuseExistingServer: true,
     timeout: 120 * 1000,
   },
