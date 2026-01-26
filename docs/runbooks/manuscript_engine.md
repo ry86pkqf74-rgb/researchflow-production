@@ -16,14 +16,17 @@ The Manuscript Engine provides IMRaD structure generation, abstract creation, an
 # Required
 GOVERNANCE_MODE=DEMO|LIVE
 
-# AI Router (for LLM features)
-AI_ROUTER_URL=http://localhost:3002
+# AI Keys (for LLM-powered generation)
 ANTHROPIC_API_KEY=your_key
 OPENAI_API_KEY=your_key
 
-# PHI Scanning
-PHI_SCAN_ENABLED=true
-PHI_FAIL_CLOSED=true
+# PHI Governance (fail-closed in LIVE mode)
+PHI_SCAN_ENABLED=true    # Enable PHI scanning on all content
+PHI_FAIL_CLOSED=true     # Block operations when PHI detected (LIVE mode)
+
+# Optional: AI Configuration
+AI_DEFAULT_TIER=MINI     # NANO, MINI, or FRONTIER
+AI_REQUEST_TIMEOUT_MS=120000
 ```
 
 ## How to Run Locally

@@ -16,11 +16,15 @@ Stage 20 automates conference submission preparation: discovery, guideline extra
 ```bash
 # Required
 GOVERNANCE_MODE=DEMO|LIVE
-ARTIFACTS_PATH=/data/artifacts
+ARTIFACTS_PATH=/data/artifacts    # Note: Both ARTIFACTS_PATH and ARTIFACT_PATH are supported
 
 # Optional
-CONFERENCE_CACHE_TTL=86400
-ENABLE_WEB_SEARCH=false  # For online discovery
+CONFERENCE_CACHE_TTL=86400        # Cache duration for conference discovery (seconds)
+ENABLE_WEB_SEARCH=false           # Enable online conference discovery
+
+# AI Keys (for material generation)
+OPENAI_API_KEY=your_key
+ANTHROPIC_API_KEY=your_key
 ```
 
 ## How to Run Locally

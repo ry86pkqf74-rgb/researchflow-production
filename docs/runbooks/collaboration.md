@@ -15,10 +15,16 @@ ResearchFlow's collaboration features include real-time CRDT-based editing (Yjs)
 
 ```bash
 # Collaboration Server
-COLLAB_PORT=4002
-COLLAB_REDIS_URL=redis://localhost:6379
+# Note: The collab service uses standard variable names
+PORT=1234              # WebSocket port (default: 1234)
+HEALTH_PORT=1235       # Health check port (default: 1235)
+HOST=0.0.0.0           # Bind address
+APP_MODE=DEMO|LIVE     # Governance mode
 
-# Database
+# Redis (for pub/sub and awareness)
+REDIS_URL=redis://localhost:6379
+
+# Database (for Yjs persistence)
 DATABASE_URL=postgres://user:pass@localhost:5432/researchflow
 
 # Auth
