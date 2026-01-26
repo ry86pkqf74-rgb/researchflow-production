@@ -149,13 +149,13 @@ export function TopicCardRecommendations({
           </div>
 
           {/* Strength Assessment */}
-          <Alert className={`${STRENGTH_COLORS[data.overallAssessment.strength]} border`}>
+          <Alert className={`${STRENGTH_COLORS[data.overallAssessment?.strength || 'moderate']} border`}>
             <TrendingUp className="h-4 w-4" />
             <AlertTitle className="font-semibold">
-              Current Topic Strength: {data.overallAssessment.strength.charAt(0).toUpperCase() + data.overallAssessment.strength.slice(1)}
+              Current Topic Strength: {data.overallAssessment?.strength || 'moderate'.charAt(0).toUpperCase() + data.overallAssessment?.strength || 'moderate'.slice(1)}
             </AlertTitle>
             <AlertDescription className="mt-2">
-              {data.overallAssessment.summary}
+              {data.overallAssessment?.summary || 'Assessment pending'}
             </AlertDescription>
           </Alert>
 
@@ -164,7 +164,7 @@ export function TopicCardRecommendations({
             <ArrowRight className="h-4 w-4 text-blue-600" />
             <AlertTitle className="text-blue-900 font-semibold">What These Recommendations Will Do</AlertTitle>
             <AlertDescription className="mt-2 text-blue-800">
-              {data.overallAssessment.improvementPotential}
+              {data.overallAssessment?.improvementPotential}
             </AlertDescription>
           </Alert>
         </div>
