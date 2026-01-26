@@ -46,21 +46,36 @@ app.use("/api/manuscript", manuscriptGenerationRouter);
 
 ---
 
-## 🔄 NEXT: Issue #2 - AI Insights Button
+## 🔄 NEXT: Issue #2 - ALL AI API Calls
 
 **Plan File:** `FIX_PLAN_AI_INSIGHTS.md`
 
-**Quick Summary:**
-- Backend routes EXIST at `/api/ai/research-brief`, etc.
-- Frontend component: `services/web/src/components/ai-insights-panel.tsx`
-- Likely causes: Missing API key, GOVERNANCE_MODE=DEMO blocking, auth issues, or worker down
+**Scope:** 15+ AI endpoints across the application
 
-**Investigation Steps:**
-1. Check `.env` for `OPENAI_API_KEY` and `GOVERNANCE_MODE`
-2. Review `ai-insights-panel.tsx` 
-3. Review route handlers and middleware
-4. Test endpoints with curl
-5. Apply fix based on findings
+### AI Endpoint Categories
+| Category | Endpoints | Middleware |
+|----------|-----------|------------|
+| AI Insights Panel | 4 endpoints | `requireRole(RESEARCHER)` |
+| Workflow Stages | 3 endpoints | `requireRole(RESEARCHER)` |
+| Journal/Submission | 3 endpoints | `requireRole(RESEARCHER)` |
+| ROS-prefixed | 3 endpoints | `blockAIInDemo` |
+| Other | 5+ endpoints | Various |
+
+### OpenAI Configuration
+- Primary key: `AI_INTEGRATIONS_OPENAI_API_KEY`
+- Fallback key: `OPENAI_API_KEY`
+- Files: `ai-research.ts`, `routes.ts`
+
+### Investigation Steps
+1. Check `.env` for API keys
+2. Check frontend auth headers
+3. Test endpoints with curl
+4. Check server logs
+
+### Likely Root Causes
+- Missing/invalid OpenAI API key
+- Auth headers not being sent
+- User missing RESEARCHER role
 
 ---
 
