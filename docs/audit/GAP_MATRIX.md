@@ -1,6 +1,6 @@
 # Gap Matrix (Docs ↔ Code ↔ Runtime)
 
-Generated: 2026-01-20
+Generated: 2026-01-26 (Updated)
 
 ## Summary
 
@@ -50,7 +50,9 @@ The repository is **well-implemented** with most documented features having work
 | CI Workflow | - | ✅ `.github/workflows/ci.yml` | ✅ | ✅ | None |
 | Security Scan | - | ✅ `.github/workflows/security-scan.yaml` | ✅ | ✅ | None |
 | Docker Build | - | ✅ `.github/workflows/build-images.yml` | ✅ | ✅ | None |
-| Webhook Routes | - | ❌ Missing | ❌ | ❌ | **Create webhook handlers** |
+| Webhook Routes | - | ✅ `services/orchestrator/src/routes/webhooks.ts` | ✅ | ⚠️ | Integration tests |
+| Stripe Handler | - | ✅ `services/orchestrator/src/routes/webhooks/stripe.ts` | ✅ | ⚠️ | Integration tests |
+| Zoom Handler | - | ✅ `services/orchestrator/src/routes/webhooks/zoom.ts` | ✅ | ⚠️ | Integration tests |
 | **PHI Governance** | Various | ✅ | ✅ | ✅ | None |
 | PHI Engine | - | ✅ `packages/phi-engine/` | ✅ | ✅ | None |
 | PHI Middleware | - | ✅ `services/orchestrator/src/middleware/phiScan.ts` | ✅ | ✅ | None |
@@ -65,17 +67,18 @@ The repository is **well-implemented** with most documented features having work
 ## Action Items
 
 ### High Priority (Required)
-1. ✅ ~~Create webhook handlers for external integrations (Stripe/Zoom)~~ - **TO CREATE**
+1. ✅ ~~Create webhook handlers for external integrations (Stripe/Zoom)~~ - **COMPLETED** (see `services/orchestrator/src/routes/webhooks/`)
 
 ### Medium Priority (Recommended)
 2. Add integration tests for collaboration server
 3. Add more unit tests for artifact graph operations
 4. Add tests for IMRaD AI router integration
+5. Add integration tests for webhook handlers (Stripe/Zoom)
 
 ### Low Priority (Nice to Have)
-5. Add UI tests for graph visualization
-6. Add performance benchmarks for literature search
-7. Add chaos tests for collab server failover
+6. Add UI tests for graph visualization
+7. Add performance benchmarks for literature search
+8. Add chaos tests for collab server failover
 
 ## Implementation Status Legend
 
