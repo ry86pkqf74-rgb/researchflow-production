@@ -106,6 +106,7 @@ import artifactGraphRouter from "./src/routes/artifact-graph";
 import commentsRouter from "./src/routes/comments";
 import artifactVersionsRouter from "./src/routes/artifact-versions";
 import manuscriptBranchesRouter from "./src/routes/manuscript-branches";
+import manuscriptGenerationRouter from "./src/routes/manuscript-generation";
 import claimsRouter from "./src/routes/claims";
 import sharesRouter from "./src/routes/shares";
 import submissionsRouter from "./src/routes/submissions";
@@ -983,6 +984,9 @@ export async function registerRoutes(
   app.use("/api/ros", claimsRouter);
   app.use("/api/ros", sharesRouter);
   app.use("/api/ros", submissionsRouter);
+
+  // Manuscript Generation Routes (IMRaD structure, word budgets)
+  app.use("/api/manuscript", manuscriptGenerationRouter);
 
   // Phase F: Observability + Feature Flags
   app.use("/api/analytics", analyticsRouter);

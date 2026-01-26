@@ -22,6 +22,7 @@ FROM base AS deps
 
 # Copy package files from web service
 COPY services/web/package.json ./
+# Note: package-lock.json should be added for reproducible builds
 
 # Copy packages for type imports (only the types we need)
 COPY packages/core/package.json ./packages/core/
