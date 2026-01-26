@@ -22,7 +22,8 @@ LABEL org.opencontainers.image.source="https://github.com/ry86pkqf74-rgb/researc
 WORKDIR /app
 
 # Install build dependencies (only needed for npm install with native modules)
-RUN apk add --no-cache python3 make g++
+# Use py3-pip which pulls in python3 correctly on newer Alpine versions
+RUN apk add --no-cache --update python3 py3-pip make g++ || apk add --no-cache make g++
 
 # ===================
 # Dependencies stage - Install npm packages

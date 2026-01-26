@@ -19,7 +19,7 @@ LABEL org.opencontainers.image.source="https://github.com/ry86pkqf74-rgb/researc
 WORKDIR /app
 
 # Install build dependencies
-RUN apk add --no-cache python3 make g++ git
+RUN apk add --no-cache --update python3 py3-pip make g++ git || apk add --no-cache make g++ git
 
 # Dependencies stage
 FROM base AS deps

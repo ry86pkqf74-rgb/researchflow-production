@@ -46,6 +46,7 @@ import WorkflowsPage from "@/pages/workflows";
 import ProjectsPage from "@/pages/projects";
 import ProjectDetailPage from "@/pages/projects/project-detail";
 import SpreadsheetCellParse from "@/pages/spreadsheet-cell-parse";
+import ManuscriptEditorPage from "@/pages/manuscript-editor";
 import { OrgSelector } from "@/components/org";
 import { AdaptiveNavigation } from "@/components/nav";
 import { ErrorBoundary } from "@/components/errors/ErrorBoundary";
@@ -382,10 +383,20 @@ function Router() {
       <Route path="/workflows/:id">
         {() => <ProtectedRoute component={WorkflowBuilderPage} />}
       </Route>
-      <Route component={NotFound} />
       <Route path="/extraction/spreadsheet">
         {() => <ProtectedRoute component={SpreadsheetCellParse} />}
       </Route>
+
+      {/* Manuscript Editor Routes */}
+      <Route path="/manuscripts/new">
+        {() => <ProtectedRoute component={ManuscriptEditorPage} />}
+      </Route>
+      <Route path="/manuscripts/:id">
+        {() => <ProtectedRoute component={ManuscriptEditorPage} />}
+      </Route>
+
+      {/* 404 catch-all - must be last */}
+      <Route component={NotFound} />
     </Switch>
   );
 }

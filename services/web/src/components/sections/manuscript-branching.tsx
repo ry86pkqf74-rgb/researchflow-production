@@ -1,4 +1,6 @@
 import { useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,8 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { GitBranch, Plus, Share2, Calendar, Zap, FileText, BarChart3, FolderOpen, BookOpen } from "lucide-react";
+import { GitBranch, Plus, Share2, Calendar, Zap, FileText, BarChart3, FolderOpen, BookOpen, Loader2, Edit3 } from "lucide-react";
 import { motion } from "framer-motion";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ManuscriptBranch {
   id: number;
@@ -26,7 +29,8 @@ interface ManuscriptIsolatedState {
   analysisComplete: boolean;
 }
 
-const manuscripts: ManuscriptBranch[] = [
+// Fallback demo data when API is unavailable
+const DEMO_MANUSCRIPTS: ManuscriptBranch[] = [
   {
     id: 0,
     title: "Thyroid-CV Study",
@@ -55,6 +59,20 @@ const manuscripts: ManuscriptBranch[] = [
     authors: 5
   }
 ];
+
+// Helper to format relative time
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffHours < 1) return "Just now";
+  if (diffHours < 24) return `${diffHours} hours ago`;
+  if (diffDays === 1) return "Yesterday";
+  return `${diffDays} days ago`;
+}
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -116,9 +134,41 @@ export function ManuscriptBranching() {
   const [compareMode, setCompareMode] = useState(false);
   const [selectedForComparison, setSelectedForComparison] = useState<number[]>([]);
   const [activeTab, setActiveTab] = useState("tab-0");
-  
+
   // Per-manuscript isolated state - each tab maintains separate journal selection, stats outputs, and export folders
   const [manuscriptStates, setManuscriptStates] = useState<Record<number, ManuscriptIsolatedState>>(INITIAL_MANUSCRIPT_STATES);
+
+  // Fetch manuscripts from API
+  const { data: apiManuscripts, isLoading, error } = useQuery({
+    queryKey: ["manuscripts"],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest("GET", "/api/ros/manuscripts");
+        const data = await res.json();
+        // Transform API response to component format
+        return data.manuscripts?.map((m: any, index: number) => ({
+          id: index,
+          apiId: m.id, // Keep the real API ID for navigation
+          title: m.title || m.name || `Manuscript ${index + 1}`,
+          status: m.status === "approved" ? "Submitted" : m.status === "review" ? "In Review" : "Draft",
+          progress: m.progress || (m.status === "approved" ? 100 : m.status === "review" ? 75 : 50),
+          stage: m.currentStage || m.stage || "Draft",
+          lastModified: m.updatedAt ? formatRelativeTime(m.updatedAt) : "Recently",
+          authors: m.collaborators?.length || m.authors || 1,
+        })) || [];
+      } catch (e) {
+        console.warn("[ManuscriptBranching] API fetch failed, using demo data");
+        return null;
+      }
+    },
+    staleTime: 30000, // Cache for 30 seconds
+    retry: 1,
+  });
+
+  // Use API data if available, otherwise fall back to demo data
+  const manuscripts: ManuscriptBranch[] = apiManuscripts && apiManuscripts.length > 0
+    ? apiManuscripts
+    : DEMO_MANUSCRIPTS;
 
   const toggleComparison = (id: number) => {
     setSelectedForComparison((prev) => {
@@ -175,8 +225,18 @@ export function ManuscriptBranching() {
           <div className="flex items-center gap-3">
             <GitBranch className="h-5 w-5 text-ros-workflow" />
             <span className="text-sm font-medium text-muted-foreground">
-              {manuscripts.length} Active Branches
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading...
+                </span>
+              ) : (
+                `${manuscripts.length} Active Branches`
+              )}
             </span>
+            {!apiManuscripts && !isLoading && (
+              <Badge variant="outline" className="text-xs">Demo Data</Badge>
+            )}
           </div>
           <div className="flex gap-2">
             <Button
@@ -189,14 +249,16 @@ export function ManuscriptBranching() {
               <Share2 className="h-4 w-4 mr-2" />
               Compare View
             </Button>
-            <Button
-              size="sm"
-              className="bg-ros-workflow text-white border-ros-workflow-border"
-              data-testid="button-create-branch"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create New Branch
-            </Button>
+            <Link href="/manuscripts/new">
+              <Button
+                size="sm"
+                className="bg-ros-workflow text-white border-ros-workflow-border"
+                data-testid="button-create-branch"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create New Branch
+              </Button>
+            </Link>
           </div>
         </motion.div>
 
@@ -354,6 +416,19 @@ export function ManuscriptBranching() {
                               </div>
                             </div>
                           </div>
+
+                          {/* Edit Manuscript Button */}
+                          <Link href={`/manuscripts/${(manuscript as any).apiId || manuscript.id}`}>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="w-full bg-ros-primary hover:bg-ros-primary/90"
+                              data-testid={`button-edit-manuscript-${index}`}
+                            >
+                              <Edit3 className="h-4 w-4 mr-2" />
+                              Edit Manuscript
+                            </Button>
+                          </Link>
 
                           {compareMode && (
                             <Button

@@ -87,6 +87,8 @@ import collaborationExportRoutes from './routes/collaborationExport';
 import sapRoutes from './routes/sap';
 import researchBriefRoutes from './routes/research-brief';
 import integrationsRoutes from './routes/integrations';
+import aiInsightsRoutes from './routes/ai-insights';
+import manuscriptGenerationRoutes from './routes/manuscript-generation';
 import sharesRoutes from './routes/shares';
 import topicsRoutes from './routes/topics';
 import analyticsRoutes from './routes/analytics';
@@ -232,6 +234,8 @@ app.use('/api/collaboration/export', collaborationExportRoutes);  // Yjs documen
 app.use('/api/ros/sap', sapRoutes);  // Statistical Analysis Plan
 app.use('/api/ros/research-brief', researchBriefRoutes);  // Research brief generation
 app.use('/api/integrations/external', integrationsRoutes);  // External integrations
+app.use('/api/ai', aiInsightsRoutes);  // AI Insights endpoints (research-brief, evidence-gap-map, study-cards, decision-matrix)
+app.use('/api/manuscript', manuscriptGenerationRoutes);  // Manuscript generation (IMRaD sections)
 app.use('/api/shares', sharesRoutes);  // Document sharing
 app.use('/api/topics', topicsRoutes);  // Topic management
 app.use('/api/analytics', analyticsRoutes);  // Analytics events
@@ -351,6 +355,14 @@ httpServer.listen(PORT, () => {
   console.log('  ✓ SAP & Research Briefs');
   console.log('  ✓ Document Sharing');
   console.log('  ✓ Topics & Analytics');
+  console.log('='.repeat(60));
+  console.log('AI Insights & Manuscript: ACTIVE');
+  console.log('  ✓ AI Research Brief Generation');
+  console.log('  ✓ Evidence Gap Map Analysis');
+  console.log('  ✓ Study Card Generation');
+  console.log('  ✓ Decision Matrix Ranking');
+  console.log('  ✓ Manuscript IMRaD Generation');
+  console.log('  ✓ Section Validation & Budgets');
   console.log('='.repeat(60));
 });
 
