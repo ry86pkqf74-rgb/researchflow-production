@@ -116,7 +116,38 @@ export type StatisticalAnalysisResponse = z.infer<typeof StatisticalAnalysisResp
 
 /**
  * Topic recommendations schema
+ *
+ * The recommendations are organized by PICO fields (population, intervention, etc.)
+ * Each field contains an array of recommendations with type, suggestion, reasoning, and priority.
  */
+export const TopicRecommendationItemSchema = z.object({
+  type: z.enum(['refine', 'narrow', 'expand']).or(z.string()),
+  suggestion: z.string(),
+  reasoning: z.string(),
+  priority: z.enum(['high', 'medium', 'low']).or(z.string()),
+});
+
+export const OverallAssessmentSchema = z.object({
+  strength: z.enum(['weak', 'moderate', 'strong']).or(z.string()),
+  summary: z.string(),
+  improvementPotential: z.string().optional(),
+});
+
+export const TopicRecommendationsResponseSchema = z.object({
+  overallAssessment: OverallAssessmentSchema.optional(),
+  recommendations: z.object({
+    population: z.array(TopicRecommendationItemSchema).optional().default([]),
+    intervention: z.array(TopicRecommendationItemSchema).optional().default([]),
+    comparator: z.array(TopicRecommendationItemSchema).optional().default([]),
+    outcomes: z.array(TopicRecommendationItemSchema).optional().default([]),
+    timeframe: z.array(TopicRecommendationItemSchema).optional().default([]),
+  }),
+  authorizedBy: z.string().optional(),
+  generatedAt: z.string().optional(),
+  status: z.string().optional(),
+});
+
+// Legacy schema for backwards compatibility
 export const TopicRecommendationSchema = z.object({
   id: z.string().or(z.number()),
   title: z.string(),
@@ -127,11 +158,8 @@ export const TopicRecommendationSchema = z.object({
   impact: z.enum(['high', 'medium', 'low']).or(z.string()).optional(),
 });
 
-export const TopicRecommendationsResponseSchema = z.object({
-  recommendations: z.array(TopicRecommendationSchema),
-  totalCount: z.number().optional(),
-});
-
+export type TopicRecommendationItem = z.infer<typeof TopicRecommendationItemSchema>;
+export type OverallAssessment = z.infer<typeof OverallAssessmentSchema>;
 export type TopicRecommendation = z.infer<typeof TopicRecommendationSchema>;
 export type TopicRecommendationsResponse = z.infer<typeof TopicRecommendationsResponseSchema>;
 
