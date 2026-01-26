@@ -44,6 +44,18 @@ services:
       - AI_INTEGRATIONS_ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       # NLM/NCBI for MeSH term enrichment
       - NCBI_API_KEY=${NCBI_API_KEY}
+      # Literature Integration
+      - SEMANTIC_SCHOLAR_API_KEY=${SEMANTIC_SCHOLAR_API_KEY}
+      - LITERATURE_CACHE_TTL=${LITERATURE_CACHE_TTL:-3600}
+      # PHI Governance
+      - PHI_SCAN_ENABLED=${PHI_SCAN_ENABLED:-true}
+      - PHI_FAIL_CLOSED=${PHI_FAIL_CLOSED:-true}
+      # Analytics (Phase F)
+      - ANALYTICS_IP_SALT=${ANALYTICS_IP_SALT:-dev-salt-change-in-production}
+      # Webhooks
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - ZOOM_WEBHOOK_SECRET_TOKEN=${ZOOM_WEBHOOK_SECRET_TOKEN}
+      - ZOOM_VERIFICATION_TOKEN=${ZOOM_VERIFICATION_TOKEN}
     depends_on:
       postgres:
         condition: service_healthy
@@ -84,7 +96,9 @@ services:
     environment:
       - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
       - REDIS_URL=redis://redis:6379
+      # Support both naming conventions for backwards compatibility
       - ARTIFACT_PATH=/data/artifacts
+      - ARTIFACTS_PATH=/data/artifacts
       - LOG_PATH=/data/logs
       - GOVERNANCE_MODE=LIVE
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -95,6 +109,12 @@ services:
       - ORCHESTRATOR_URL=http://orchestrator:3001
       - EXTRACTION_TIMEOUT_SECONDS=60
       - ENRICHMENT_TIMEOUT_SECONDS=30
+      # PHI Governance
+      - PHI_SCAN_ENABLED=${PHI_SCAN_ENABLED:-true}
+      - PHI_FAIL_CLOSED=${PHI_FAIL_CLOSED:-true}
+      # Conference Preparation (Stage 20)
+      - CONFERENCE_CACHE_TTL=${CONFERENCE_CACHE_TTL:-86400}
+      - ENABLE_WEB_SEARCH=${ENABLE_WEB_SEARCH:-false}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -125,6 +145,8 @@ services:
       target: production
       args:
         - VITE_WS_URL=ws://localhost:1234
+        - VITE_API_BASE_URL=http://localhost:3001
+        - VITE_COLLAB_URL=ws://localhost:1234
     ports:
       - "5173:80"
     logging:
@@ -132,6 +154,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    environment:
+      - VITE_SENTRY_DSN=${VITE_SENTRY_DSN:-}
     depends_on:
       - orchestrator
     networks:
