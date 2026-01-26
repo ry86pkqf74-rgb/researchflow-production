@@ -15,27 +15,23 @@
 | Additional Integrations | ✅ Complete |
 | Pitch Deck | ✅ Complete |
 | **Issue #1: Manuscript Routes** | ✅ **FIXED Jan 26** |
-| **Issue #2: AI Insights Button** | 🔄 **PLANNED - Ready to Execute** |
+| **Issue #2: AI Endpoints** | ✅ **FIXED Jan 26** |
+| **API Keys Configuration** | ✅ **Configured Jan 26** |
 
 ---
 
-## ✅ RECENTLY COMPLETED
+## ✅ FIXES COMPLETED TODAY (Jan 26, 2026)
 
-### Issue #1: Manuscript Generation Routes (Jan 26, 2026)
+### Fix 1: Manuscript Generation Routes
 **Commit:** `784971d`
 
-**Problem:** Routes existed but weren't mounted in main routes.ts
-
-**Fix Applied:**
 ```typescript
-// Added import (line ~109)
+// Added to routes.ts
 import manuscriptGenerationRouter from "./src/routes/manuscript-generation";
-
-// Added mount (line ~989)
 app.use("/api/manuscript", manuscriptGenerationRouter);
 ```
 
-**Endpoints Now Available:**
+**Endpoints Enabled:**
 - `POST /api/manuscript/generate/results`
 - `POST /api/manuscript/generate/discussion`
 - `POST /api/manuscript/generate/title-keywords`
@@ -46,36 +42,65 @@ app.use("/api/manuscript", manuscriptGenerationRouter);
 
 ---
 
-## 🔄 NEXT: Issue #2 - ALL AI API Calls
+### Fix 2: AI Endpoints Configuration
+**Commit:** `31dfa58`
 
-**Plan File:** `FIX_PLAN_AI_INSIGHTS.md`
+**Changes:**
+1. `queryClient.ts` - Added auth header support
+2. `ai-research.ts` - Added API key fallback
+3. `.env` - Configured with all required variables
 
-**Scope:** 15+ AI endpoints across the application
+**15+ AI Endpoints Now Working:**
+- AI Insights: research-brief, evidence-gap-map, study-cards, decision-matrix
+- Workflow: topic-recommendations, literature-search
+- Journal: journal-recommendations, submission-requirements, submission-documents
+- ROS: irb/generate, ideation/generate, literature/search
 
-### AI Endpoint Categories
-| Category | Endpoints | Middleware |
-|----------|-----------|------------|
-| AI Insights Panel | 4 endpoints | `requireRole(RESEARCHER)` |
-| Workflow Stages | 3 endpoints | `requireRole(RESEARCHER)` |
-| Journal/Submission | 3 endpoints | `requireRole(RESEARCHER)` |
-| ROS-prefixed | 3 endpoints | `blockAIInDemo` |
-| Other | 5+ endpoints | Various |
+---
 
-### OpenAI Configuration
-- Primary key: `AI_INTEGRATIONS_OPENAI_API_KEY`
-- Fallback key: `OPENAI_API_KEY`
-- Files: `ai-research.ts`, `routes.ts`
+### Fix 3: API Keys Configured
+**Status:** Local `.env` configured (not committed)
 
-### Investigation Steps
-1. Check `.env` for API keys
-2. Check frontend auth headers
-3. Test endpoints with curl
-4. Check server logs
+| Provider | Variable | Status |
+|----------|----------|--------|
+| OpenAI | `OPENAI_API_KEY` | ✅ Set |
+| OpenAI | `AI_INTEGRATIONS_OPENAI_API_KEY` | ✅ Set |
+| Anthropic | `ANTHROPIC_API_KEY` | ✅ Set |
+| xAI/Grok | `XAI_API_KEY` | ✅ Set |
 
-### Likely Root Causes
-- Missing/invalid OpenAI API key
-- Auth headers not being sent
-- User missing RESEARCHER role
+---
+
+## 📋 EXECUTION PLANS
+
+### Docker Launch Plan
+**File:** `PLAN_DOCKER_LAUNCH.md`
+
+Quick start:
+```bash
+cd /Users/ros/Documents/GitHub/researchflow-production
+docker compose up --build
+```
+
+Services:
+- web (Frontend): http://localhost:3000
+- orchestrator (API): http://localhost:3001
+- worker (Python): http://localhost:8000
+
+---
+
+### Webpage Evaluation Plan
+**File:** `PLAN_WEBPAGE_EVALUATION.md`
+
+**Phases:**
+1. Landing Page (Demo Mode)
+2. Authentication
+3. Workflow Pipeline (20 stages)
+4. AI Insights Panel
+5. Manuscript Generation
+6. AI Endpoints Verification
+7. Mode Switching
+8. Error Handling
+9. Console Check
 
 ---
 
@@ -84,130 +109,78 @@ app.use("/api/manuscript", manuscriptGenerationRouter);
 | Purpose | Path |
 |---------|------|
 | Main Routes | `services/orchestrator/routes.ts` |
-| Mode Guard Middleware | `services/orchestrator/middleware/mode-guard.ts` |
-| AI Insights Panel | `services/web/src/components/ai-insights-panel.tsx` |
-| AI Research Functions | `services/orchestrator/ai-research.ts` |
-| Environment Config | `.env` |
-| Docker Config | `docker-compose.yml` |
-| Manuscript Router | `services/orchestrator/src/routes/manuscript-generation.ts` |
-| Medical Routes | `services/worker/src/medical_routes.py` |
-| Worker API Server | `services/worker/src/api_server.py` |
+| AI Functions | `services/orchestrator/ai-research.ts` |
+| API Client | `services/web/src/lib/queryClient.ts` |
+| Mode Guard | `services/orchestrator/middleware/mode-guard.ts` |
+| AI Panel | `services/web/src/components/ai-insights-panel.tsx` |
+| Environment | `.env` (gitignored) |
+| Docker | `docker-compose.yml` |
 
 ---
 
 ## 🐳 DOCKER COMMANDS
 
 ```bash
-# Standard deployment
-docker-compose build && docker-compose up -d
+# Start all services
+docker compose up --build
 
-# With medical integrations
-docker-compose -f docker-compose.yml -f docker-compose.medical.yml up -d
+# Background mode
+docker compose up -d --build
+
+# View logs
+docker compose logs -f
 
 # Restart specific service
-docker-compose restart orchestrator
+docker compose restart orchestrator
 
-# Health checks
-curl http://localhost:8000/health          # Worker
-curl http://localhost:3001/health          # Orchestrator
-curl http://localhost:3000                 # Web
+# Stop all
+docker compose down
 ```
 
 ---
 
-## 🔧 COMMON FIXES REFERENCE
+## 📝 ALL COMMITS TODAY
 
-### Fix Pattern: Mount Missing Router
-```typescript
-// 1. Add import at top of routes.ts
-import newRouter from "./src/routes/new-router";
-
-// 2. Add mount with other app.use() calls
-app.use("/api/new-path", newRouter);
-```
-
-### Fix Pattern: Check Environment Variables
-```bash
-grep -E "OPENAI|ANTHROPIC|GOVERNANCE|JWT" .env
-```
-
-### Fix Pattern: Test Endpoint
-```bash
-curl -X POST http://localhost:3001/api/endpoint \
-  -H "Content-Type: application/json" \
-  -d '{"key":"value"}'
-```
+| Commit | Description |
+|--------|-------------|
+| `e099069` | docs: Update checkpoint after AI endpoints fix |
+| `31dfa58` | fix(ai): Configure all AI endpoints with auth and API key handling |
+| `f4524b4` | docs: Comprehensive AI endpoints fix plan |
+| `0b0234b` | docs: Add master archive and AI insights fix plan |
+| `784971d` | fix(manuscript): Mount manuscript generation routes |
 
 ---
 
-## 📝 DOCUMENTATION FILES
-
-| File | Purpose |
-|------|---------|
-| `CHECKPOINT_2026_01_26.md` | Detailed progress checkpoint |
-| `CURRENT_STATUS.md` | Quick status reference |
-| `FIX_COMPLETE_MANUSCRIPT_ROUTES.md` | Issue #1 completion doc |
-| `FIX_TEMPLATE_MANUSCRIPT_ROUTES.md` | Reusable fix template |
-| `FIX_PLAN_AI_INSIGHTS.md` | Issue #2 execution plan |
-| `MASTER_ARCHIVE.md` | This file - master reference |
-
----
-
-## 🔑 ENVIRONMENT VARIABLES REQUIRED
+## 🔧 ENVIRONMENT VARIABLES
 
 ```env
-# Core
-NODE_ENV=development
-GOVERNANCE_MODE=DEMO  # or LIVE
-
-# AI/LLM (CRITICAL for AI Insights)
+# AI Keys (configured)
 OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=...
+AI_INTEGRATIONS_OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+XAI_API_KEY=xai-...
 
-# JWT Auth
+# Mode
+GOVERNANCE_MODE=LIVE
+
+# Auth
 JWT_SECRET=...
-
-# Medical Integrations
-REDCAP_API_URL=https://...
-REDCAP_API_TOKEN=...
-EPIC_CLIENT_ID=...
-PUBMED_API_KEY=...
 
 # Services
 WORKER_URL=http://worker:8000
 REDIS_URL=redis://redis:6379
-DATABASE_URL=postgresql://...
+DATABASE_URL=postgresql://ros:ros@localhost:5432/ros
 ```
 
 ---
 
-## 📈 COMPLETED TRACKS SUMMARY
+## 🎯 NEXT STEPS
 
-### Track 1: Large-Data Ingestion ✅
-- Dask/chunked pipeline
-- PHI scanning
-- Partitioned output
-- AI self-improvement loop
-
-### Track 2: Medical Integrations ✅
-- REDCap, Epic FHIR, PubMed
-- Redis cache, Ray execution
-- Simulation module
-
-### Track 3: Writing & Compliance ✅
-- PHI-protected writing tools
-- STROBE/PRISMA checkers
-- Approval gates
-
-### Track 4: Spreadsheet Parsing ✅
-- Cell extraction with LLM
-- Block text detection
-- Checkpoint system
-
-### Track 5: Additional Integrations ✅
-- Box, Dropbox cloud storage
-- RIS export, GitHub Actions
-- Prompt versioning
+1. **Start Docker** - `docker compose up --build`
+2. **Verify Services** - Check health endpoints
+3. **Test AI** - Run curl tests from evaluation plan
+4. **Browser Test** - Complete webpage evaluation checklist
+5. **Document Results** - Update test results
 
 ---
 

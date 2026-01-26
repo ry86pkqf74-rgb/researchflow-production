@@ -3,63 +3,68 @@
 
 ---
 
-## ✅ ISSUES FIXED TODAY
+## ✅ ALL CODE FIXES COMPLETE
 
-| Issue | Status | Action Required |
-|-------|--------|-----------------|
-| Manuscript generation routes | ✅ COMPLETE | None |
-| AI API endpoints configuration | ✅ CODE FIXED | **Add OpenAI API key to .env** |
+| Issue | Commit | Status |
+|-------|--------|--------|
+| Manuscript Routes | `784971d` | ✅ Complete |
+| AI Endpoints | `31dfa58` | ✅ Complete |
+| API Keys | Local `.env` | ✅ Configured |
 
 ---
 
-## ⚠️ USER ACTION REQUIRED
+## 📋 PLANS READY FOR EXECUTION
 
-### Add Your OpenAI API Key
+| Plan | File | Purpose |
+|------|------|---------|
+| Docker Launch | `PLAN_DOCKER_LAUNCH.md` | Start all services correctly |
+| Webpage Evaluation | `PLAN_WEBPAGE_EVALUATION.md` | Test all functionality |
 
+---
+
+## 🚀 NEXT STEPS
+
+### Step 1: Launch Docker
 ```bash
-# Edit .env and add:
-OPENAI_API_KEY=sk-your-actual-api-key-here
-
-# Then restart:
-docker-compose restart orchestrator
+cd /Users/ros/Documents/GitHub/researchflow-production
+docker compose up --build
 ```
 
-Get key from: https://platform.openai.com/api-keys
-
----
-
-## Code Fixes Applied
-
-### 1. Environment Configuration (`.env`)
-- Added all required variables with defaults
-- `GOVERNANCE_MODE=LIVE` enables real AI calls
-- `JWT_SECRET` configured for auth
-
-### 2. Auth Headers (`queryClient.ts`)
-- `apiRequest()` now sends Authorization header
-- Tokens retrieved from auth store/localStorage
-
-### 3. API Key Fallback (`ai-research.ts`)
-- Checks both `AI_INTEGRATIONS_OPENAI_API_KEY` and `OPENAI_API_KEY`
-- Logs warning when key is missing
-
----
-
-## Quick Test Commands
-
+### Step 2: Verify Services
 ```bash
-# After adding API key, test:
+curl http://localhost:3000        # Frontend
+curl http://localhost:3001/health # API
+curl http://localhost:8000/health # Worker
+```
+
+### Step 3: Test AI
+```bash
 curl -X POST http://localhost:3001/api/ai/research-brief \
   -H "Content-Type: application/json" \
-  -d '{"topic":"diabetes management"}'
-
-# Check for API key warning:
-docker-compose logs orchestrator | grep "OpenAI"
+  -d '{"topic":"diabetes telemedicine"}'
 ```
+
+### Step 4: Browser Testing
+- Open http://localhost:3000
+- Login with admin credentials
+- Test workflow stages
+- Test AI Insights buttons
 
 ---
 
-## Documentation Files
-- `FIX_COMPLETE_AI_ENDPOINTS.md` - Full fix details
-- `FIX_COMPLETE_MANUSCRIPT_ROUTES.md` - Manuscript fix details
-- `MASTER_ARCHIVE.md` - Complete project archive
+## 📁 Key Documentation
+
+| File | Purpose |
+|------|---------|
+| `PLAN_DOCKER_LAUNCH.md` | Docker startup guide |
+| `PLAN_WEBPAGE_EVALUATION.md` | Comprehensive test plan |
+| `FIX_COMPLETE_AI_ENDPOINTS.md` | AI fix details |
+| `FIX_COMPLETE_MANUSCRIPT_ROUTES.md` | Manuscript fix details |
+| `MASTER_ARCHIVE.md` | Full project archive |
+
+---
+
+## ⚠️ SECURITY REMINDER
+
+API keys are configured in `.env` (not committed to git).
+**Rotate these keys after this session if used elsewhere.**
