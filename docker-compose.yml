@@ -12,6 +12,34 @@
 
 services:
   # ===================
+  # Database Migrations (runs once before other services)
+  # ===================
+  migrate:
+    image: postgres:16-alpine
+    environment:
+      - PGHOST=postgres
+      - PGUSER=${POSTGRES_USER:-ros}
+      - PGPASSWORD=${POSTGRES_PASSWORD:-ros}
+      - PGDATABASE=${POSTGRES_DB:-ros}
+    volumes:
+      - ./migrations:/migrations:ro
+    networks:
+      - researchflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    command: >
+      sh -c '
+        echo "=== Running database migrations ===" &&
+        for f in /migrations/*.sql; do
+          echo "Applying migration: $$f" &&
+          psql -f "$$f" || echo "Warning: Migration $$f may have already been applied"
+        done &&
+        echo "=== Migrations complete ==="
+      '
+
+  # ===================
   # Orchestrator - Node.js API
   # ===================
   orchestrator:
@@ -57,6 +85,8 @@ services:
       - ZOOM_WEBHOOK_SECRET_TOKEN=${ZOOM_WEBHOOK_SECRET_TOKEN}
       - ZOOM_VERIFICATION_TOKEN=${ZOOM_VERIFICATION_TOKEN}
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
