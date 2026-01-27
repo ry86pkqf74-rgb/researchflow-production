@@ -80,7 +80,7 @@ pre_commit==4.5.1
 protobuf==6.33.2
 py-serializable==2.1.0
 pyarrow==22.0.0
-pyasn1==0.6.1
+pyasn1==0.6.2
 pycparser==2.23
 pydantic==2.12.5
 pydantic_core==2.41.5
