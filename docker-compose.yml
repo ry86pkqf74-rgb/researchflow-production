@@ -82,6 +82,11 @@ services:
       # Chat Agents
       - CHAT_AGENT_MODEL=${CHAT_AGENT_MODEL:-gpt-4}
       - CHAT_AGENT_PROVIDER=${CHAT_AGENT_PROVIDER:-openai}
+      - CHAT_AGENT_ENABLED=${CHAT_AGENT_ENABLED:-true}
+      # Dashboard features (from commit 2b65a72)
+      - DASHBOARD_ENABLED=${DASHBOARD_ENABLED:-true}
+      - DASHBOARD_CALENDAR_INTEGRATION=${DASHBOARD_CALENDAR_INTEGRATION:-true}
+      - DASHBOARD_REFRESH_INTERVAL=${DASHBOARD_REFRESH_INTERVAL:-5000}
       # Analytics (Phase F)
       - ANALYTICS_IP_SALT=${ANALYTICS_IP_SALT:-dev-salt-change-in-production}
       # Webhooks
@@ -153,6 +158,11 @@ services:
       - ENABLE_WEB_SEARCH=${ENABLE_WEB_SEARCH:-false}
       # Version Control (Phase 5.5)
       - PROJECTS_PATH=/data/projects
+      # CSV parsing strict mode (from commit d22b229)
+      - DATA_PARSE_STRICT=${DATA_PARSE_STRICT:-true}
+      # Chat agent configuration (from commit 15faea0)
+      - CHAT_AGENT_MODEL=${CHAT_AGENT_MODEL:-gpt-4}
+      - CHAT_AGENT_ENABLED=${CHAT_AGENT_ENABLED:-true}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

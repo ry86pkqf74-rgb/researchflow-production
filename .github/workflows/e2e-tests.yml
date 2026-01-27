@@ -1,0 +1,180 @@
+# =============================================================================
+# E2E Tests Workflow
+# =============================================================================
+# Runs Playwright E2E tests against the full application stack
+# Triggered on push to main/develop and on PRs to main
+
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      # Note: We use docker compose for the full stack,
+      # but these are available if needed for isolated tests
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: ros
+          POSTGRES_PASSWORD: ros
+          POSTGRES_DB: ros
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Create .env file
+        run: |
+          cp .env.example .env
+          echo "" >> .env
+          echo "# CI Override" >> .env
+          echo "GOVERNANCE_MODE=DEMO" >> .env
+          echo "JWT_SECRET=ci-test-secret-minimum-32-characters-required" >> .env
+          echo "AUTH_ALLOW_STATELESS_JWT=true" >> .env
+          echo "DASHBOARD_ENABLED=true" >> .env
+          echo "CHAT_AGENT_ENABLED=false" >> .env
+          echo "DATABASE_URL=postgresql://ros:ros@localhost:5432/ros" >> .env
+          echo "REDIS_URL=redis://localhost:6379" >> .env
+
+      - name: Run database migrations
+        run: |
+          for f in migrations/*.sql; do
+            PGPASSWORD=ros psql -h localhost -U ros -d ros -f "$f" 2>/dev/null || true
+          done
+
+      - name: Build and start services
+        run: |
+          docker compose build --no-cache orchestrator worker web
+          docker compose up -d postgres redis
+          sleep 10
+          docker compose up -d orchestrator worker web
+          sleep 45
+
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting for orchestrator..."
+          timeout 120 bash -c 'until curl -sf http://localhost:3001/health; do sleep 3; done'
+          echo "Orchestrator healthy!"
+
+          echo "Waiting for worker..."
+          timeout 120 bash -c 'until curl -sf http://localhost:8000/health; do sleep 3; done'
+          echo "Worker healthy!"
+
+          echo "Waiting for web..."
+          timeout 60 bash -c 'until curl -sf http://localhost:5173; do sleep 3; done'
+          echo "Web healthy!"
+
+      - name: Run Playwright tests
+        run: npx playwright test --reporter=list
+        env:
+          CI: true
+          BASE_URL: http://localhost:5173
+          API_URL: http://localhost:3001
+          PLAYWRIGHT_BASE_URL: http://localhost:5173
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+      - name: Upload test screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-screenshots
+          path: test-results/
+          retention-days: 7
+
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          echo "=== Orchestrator Logs ==="
+          docker compose logs orchestrator --tail=100
+          echo "=== Worker Logs ==="
+          docker compose logs worker --tail=100
+          echo "=== Web Logs ==="
+          docker compose logs web --tail=50
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v
+
+  # Quick smoke test for health endpoints
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: e2e-tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create .env
+        run: cp .env.example .env
+
+      - name: Start services
+        run: |
+          docker compose up -d
+          sleep 60
+
+      - name: Health checks
+        run: |
+          echo "Checking orchestrator..."
+          curl -sf http://localhost:3001/health | jq .
+
+          echo "Checking worker..."
+          curl -sf http://localhost:8000/health | jq .
+
+          echo "All services healthy!"
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
