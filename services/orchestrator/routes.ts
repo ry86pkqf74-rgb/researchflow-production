@@ -3252,6 +3252,143 @@ export async function registerRoutes(
         const currentIndex = allStages.findIndex(s => s.id === stageId);
         const nextStage = allStages[currentIndex + 1];
 
+        // Build comprehensive full IRB application draft as a single flowing document
+        const fullIRBDocument = `
+================================================================================
+                    INSTITUTIONAL REVIEW BOARD APPLICATION
+================================================================================
+
+PROTOCOL TITLE
+------------------------------------------------------------------------------
+${irbResult.protocolTitle || "Protocol title pending"}
+
+================================================================================
+                              STUDY SUMMARY
+================================================================================
+
+${irbResult.studySummary || "Summary pending"}
+
+================================================================================
+                         BACKGROUND AND RATIONALE
+================================================================================
+
+${irbResult.background || "Background pending"}
+
+================================================================================
+                            STUDY OBJECTIVES
+================================================================================
+
+PRIMARY OBJECTIVE:
+${irbResult.objectives?.primary || "To be defined"}
+
+SECONDARY OBJECTIVES:
+${(irbResult.objectives?.secondary || []).map((s, i) => `${i + 1}. ${s}`).join("\n")}
+
+================================================================================
+                             STUDY DESIGN
+================================================================================
+
+Design Type: ${irbResult.studyDesign?.designType || "Retrospective cohort study"}
+
+Duration: ${irbResult.studyDesign?.duration || "To be determined"}
+
+Setting: ${irbResult.studyDesign?.setting || "Healthcare institution"}
+
+${irbResult.studyDesign?.phases ? `Study Phases:\n${irbResult.studyDesign.phases.map((p, i) => `Phase ${i + 1}: ${p}`).join("\n")}` : ""}
+
+================================================================================
+                           STUDY POPULATION
+================================================================================
+
+INCLUSION CRITERIA:
+${(irbResult.population?.inclusion || []).map(c => `• ${c}`).join("\n")}
+
+EXCLUSION CRITERIA:
+${(irbResult.population?.exclusion || []).map(c => `• ${c}`).join("\n")}
+
+ESTIMATED SAMPLE SIZE: ${irbResult.population?.estimatedSize || "To be determined based on power analysis"}
+
+================================================================================
+                          DATA COLLECTION
+================================================================================
+
+Data Sources:
+${(irbResult.dataCollection?.sources || ["Electronic health records"]).map(s => `• ${s}`).join("\n")}
+
+Variables of Interest:
+${(irbResult.dataCollection?.variables || ["Primary outcomes", "Secondary outcomes", "Covariates"]).map(v => `• ${v}`).join("\n")}
+
+Data Collection Methods:
+${(irbResult.dataCollection?.methods || ["Retrospective chart review"]).map(m => `• ${m}`).join("\n")}
+
+================================================================================
+                           RISK ASSESSMENT
+================================================================================
+
+OVERALL RISK LEVEL: ${(irbResult.riskAssessment?.riskLevel || "minimal").toUpperCase()}
+
+POTENTIAL RISKS TO PARTICIPANTS:
+${(irbResult.riskAssessment?.risks || ["Minimal risk - retrospective data analysis only"]).map(r => `• ${r}`).join("\n")}
+
+RISK MITIGATION STRATEGIES:
+${(irbResult.riskAssessment?.mitigations || ["Standard data security protocols"]).map(m => `• ${m}`).join("\n")}
+
+================================================================================
+                        INFORMED CONSENT
+================================================================================
+
+CONSENT TYPE: ${irbResult.consentConsiderations?.consentType || "To be determined"}
+
+${irbResult.consentConsiderations?.waiverJustification ? `WAIVER OF CONSENT JUSTIFICATION:
+${irbResult.consentConsiderations.waiverJustification}
+
+` : ""}CONSENT PROCESS:
+${irbResult.consentConsiderations?.consentProcess || "To be determined based on study design and institutional requirements"}
+
+================================================================================
+                      PRIVACY AND CONFIDENTIALITY
+================================================================================
+
+DATA PROTECTION MEASURES:
+
+${(irbResult.privacyProtection || [
+  "All data will be de-identified before analysis",
+  "Data will be stored on secure, encrypted servers",
+  "Access limited to authorized research personnel only",
+  "Compliance with HIPAA regulations"
+]).map(p => `• ${p}`).join("\n")}
+
+================================================================================
+                           LIMITATIONS
+================================================================================
+
+${(irbResult.limitations || [
+  "Retrospective design limits causal inference",
+  "Potential for selection bias",
+  "Relies on accuracy of medical records"
+]).map((l, i) => `${i + 1}. ${l}`).join("\n")}
+
+================================================================================
+                           REFERENCES
+================================================================================
+
+[References to be added based on literature review]
+
+================================================================================
+                     INVESTIGATOR ATTESTATION
+================================================================================
+
+I certify that the information provided in this IRB application is accurate
+and complete. I agree to conduct this research in accordance with all
+applicable federal, state, and institutional regulations.
+
+Principal Investigator: _____________________________  Date: ____________
+
+================================================================================
+                        END OF IRB APPLICATION
+================================================================================
+`.trim();
+
         return res.json({
           stageId,
           stageName: stage.name,
@@ -3260,6 +3397,11 @@ export async function registerRoutes(
           aiPowered: true,
           summary: `AI-powered IRB proposal generated. Risk level: ${irbResult.riskAssessment?.riskLevel || 'minimal'}. Ready for institutional review.`,
           outputs: [
+            {
+              title: "📋 Complete IRB Application Draft",
+              content: fullIRBDocument,
+              type: "document"
+            },
             {
               title: "Protocol Title",
               content: irbResult.protocolTitle || "Protocol title pending",
