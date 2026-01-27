@@ -137,6 +137,8 @@ import aiExtractionRouter from "./src/routes/ai-extraction";
 import analysisExecutionRouter from "./src/routes/analysis-execution";
 import spreadsheetCellParseRouter from "./src/routes/spreadsheet-cell-parse";
 import { aiProvidersRouter } from "./src/routes/aiProviders";
+import cumulativeDataRouter from "./src/routes/cumulative-data";
+import { getCumulativeDataService, WORKFLOW_STAGES } from "./src/services/cumulative-data.service";
 import { scan as scanPhi } from "@researchflow/phi-engine";
 
 // Initialize OpenAI client
@@ -1051,6 +1053,9 @@ export async function registerRoutes(
 
   // Projects API - Multi-project organization
   app.use("/api/projects", projectsRouter);
+
+  // Cumulative Data API - Stage data flow for LIVE mode
+  app.use("/api/cumulative", cumulativeDataRouter);
 
   // Mode information endpoint - publicly accessible
   app.get("/api/mode", (_req, res) => {
@@ -3329,6 +3334,44 @@ export async function registerRoutes(
           stageName: stageFromWorkflow.name,
           details: `Stage executed with user inputs. State: ${newLifecycleState}`
         });
+      }
+
+      // ====================================================================
+      // CUMULATIVE DATA PERSISTENCE - Save stage output for LIVE mode
+      // ====================================================================
+      const researchId = req.body?.researchId || req.headers['x-research-id'] as string;
+      const projectId = req.body?.projectId || req.headers['x-project-id'] as string;
+      const userId = (req as any).user?.id || 'anonymous';
+
+      if (researchId || projectId) {
+        try {
+          const cumulativeService = getCumulativeDataService();
+          const governanceMode = (ROS_MODE === 'LIVE' ? 'LIVE' : 'DEMO') as 'DEMO' | 'LIVE';
+
+          // Get or create manifest
+          const identifier = projectId ? { projectId } : { researchId };
+          const manifest = await cumulativeService.getOrCreateManifest(identifier, userId, governanceMode);
+
+          // Start and complete the stage (persists output to database)
+          await cumulativeService.startStage(manifest.id, stageId, stageFromWorkflow.name, userInputs, identifier);
+          await cumulativeService.completeStage(manifest.id, stageId, {
+            summary: dynamicOutput.summary,
+            outputs: dynamicOutput.outputs,
+            manuscriptProposals: dynamicOutput.manuscriptProposals,
+            journalRecommendations: dynamicOutput.journalRecommendations,
+            userInputs,
+            parsedCSVData: parsedCSVData ? {
+              columns: parsedCSVData.columns.length,
+              rows: parsedCSVData.rowCount,
+              completeness: parsedCSVData.completenessScore
+            } : undefined
+          }, [], 100);
+
+          console.log(`[Stage ${stageId}] Output persisted to cumulative data for ${projectId || researchId}`);
+        } catch (persistError) {
+          console.error(`[Stage ${stageId}] Failed to persist output:`, persistError);
+          // Continue - don't fail the stage execution if persistence fails
+        }
       }
 
       return res.json({
