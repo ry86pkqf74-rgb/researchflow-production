@@ -10,6 +10,7 @@ from .models import (
     ProjectInfo,
     CommitRequest,
     CommitResponse,
+    CommitMetadata,
     HistoryEntry,
     HistoryResponse,
     DiffRequest,
@@ -18,6 +19,10 @@ from .models import (
     RestoreResponse,
     SaveFileRequest,
     SaveFileResponse,
+    ListFilesRequest,
+    ListFilesResponse,
+    FileCategory,
+    FileInfo,
 )
 
 from .service import VersionControlService
@@ -28,6 +33,7 @@ __all__ = [
     "ProjectInfo",
     "CommitRequest",
     "CommitResponse",
+    "CommitMetadata",
     "HistoryEntry",
     "HistoryResponse",
     "DiffRequest",
@@ -36,6 +42,10 @@ __all__ = [
     "RestoreResponse",
     "SaveFileRequest",
     "SaveFileResponse",
+    "ListFilesRequest",
+    "ListFilesResponse",
+    "FileCategory",
+    "FileInfo",
     # Service
     "VersionControlService",
 ]
