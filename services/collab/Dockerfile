@@ -57,7 +57,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages ./packages
 
-# Copy source code
+# Copy source code and package.json for npm scripts
+COPY services/collab/package.json ./
 COPY services/collab/tsconfig.json ./
 COPY services/collab/src ./src
 
@@ -122,7 +123,8 @@ COPY --from=build /app/dist ./dist
 # Copy package.json for npm start script
 COPY services/collab/package.json ./
 
-# Ensure @researchflow packages are in node_modules
+# Ensure @researchflow packages are in node_modules (remove existing symlinks/dirs first)
+RUN rm -rf ./node_modules/@researchflow
 COPY --from=build /app/node_modules/@researchflow ./node_modules/@researchflow
 
 # Set ownership
