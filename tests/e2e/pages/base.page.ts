@@ -40,19 +40,31 @@ export class BasePage {
     // Wait for React to hydrate and mode to initialize
     await this.page.waitForTimeout(1000);
 
-    // Check for mode banner with specific test IDs
-    const demoBanner = this.page.locator('[data-testid="mode-banner-demo"]');
-    const liveBanner = this.page.locator('[data-testid="mode-banner-live"]');
+    // Check for mode banner with specific test IDs (multiple banner components exist)
+    const demoBannerSelectors = [
+      '[data-testid="mode-banner-demo"]',
+      '[data-testid="demo-mode-banner"]',
+      '[data-testid="governance-badge-demo"]',
+    ];
+    const liveBannerSelectors = [
+      '[data-testid="mode-banner-live"]',
+      '[data-testid="live-mode-banner"]',
+      '[data-testid="governance-badge-live"]',
+    ];
 
-    if (await demoBanner.isVisible().catch(() => false)) {
-      return 'DEMO';
+    for (const selector of demoBannerSelectors) {
+      if (await this.page.locator(selector).isVisible().catch(() => false)) {
+        return 'DEMO';
+      }
     }
-    if (await liveBanner.isVisible().catch(() => false)) {
-      return 'LIVE';
+    for (const selector of liveBannerSelectors) {
+      if (await this.page.locator(selector).isVisible().catch(() => false)) {
+        return 'LIVE';
+      }
     }
 
     // Fallback: check for any banner with mode text
-    const anyBanner = this.page.locator('[data-testid^="mode-banner"]');
+    const anyBanner = this.page.locator('[data-testid^="mode-banner"], [data-testid$="-mode-banner"]');
     if (await anyBanner.isVisible().catch(() => false)) {
       const text = await anyBanner.textContent();
       if (text?.toUpperCase().includes('DEMO')) return 'DEMO';
@@ -61,10 +73,10 @@ export class BasePage {
 
     // Fallback: check page content for mode indicators
     const pageContent = await this.page.content();
-    if (pageContent.includes('DEMO MODE') || pageContent.includes('demo mode')) {
+    if (pageContent.includes('DEMO MODE') || pageContent.includes('demo mode') || pageContent.includes('Demo Mode')) {
       return 'DEMO';
     }
-    if (pageContent.includes('LIVE MODE') || pageContent.includes('live mode')) {
+    if (pageContent.includes('LIVE MODE') || pageContent.includes('live mode') || pageContent.includes('Live Mode')) {
       return 'LIVE';
     }
 
@@ -74,6 +86,16 @@ export class BasePage {
       const text = await modeText.textContent();
       if (text?.toUpperCase().includes('DEMO')) return 'DEMO';
       if (text?.toUpperCase().includes('LIVE')) return 'LIVE';
+    }
+
+    // On landing pages, default to DEMO if no explicit LIVE indicator
+    // (landing pages may not show mode banner but are always DEMO for unauthenticated users)
+    const isLandingPage = await this.page.url().then(url => {
+      const path = new URL(url).pathname;
+      return ['/', '/landing', '/demo', '/login', '/register'].includes(path);
+    });
+    if (isLandingPage) {
+      return 'DEMO';
     }
 
     return 'UNKNOWN';
