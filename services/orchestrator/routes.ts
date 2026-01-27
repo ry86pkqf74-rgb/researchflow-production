@@ -109,6 +109,8 @@ import manuscriptBranchesRouter from "./src/routes/manuscript-branches";
 import manuscriptGenerationRouter from "./src/routes/manuscript-generation";
 // Track M: Canonical Manuscript Studio routes
 import manuscriptsRouter from "./src/routes/manuscripts";
+// Track B Phase 10: Paper Library
+import papersRouter from "./src/routes/papers";
 import claimsRouter from "./src/routes/claims";
 import sharesRouter from "./src/routes/shares";
 import submissionsRouter from "./src/routes/submissions";
@@ -992,6 +994,9 @@ export async function registerRoutes(
 
   // Track M: Canonical Manuscript Studio CRUD API
   app.use("/api/manuscripts", manuscriptsRouter);
+
+  // Track B Phase 10: Paper Library
+  app.use("/api/papers", papersRouter);
 
   // Phase F: Observability + Feature Flags
   app.use("/api/analytics", analyticsRouter);
