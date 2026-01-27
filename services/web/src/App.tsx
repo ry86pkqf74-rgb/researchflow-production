@@ -49,6 +49,7 @@ import SpreadsheetCellParse from "@/pages/spreadsheet-cell-parse";
 import ManuscriptEditorPage from "@/pages/manuscript-editor";
 import PapersPage from "@/pages/papers";
 import PaperViewerPage from "@/pages/paper-viewer";
+import StatisticalAnalysisPage from "@/pages/statistical-analysis";
 import { OrgSelector } from "@/components/org";
 import { AdaptiveNavigation } from "@/components/nav";
 import { ErrorBoundary } from "@/components/errors/ErrorBoundary";
@@ -405,6 +406,11 @@ function Router() {
       {/* Paper Viewer Routes (Track B Phase 11) */}
       <Route path="/papers/:id/view">
         {() => <ProtectedRoute component={PaperViewerPage} />}
+      </Route>
+
+      {/* Statistical Analysis Page (Checkpoint 5) */}
+      <Route path="/statistical-analysis">
+        {() => <ProtectedRoute component={StatisticalAnalysisPage} />}
       </Route>
 
       {/* 404 catch-all - must be last */}
