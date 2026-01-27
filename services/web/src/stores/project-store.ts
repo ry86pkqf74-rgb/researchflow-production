@@ -72,7 +72,7 @@ interface ProjectState {
 // Mock Data (for development/demo mode)
 // ============================================================================
 
-const USE_MOCK = true; // Toggle for development
+const USE_MOCK = false; // Disabled: Use real API endpoints
 
 const mockProjects: Project[] = [
   {

@@ -130,6 +130,8 @@ import analyticsRouter from "./src/routes/analytics";
 import streamRouter from "./src/routes/stream";
 // Stage 20: Planning Hub - Notion-like pages, databases, tasks, goals, projections
 import hubRouter from "./src/routes/hub";
+// Projects API - Multi-project organization
+import projectsRouter from "./src/routes/projects";
 import aiRouter from "./src/routes/ai-router";
 import aiExtractionRouter from "./src/routes/ai-extraction";
 import analysisExecutionRouter from "./src/routes/analysis-execution";
@@ -1046,6 +1048,9 @@ export async function registerRoutes(
 
   // Stage 20: Planning Hub - Notion-like pages, databases, tasks, goals, projections
   app.use("/api/hub", hubRouter);
+
+  // Projects API - Multi-project organization
+  app.use("/api/projects", projectsRouter);
 
   // Mode information endpoint - publicly accessible
   app.get("/api/mode", (_req, res) => {

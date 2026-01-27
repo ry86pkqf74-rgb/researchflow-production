@@ -7,3 +7,5 @@
 
 export { HubTaskBoard } from './HubTaskBoard';
 export { HubGoalTracker } from './HubGoalTracker';
+export { HubDashboard } from './HubDashboard';
+export { HubTimeline } from './HubTimeline';

@@ -16,7 +16,7 @@ import { useModeStore } from "@/stores/mode-store";
 import { useOrgStore } from "@/stores/org-store";
 import { useAuth } from "@/hooks/use-auth";
 import { useAppShortcuts } from "@/hooks/useGlobalShortcuts";
-import { Loader2, Home as HomeIcon, LayoutDashboard, Workflow, Shield, Settings as SettingsIcon } from "lucide-react";
+import { Loader2, Home as HomeIcon, LayoutDashboard, Workflow, Shield, Settings as SettingsIcon, BookOpen, FolderKanban } from "lucide-react";
 import '@/i18n'; // Initialize i18n
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
@@ -50,6 +50,8 @@ import ManuscriptEditorPage from "@/pages/manuscript-editor";
 import PapersPage from "@/pages/papers";
 import PaperViewerPage from "@/pages/paper-viewer";
 import StatisticalAnalysisPage from "@/pages/statistical-analysis";
+import HubPage from "@/pages/hub";
+import TimelinePage from "@/pages/timeline";
 import { OrgSelector } from "@/components/org";
 import { AdaptiveNavigation } from "@/components/nav";
 import { ErrorBoundary } from "@/components/errors/ErrorBoundary";
@@ -193,6 +195,20 @@ function MainLayout({ children }: { children: React.ReactNode }) {
             >
               <Workflow className="h-4 w-4 shrink-0" />
               <span>Workflows</span>
+            </Link>
+            <Link
+              to="/projects"
+              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <FolderKanban className="h-4 w-4 shrink-0" />
+              <span>Projects</span>
+            </Link>
+            <Link
+              to="/hub"
+              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <BookOpen className="h-4 w-4 shrink-0" />
+              <span>Planning Hub</span>
             </Link>
             <Link
               to="/governance"
@@ -411,6 +427,25 @@ function Router() {
       {/* Statistical Analysis Page (Checkpoint 5) */}
       <Route path="/statistical-analysis">
         {() => <ProtectedRoute component={StatisticalAnalysisPage} />}
+      </Route>
+
+      {/* Planning Hub Routes */}
+      <Route path="/hub">
+        {() => <ProtectedRoute component={HubPage} />}
+      </Route>
+      <Route path="/hub/:projectId">
+        {() => <ProtectedRoute component={HubPage} />}
+      </Route>
+      <Route path="/project/:projectId/hub">
+        {() => <ProtectedRoute component={HubPage} />}
+      </Route>
+
+      {/* Timeline Projections Routes */}
+      <Route path="/timeline">
+        {() => <ProtectedRoute component={TimelinePage} />}
+      </Route>
+      <Route path="/project/:projectId/timeline">
+        {() => <ProtectedRoute component={TimelinePage} />}
       </Route>
 
       {/* 404 catch-all - must be last */}
