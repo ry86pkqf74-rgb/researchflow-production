@@ -158,5 +158,46 @@ The comprehensive IRB document fix has been committed and pushed to the reposito
 
 ---
 
-*Report Generated: January 27, 2026*
+## Additional Fix: Real CSV Parsing for Data Processing Stages
+
+**Commit:** `3c2a50a`
+
+### Issue Addressed
+Schema, Scrubbing, and Validation stages were showing generic placeholder messages instead of actual outputs based on the uploaded dataset.
+
+### Solution Implemented
+Added real CSV parsing functionality that analyzes uploaded datasets and generates actual outputs:
+
+**New Features:**
+1. **CSV Parsing Helper (`parseCSVContent()`):**
+   - Detects column types (string, number, integer, boolean, date)
+   - Calculates data quality scores (completeness, validity, consistency)
+   - Identifies PHI risk columns based on naming patterns
+   - Tracks missing values, duplicates, and outliers
+
+2. **Stage 6 - Schema Extraction** now shows:
+   - Actual extracted schema with column types and statistics
+   - Variable categorization (demographics, clinical, medications, outcomes)
+   - PHI risk assessment based on detected column names
+
+3. **Stage 7 - Data Scrubbing** now shows:
+   - Real data quality assessment with completeness scores
+   - Column-level scrubbing plan for columns with issues
+   - Recommended transformations and warnings
+
+4. **Stage 8 - Data Validation** now shows:
+   - Actual validation results with pass/fail status
+   - Quality metrics detail (completeness, validity, consistency)
+   - Validation warnings and recommendations
+
+### How to Test
+The stage execution endpoint now accepts:
+- `fileId`: Reference to an uploaded file to parse
+- `csvContent`: Direct CSV content to parse
+
+After restarting the Docker containers, re-run stages 6, 7, 8 with an uploaded dataset to see real outputs.
+
+---
+
+*Report Updated: January 27, 2026*
 *ResearchFlow v0.3.0*
