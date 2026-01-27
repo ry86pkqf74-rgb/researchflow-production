@@ -83,6 +83,8 @@ import versionControlRoutes from './routes/version-control';
 import chatRoutes from './routes/chat.routes';
 // Agentic Planning: AI-assisted statistical analysis
 import analysisPlanningRoutes from './routes/analysis-planning';
+// Phase Chat: Stage-specific AI agent chat
+import phaseChatRoutes from './routes/phaseChatRoutes';
 
 // Phase 3: Secondary Routes (Integration Plan)
 import governanceSimulateRoutes from './routes/governance-simulate';
@@ -232,6 +234,7 @@ app.use('/api/metrics', metricsRoutes);  // Prometheus metrics
 app.use('/api/version', versionControlRoutes);  // Phase 5.5: Git-based version control
 app.use('/api/chat', chatRoutes);  // Chat Agents: Workflow-specific AI assistants
 app.use('/api/analysis', analysisPlanningRoutes);  // Agentic Planning: AI-assisted statistical analysis
+app.use('/api/phase', phaseChatRoutes);  // Phase Chat: Stage-specific AI agents
 
 // =============================================================================
 // Integration Plan Routes - Phase 3: Secondary Routes
