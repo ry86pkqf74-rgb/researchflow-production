@@ -30,8 +30,12 @@ import { createHash } from 'crypto';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
+import annotationsRouter from './paper-annotations';
 
 const router = Router();
+
+// Mount annotations subrouter
+router.use('/:paperId/annotations', annotationsRouter);
 
 // =============================================================================
 // Configuration
