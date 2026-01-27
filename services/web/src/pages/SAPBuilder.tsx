@@ -19,18 +19,19 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient, apiRequest } from '@/lib/queryClient';
-import { 
-  AlertCircle, 
-  CheckCircle, 
-  FileText, 
-  Lock, 
-  Save, 
-  Loader2, 
+import {
+  AlertCircle,
+  CheckCircle,
+  FileText,
+  Lock,
+  Save,
+  Loader2,
   ArrowLeft,
   Plus,
   Trash2,
   RefreshCw
 } from 'lucide-react';
+import { ChatAgentPanel } from "@/components/chat";
 
 const MODEL_TYPES = [
   { value: 'linear', label: 'Linear Regression', description: 'Continuous outcomes' },
@@ -829,6 +830,31 @@ export default function SAPBuilder() {
                 </Badge>
               )}
             </div>
+          </div>
+
+          {/* IRB/Protocol Chat Agent */}
+          <div className="mt-4">
+            <ChatAgentPanel
+              agentType="irb"
+              artifactType="sap"
+              artifactId={sapId || "default"}
+              getClientContext={() => ({
+                artifactContent: JSON.stringify(sap, null, 2),
+                artifactMetadata: {
+                  sapId,
+                  isLocked,
+                  status: sap?.status,
+                },
+              })}
+              onActionExecuted={(action, result) => {
+                toast({
+                  title: "Action Applied",
+                  description: `${action.actionType} has been executed successfully.`,
+                });
+                queryClient.invalidateQueries({ queryKey: ['sap', sapId] });
+              }}
+              defaultOpen={false}
+            />
           </div>
         </DemoOverlay>
       )}

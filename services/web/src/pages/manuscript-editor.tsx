@@ -59,6 +59,7 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { AIApprovalGate, useAIApprovalGate } from "@/components/ui/ai-approval-gate";
+import { ChatAgentPanel } from "@/components/chat";
 
 // ============================================================================
 // Types
@@ -672,6 +673,33 @@ export default function ManuscriptEditorPage() {
               isGenerating={generatingSection === activeSection}
             />
           )}
+        </div>
+
+        {/* Manuscript Chat Agent */}
+        <div className="border-t p-4">
+          <ChatAgentPanel
+            agentType="manuscript"
+            artifactType="manuscript"
+            artifactId={manuscriptId || "default"}
+            getClientContext={() => ({
+              artifactContent: sections.map(s => `## ${s.label}\n\n${s.content}`).join("\n\n"),
+              artifactMetadata: {
+                title,
+                targetJournal,
+                activeSection,
+                totalWordCount,
+              },
+            })}
+            onActionExecuted={(action, result) => {
+              toast({
+                title: "Action Applied",
+                description: `${action.actionType} has been executed successfully.`,
+              });
+              // Reload manuscript data
+              queryClient.invalidateQueries({ queryKey: ["manuscript", manuscriptId] });
+            }}
+            defaultOpen={false}
+          />
         </div>
       </div>
     </div>

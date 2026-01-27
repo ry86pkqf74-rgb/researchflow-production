@@ -54,6 +54,7 @@ import {
   type DatasetInfo,
 } from "@/components/analysis";
 import type { RealAnalysisOutput } from "@/hooks/use-real-analysis";
+import { ChatAgentPanel } from "@/components/chat";
 
 // Demo datasets for testing
 const DEMO_DATASETS: DatasetInfo[] = [
@@ -433,6 +434,29 @@ export default function StatisticalAnalysisPage() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Analysis Chat Agent */}
+        <div className="mt-4">
+          <ChatAgentPanel
+            agentType="analysis"
+            artifactType="analysis"
+            artifactId={selectedDataset || "default"}
+            getClientContext={() => ({
+              artifactContent: analysisResults
+                ? JSON.stringify(analysisResults, null, 2)
+                : "No analysis results yet",
+              artifactMetadata: {
+                selectedDataset,
+                hasResults: !!analysisResults,
+                analysisType: activeTab,
+              },
+            })}
+            onActionExecuted={(action, result) => {
+              console.log("Analysis action executed:", action, result);
+            }}
+            defaultOpen={false}
+          />
+        </div>
       </div>
     </div>
   );
