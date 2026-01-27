@@ -59,6 +59,15 @@ except ImportError as e:
     MEDICAL_AVAILABLE = False
     print(f"[ROS] Medical integrations module not available: {e}")
 
+# Import agentic pipeline router for AI-assisted statistical analysis
+try:
+    from src.api.agentic import router as agentic_router
+    AGENTIC_AVAILABLE = True
+    print("[ROS] Agentic pipeline module loaded")
+except ImportError as e:
+    AGENTIC_AVAILABLE = False
+    print(f"[ROS] Agentic pipeline module not available: {e}")
+
 # Import version control service for Git-based versioning
 try:
     from version_control import (
@@ -115,6 +124,10 @@ if EXTRACTION_AVAILABLE:
 if MEDICAL_AVAILABLE:
     app.include_router(medical_router, tags=["medical-integrations"])
     print("[ROS] Medical integrations router registered at /api/medical/*")
+# Register agentic pipeline router if available
+if AGENTIC_AVAILABLE:
+    app.include_router(agentic_router, tags=["agentic-pipeline"])
+    print("[ROS] Agentic pipeline router registered at /api/agentic/*")
 
 
 # ============ Data Models ============

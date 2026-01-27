@@ -81,6 +81,8 @@ import metricsRoutes from './routes/metrics';
 import versionControlRoutes from './routes/version-control';
 // Chat Agents: Workflow-specific AI assistants
 import chatRoutes from './routes/chat.routes';
+// Agentic Planning: AI-assisted statistical analysis
+import analysisPlanningRoutes from './routes/analysis-planning';
 
 // Phase 3: Secondary Routes (Integration Plan)
 import governanceSimulateRoutes from './routes/governance-simulate';
@@ -229,6 +231,7 @@ app.use('/api/literature/mesh', meshLookupRoutes);  // MeSH term lookup
 app.use('/api/metrics', metricsRoutes);  // Prometheus metrics
 app.use('/api/version', versionControlRoutes);  // Phase 5.5: Git-based version control
 app.use('/api/chat', chatRoutes);  // Chat Agents: Workflow-specific AI assistants
+app.use('/api/analysis', analysisPlanningRoutes);  // Agentic Planning: AI-assisted statistical analysis
 
 // =============================================================================
 // Integration Plan Routes - Phase 3: Secondary Routes
@@ -271,6 +274,15 @@ try {
   console.error('Failed to initialize WebSocket server:', error);
   console.log('Continuing without collaboration features...');
 }
+
+// Initialize Planning Queues (BullMQ)
+import { initPlanningQueues, shutdownPlanningQueues } from './services/planning';
+initPlanningQueues()
+  .then(() => console.log('[Agentic] Planning queues initialized'))
+  .catch((error) => {
+    console.error('[Agentic] Failed to initialize planning queues:', error);
+    console.log('[Agentic] Continuing without queue support - jobs will run inline');
+  });
 
 // Start server
 httpServer.listen(PORT, () => {
@@ -373,11 +385,28 @@ httpServer.listen(PORT, () => {
   console.log('  ✓ Manuscript IMRaD Generation');
   console.log('  ✓ Section Validation & Budgets');
   console.log('='.repeat(60));
+  console.log('Agentic Planning: ACTIVE');
+  console.log('  ✓ AI-Assisted Analysis Planning');
+  console.log('  ✓ PHI Governance (Metadata-only to AI)');
+  console.log('  ✓ SELECT-only Query Enforcement');
+  console.log('  ✓ Governance Approval Workflow');
+  console.log('  ✓ BullMQ Job Queue');
+  console.log('  ✓ SSE Job Status Streaming');
+  console.log('  ✓ Statistical Method Suggestion');
+  console.log('='.repeat(60));
 });
 
 // Graceful shutdown
 const shutdown = async () => {
   console.log('Shutdown signal received: cleaning up...');
+
+  // Shutdown Planning Queues
+  try {
+    await shutdownPlanningQueues();
+    console.log('Planning queues shut down');
+  } catch (error) {
+    console.error('Error shutting down planning queues:', error);
+  }
 
   // Shutdown WebSocket server
   if (wsServer) {

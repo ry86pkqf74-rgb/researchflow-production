@@ -62,6 +62,7 @@ services:
       - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
       - REDIS_URL=redis://redis:6379
       - WORKER_CALLBACK_URL=http://worker:8000
+      - WORKER_URL=http://worker:8000
       - GOVERNANCE_MODE=LIVE
       - AUTH_ALLOW_STATELESS_JWT=${AUTH_ALLOW_STATELESS_JWT:-true}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
