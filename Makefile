@@ -265,3 +265,74 @@ version:
 	@echo "Orchestrator: $(shell cd services/orchestrator && node -p "require('./package.json').version" 2>/dev/null || echo 'N/A')"
 	@echo "Worker: $(shell cd services/worker && python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])" 2>/dev/null || echo 'N/A')"
 	@echo "Web: $(shell cd services/web && node -p "require('./package.json').version" 2>/dev/null || echo 'N/A')"
+
+# ===================
+# Statistical Analysis (Phase 5)
+# ===================
+
+verify-deps: ## Verify statistical dependencies in worker
+	@echo "$(BLUE)Verifying statistical dependencies...$(NC)"
+	docker-compose exec worker python -c "\
+import scipy; print('scipy:', scipy.__version__); \
+import statsmodels; print('statsmodels:', statsmodels.__version__); \
+import lifelines; print('lifelines:', lifelines.__version__); \
+import sklearn; print('scikit-learn:', sklearn.__version__); \
+import pandas; print('pandas:', pandas.__version__); \
+import numpy; print('numpy:', numpy.__version__); \
+print('$(GREEN)All statistical dependencies OK!$(NC)')"
+
+test-analysis: ## Test statistical analysis endpoints
+	@echo "$(BLUE)Testing analysis capabilities...$(NC)"
+	curl -sf http://localhost:3001/api/ros/analysis/capabilities | jq . || echo "$(RED)Capabilities endpoint failed$(NC)"
+	@echo ""
+	@echo "$(BLUE)Testing descriptive analysis...$(NC)"
+	curl -sf -X POST http://localhost:3001/api/ros/analysis/run \
+		-H "Content-Type: application/json" \
+		-d '{"analysis_type": "descriptive", "variables": ["age", "bmi"]}' | jq . || echo "$(RED)Analysis endpoint failed$(NC)"
+
+# ===================
+# Version Control (Phase 5.5)
+# ===================
+
+verify-git: ## Verify Git is available in worker container
+	@echo "$(BLUE)Verifying Git in worker...$(NC)"
+	docker-compose exec worker git --version
+	docker-compose exec worker python -c "import git; print('GitPython:', git.__version__)"
+	@echo "$(GREEN)Git verification OK!$(NC)"
+
+test-version: ## Test version control endpoints
+	@echo "$(BLUE)Testing version control status...$(NC)"
+	curl -sf http://localhost:3001/api/version/status | jq . || echo "$(RED)Version status endpoint failed$(NC)"
+	@echo ""
+	@echo "$(BLUE)Testing project list...$(NC)"
+	curl -sf http://localhost:3001/api/version/projects | jq . || echo "$(RED)Projects endpoint failed$(NC)"
+
+# ===================
+# Live Mode (Phase 4.5)
+# ===================
+
+start-live: ## Start services in live mode (requires authentication)
+	@echo "$(YELLOW)Starting in LIVE mode - authentication required$(NC)"
+	APP_MODE=live GOVERNANCE_MODE=LIVE docker-compose up -d
+
+start-demo: ## Start services in demo mode (no authentication required)
+	@echo "$(GREEN)Starting in DEMO mode$(NC)"
+	APP_MODE=demo GOVERNANCE_MODE=DEMO docker-compose up -d
+
+# ===================
+# Health Checks
+# ===================
+
+health: ## Check health of all services
+	@echo "$(BLUE)=== Service Health Check ===$(NC)"
+	@echo ""
+	@echo "Worker (port 8000):"
+	@curl -sf http://localhost:8000/health 2>/dev/null | jq -r '.status // "unhealthy"' || echo "  $(RED)Not responding$(NC)"
+	@echo ""
+	@echo "Orchestrator (port 3001):"
+	@curl -sf http://localhost:3001/health 2>/dev/null | jq -r '.status // "unhealthy"' || echo "  $(RED)Not responding$(NC)"
+	@echo ""
+	@echo "Web (port 3000):"
+	@curl -sf http://localhost:3000 2>/dev/null | head -c 50 && echo "" || echo "  $(RED)Not responding$(NC)"
+	@echo ""
+	@echo "$(BLUE)=== Health Check Complete ===$(NC)"

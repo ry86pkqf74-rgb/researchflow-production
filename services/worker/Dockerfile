@@ -27,6 +27,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     && rm -rf /var/lib/apt/lists/*
 
+# Set default Git config (will be overridden per-user in version control service)
+RUN git config --global user.name "ResearchFlow System" && \
+    git config --global user.email "system@researchflow.local" && \
+    git config --global init.defaultBranch main
+
 WORKDIR /app
 
 # Dependencies stage
