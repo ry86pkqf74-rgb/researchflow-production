@@ -2534,6 +2534,183 @@ export async function registerRoutes(
   });
 
   // ====================================================================
+  // CSV PARSING HELPER FOR DATA PROCESSING STAGES
+  // Parses uploaded CSV files to extract real schema and data quality info
+  // ====================================================================
+  interface ParsedCSVData {
+    columns: Array<{
+      name: string;
+      type: 'string' | 'number' | 'integer' | 'boolean' | 'date' | 'unknown';
+      nullable: boolean;
+      uniqueValues: number;
+      nullCount: number;
+      sampleValues: string[];
+      minValue?: string | number;
+      maxValue?: string | number;
+      meanValue?: number;
+    }>;
+    rowCount: number;
+    duplicateRows: number;
+    completenessScore: number;
+    validityScore: number;
+    consistencyScore: number;
+    warnings: string[];
+    phiRiskColumns: string[];
+  }
+
+  function parseCSVContent(csvContent: string): ParsedCSVData {
+    const lines = csvContent.trim().split('\n');
+    if (lines.length < 2) {
+      return {
+        columns: [],
+        rowCount: 0,
+        duplicateRows: 0,
+        completenessScore: 0,
+        validityScore: 0,
+        consistencyScore: 0,
+        warnings: ['CSV file is empty or has no data rows'],
+        phiRiskColumns: []
+      };
+    }
+
+    // Parse header
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const dataRows = lines.slice(1).map(line => {
+      // Simple CSV parsing (handles basic cases)
+      const values: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      for (const char of line) {
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      values.push(current.trim());
+      return values;
+    });
+
+    const rowCount = dataRows.length;
+
+    // Analyze each column
+    const columns: ParsedCSVData['columns'] = headers.map((name, colIndex) => {
+      const values = dataRows.map(row => row[colIndex] || '');
+      const nonEmptyValues = values.filter(v => v !== '' && v.toLowerCase() !== 'null' && v.toLowerCase() !== 'na');
+      const nullCount = values.length - nonEmptyValues.length;
+      const uniqueSet = new Set(nonEmptyValues);
+
+      // Detect column type
+      let type: ParsedCSVData['columns'][0]['type'] = 'unknown';
+      let minValue: string | number | undefined;
+      let maxValue: string | number | undefined;
+      let meanValue: number | undefined;
+
+      if (nonEmptyValues.length > 0) {
+        const numericValues = nonEmptyValues.filter(v => !isNaN(parseFloat(v)) && isFinite(parseFloat(v)));
+        const datePattern = /^\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}/;
+        const boolPattern = /^(true|false|yes|no|1|0)$/i;
+
+        if (numericValues.length === nonEmptyValues.length) {
+          const nums = numericValues.map(v => parseFloat(v));
+          const hasDecimal = numericValues.some(v => v.includes('.'));
+          type = hasDecimal ? 'number' : 'integer';
+          minValue = Math.min(...nums);
+          maxValue = Math.max(...nums);
+          meanValue = nums.reduce((a, b) => a + b, 0) / nums.length;
+        } else if (nonEmptyValues.every(v => datePattern.test(v))) {
+          type = 'date';
+          minValue = nonEmptyValues.sort()[0];
+          maxValue = nonEmptyValues.sort()[nonEmptyValues.length - 1];
+        } else if (nonEmptyValues.every(v => boolPattern.test(v))) {
+          type = 'boolean';
+        } else {
+          type = 'string';
+          // For strings, track length range
+          const lengths = nonEmptyValues.map(v => v.length);
+          minValue = Math.min(...lengths);
+          maxValue = Math.max(...lengths);
+        }
+      }
+
+      return {
+        name,
+        type,
+        nullable: nullCount > 0,
+        uniqueValues: uniqueSet.size,
+        nullCount,
+        sampleValues: nonEmptyValues.slice(0, 3),
+        minValue,
+        maxValue,
+        meanValue
+      };
+    });
+
+    // Check for duplicate rows
+    const rowStrings = dataRows.map(row => row.join('|'));
+    const uniqueRows = new Set(rowStrings);
+    const duplicateRows = rowCount - uniqueRows.size;
+
+    // Calculate quality scores
+    const totalCells = rowCount * columns.length;
+    const nullCells = columns.reduce((sum, col) => sum + col.nullCount, 0);
+    const completenessScore = Math.round(((totalCells - nullCells) / totalCells) * 100);
+
+    // Validity: Check for reasonable value ranges and consistency
+    let validCells = totalCells - nullCells;
+    columns.forEach(col => {
+      if (col.type === 'number' || col.type === 'integer') {
+        // Check for outliers (simple IQR-based)
+        const nonNull = dataRows.map(row => row[columns.indexOf(col)]).filter(v => v !== '' && !isNaN(parseFloat(v)));
+        if (nonNull.length > 10) {
+          const sorted = nonNull.map(v => parseFloat(v)).sort((a, b) => a - b);
+          const q1 = sorted[Math.floor(sorted.length * 0.25)];
+          const q3 = sorted[Math.floor(sorted.length * 0.75)];
+          const iqr = q3 - q1;
+          const outliers = sorted.filter(v => v < q1 - 1.5 * iqr || v > q3 + 1.5 * iqr).length;
+          validCells -= outliers;
+        }
+      }
+    });
+    const validityScore = Math.round((validCells / (totalCells - nullCells)) * 100) || 100;
+
+    // Consistency: Check for mixed types within columns
+    const consistencyScore = Math.round((columns.filter(col => col.type !== 'unknown').length / columns.length) * 100);
+
+    // Generate warnings
+    const warnings: string[] = [];
+    if (completenessScore < 80) warnings.push(`Low completeness: ${100 - completenessScore}% missing data`);
+    if (duplicateRows > 0) warnings.push(`${duplicateRows} duplicate rows detected`);
+    columns.forEach(col => {
+      if (col.nullCount > rowCount * 0.5) warnings.push(`Column "${col.name}" has >50% missing values`);
+      if (col.type === 'unknown') warnings.push(`Column "${col.name}" has inconsistent data types`);
+    });
+
+    // PHI risk detection based on column names
+    const phiPatterns = [
+      /name/i, /ssn|social/i, /mrn|patient.*id/i, /dob|birth/i,
+      /address|street|city|zip/i, /phone|tel/i, /email/i, /fax/i
+    ];
+    const phiRiskColumns = columns
+      .filter(col => phiPatterns.some(pattern => pattern.test(col.name)))
+      .map(col => col.name);
+
+    return {
+      columns,
+      rowCount,
+      duplicateRows,
+      completenessScore,
+      validityScore,
+      consistencyScore,
+      warnings,
+      phiRiskColumns
+    };
+  }
+
+  // ====================================================================
   // DYNAMIC STAGE OUTPUT GENERATOR
   // Generates outputs based on user input - NO hardcoded synthetic data
   // ====================================================================
@@ -2551,7 +2728,8 @@ export async function registerRoutes(
       recordCount?: number;
       selectedManuscript?: { id: number; title: string };
       selectedJournal?: { id: string; name: string };
-    }
+    },
+    parsedData?: ParsedCSVData
   ): { summary: string; outputs: Array<{ title: string; content: string; type: string }>; manuscriptProposals?: any[]; journalRecommendations?: any[] } {
 
     const topic = userInput.researchOverview || "your research topic";
@@ -2561,7 +2739,7 @@ export async function registerRoutes(
     const outcomes = userInput.outcomes || "(outcomes not specified)";
     const timeframe = userInput.timeframe || "(timeframe not specified)";
     const dataset = userInput.datasetName || "your dataset";
-    const records = userInput.recordCount || 0;
+    const records = parsedData?.rowCount || userInput.recordCount || 0;
 
     // Generate stage-specific outputs based on user's actual input
     switch (stageId) {
@@ -2607,51 +2785,183 @@ export async function registerRoutes(
         };
 
       case 6: // Schema Extraction
+        // If we have parsed data, show real schema extraction results
+        if (parsedData && parsedData.columns.length > 0) {
+          const schemaTable = parsedData.columns.map(col => {
+            const typeLabel = col.type.charAt(0).toUpperCase() + col.type.slice(1);
+            const nullableLabel = col.nullable ? 'Yes' : 'No';
+            const statsInfo = col.type === 'number' || col.type === 'integer'
+              ? `Range: ${col.minValue} - ${col.maxValue}${col.meanValue ? `, Mean: ${col.meanValue.toFixed(2)}` : ''}`
+              : col.type === 'date'
+              ? `Range: ${col.minValue} to ${col.maxValue}`
+              : `${col.uniqueValues} unique values`;
+            return `• ${col.name}\n  Type: ${typeLabel} | Nullable: ${nullableLabel} | ${statsInfo}`;
+          }).join('\n\n');
+
+          const categorizedColumns = {
+            identifiers: parsedData.columns.filter(c => /id|patient|subject/i.test(c.name)),
+            demographics: parsedData.columns.filter(c => /age|sex|gender|race|ethnicity/i.test(c.name)),
+            clinical: parsedData.columns.filter(c => /hba1c|glucose|bp|bmi|cholesterol|ldl|hdl/i.test(c.name)),
+            medications: parsedData.columns.filter(c => /metformin|insulin|sglt2|glp1|medication|drug/i.test(c.name)),
+            outcomes: parsedData.columns.filter(c => /event|visit|hospitalization|er_visit|hypoglycemia/i.test(c.name)),
+            dates: parsedData.columns.filter(c => c.type === 'date')
+          };
+
+          const categoryBreakdown = [
+            categorizedColumns.identifiers.length > 0 ? `Identifiers (${categorizedColumns.identifiers.length}): ${categorizedColumns.identifiers.map(c => c.name).join(', ')}` : null,
+            categorizedColumns.demographics.length > 0 ? `Demographics (${categorizedColumns.demographics.length}): ${categorizedColumns.demographics.map(c => c.name).join(', ')}` : null,
+            categorizedColumns.clinical.length > 0 ? `Clinical Variables (${categorizedColumns.clinical.length}): ${categorizedColumns.clinical.map(c => c.name).join(', ')}` : null,
+            categorizedColumns.medications.length > 0 ? `Medications (${categorizedColumns.medications.length}): ${categorizedColumns.medications.map(c => c.name).join(', ')}` : null,
+            categorizedColumns.outcomes.length > 0 ? `Outcomes (${categorizedColumns.outcomes.length}): ${categorizedColumns.outcomes.map(c => c.name).join(', ')}` : null,
+            categorizedColumns.dates.length > 0 ? `Date Fields (${categorizedColumns.dates.length}): ${categorizedColumns.dates.map(c => c.name).join(', ')}` : null
+          ].filter(Boolean).join('\n');
+
+          return {
+            summary: `Schema extracted: ${parsedData.columns.length} variables detected from ${records.toLocaleString()} records in ${dataset}.`,
+            outputs: [
+              {
+                title: "Extracted Schema",
+                content: `DATASET: ${dataset}\nRECORDS: ${records.toLocaleString()}\nVARIABLES: ${parsedData.columns.length}\n\n${'═'.repeat(60)}\nDETECTED COLUMN SCHEMA\n${'═'.repeat(60)}\n\n${schemaTable}`,
+                type: "document"
+              },
+              {
+                title: "Variable Categories",
+                content: `VARIABLE CATEGORIZATION\n${'─'.repeat(40)}\n\n${categoryBreakdown || 'No standard categories detected - manual review recommended.'}\n\n${'─'.repeat(40)}\nPICO MAPPING ASSESSMENT:\n• Population variables: ${categorizedColumns.demographics.length + categorizedColumns.identifiers.length} detected\n• Intervention/Exposure variables: ${categorizedColumns.medications.length} detected\n• Outcome variables: ${categorizedColumns.outcomes.length} detected`,
+                type: "list"
+              },
+              {
+                title: "PHI Risk Assessment",
+                content: parsedData.phiRiskColumns.length > 0
+                  ? `⚠️ POTENTIAL PHI DETECTED\n\nThe following columns may contain protected health information:\n${parsedData.phiRiskColumns.map(c => `• ${c}`).join('\n')}\n\nRecommendation: Review these columns before proceeding to ensure HIPAA compliance.`
+                  : `✅ NO OBVIOUS PHI DETECTED\n\nNo columns with obvious PHI indicators (names, SSN, addresses, etc.) were detected.\n\nNote: This is a preliminary scan. Manual review is still recommended to ensure full compliance.`,
+                type: "text"
+              }
+            ]
+          };
+        }
+        // Fallback if no parsed data
         return {
-          summary: `Schema extraction ready for ${dataset}. Connect your data source to map fields.`,
+          summary: `Schema extraction ready for ${dataset}. Upload your dataset to extract schema.`,
           outputs: [
             {
-              title: "Schema Extraction Status",
-              content: `Dataset: ${dataset}\n\nTo extract schema:\n1. Connect your data source (CSV, database, or API)\n2. System will auto-detect field types\n3. Review and confirm mappings\n\nExpected fields based on your study:\n• Population identifiers for: ${pop}\n• Exposure/intervention variables: ${intervention}\n• Outcome variables: ${outcomes}\n• Covariates for adjustment`,
+              title: "Schema Extraction Pending",
+              content: `Dataset: ${dataset}\n\nTo extract schema:\n1. Upload your data file (CSV, Excel, or JSON)\n2. System will auto-detect field types\n3. Review and confirm mappings\n\nExpected fields based on your study:\n• Population identifiers for: ${pop}\n• Exposure/intervention variables: ${intervention}\n• Outcome variables: ${outcomes}`,
               type: "text"
-            },
-            {
-              title: "Recommended Variables",
-              content: `Based on your PICO framework:\n\nPOPULATION (${pop}):\n• Demographic fields (age, sex, etc.)\n• Inclusion/exclusion criteria fields\n\nINTERVENTION (${intervention}):\n• Exposure timing and duration\n• Dosage or intensity measures\n\nOUTCOMES (${outcomes}):\n• Primary outcome indicators\n• Event dates/times\n• Secondary endpoints`,
-              type: "list"
             }
           ]
         };
 
       case 7: // Data Scrubbing
+        // If we have parsed data, show real scrubbing results
+        if (parsedData && parsedData.columns.length > 0) {
+          const columnsWithIssues = parsedData.columns.filter(c => c.nullCount > 0 || c.type === 'unknown');
+          const highMissingCols = parsedData.columns.filter(c => c.nullCount > parsedData.rowCount * 0.1);
+
+          const scrubPlan = parsedData.columns.map(col => {
+            const issues: string[] = [];
+            if (col.nullCount > 0) issues.push(`${col.nullCount} missing values (${((col.nullCount / parsedData.rowCount) * 100).toFixed(1)}%)`);
+            if (col.type === 'unknown') issues.push('Mixed data types detected');
+
+            const action = col.nullCount > parsedData.rowCount * 0.5
+              ? 'Consider: Remove column or impute'
+              : col.nullCount > 0
+              ? 'Action: Impute or flag missing'
+              : 'Status: Clean';
+
+            return issues.length > 0
+              ? `• ${col.name}\n  Issues: ${issues.join('; ')}\n  ${action}`
+              : null;
+          }).filter(Boolean).join('\n\n');
+
+          const overallAssessment = parsedData.completenessScore >= 95
+            ? '✅ EXCELLENT: Data quality is high, minimal scrubbing needed.'
+            : parsedData.completenessScore >= 80
+            ? '⚠️ GOOD: Some missing data detected, review recommended.'
+            : '❌ NEEDS ATTENTION: Significant data quality issues found.';
+
+          return {
+            summary: `Data scrubbing analysis complete: ${columnsWithIssues.length} of ${parsedData.columns.length} columns need attention. Overall completeness: ${parsedData.completenessScore}%.`,
+            outputs: [
+              {
+                title: "Scrubbing Analysis Results",
+                content: `DATASET: ${dataset}\nRECORDS: ${records.toLocaleString()}\n\n${'═'.repeat(60)}\nDATA QUALITY ASSESSMENT\n${'═'.repeat(60)}\n\n${overallAssessment}\n\nCompleteness Score: ${parsedData.completenessScore}%\nDuplicate Rows: ${parsedData.duplicateRows}\nColumns with Issues: ${columnsWithIssues.length}\nHigh Missing Rate Columns: ${highMissingCols.length}`,
+                type: "document"
+              },
+              {
+                title: "Column-Level Scrubbing Plan",
+                content: scrubPlan.length > 0
+                  ? `COLUMNS REQUIRING ATTENTION:\n${'─'.repeat(40)}\n\n${scrubPlan}`
+                  : `✅ All columns appear clean.\n\nNo significant data quality issues detected at the column level.`,
+                type: "list"
+              },
+              {
+                title: "Recommended Transformations",
+                content: `SCRUBBING RECOMMENDATIONS:\n${'─'.repeat(40)}\n\n${parsedData.duplicateRows > 0 ? `1. ⚠️ Remove ${parsedData.duplicateRows} duplicate rows\n` : ''}${highMissingCols.length > 0 ? `2. Review high-missing columns: ${highMissingCols.map(c => c.name).join(', ')}\n` : ''}${parsedData.warnings.length > 0 ? `\nWARNINGS:\n${parsedData.warnings.map(w => `• ${w}`).join('\n')}` : '✅ No critical warnings.'}`,
+                type: "text"
+              }
+            ]
+          };
+        }
+        // Fallback if no parsed data
         return {
-          summary: `Data scrubbing plan ready. Apply transformations once data is loaded.`,
+          summary: `Data scrubbing ready. Upload your dataset to analyze data quality.`,
           outputs: [
             {
-              title: "Scrubbing Plan",
-              content: `Dataset: ${dataset}\n\nPlanned Transformations:\n• Outlier detection and handling\n• Missing value assessment\n• Format standardization\n• Variable transformations as needed\n\nThese will be applied to your actual data once loaded.`,
+              title: "Scrubbing Analysis Pending",
+              content: `Dataset: ${dataset}\n\nTo run scrubbing analysis:\n1. Complete the Schema Extraction stage\n2. Data quality assessment will run automatically\n3. Review recommendations before proceeding`,
               type: "text"
-            },
-            {
-              title: "Quality Checklist",
-              content: `Pre-Analysis Checks:\n□ Range validation for continuous variables\n□ Category verification for categorical variables\n□ Missing data patterns\n□ Duplicate record check\n□ Temporal consistency (if applicable)\n\nReview these once data is processed.`,
-              type: "list"
             }
           ]
         };
 
       case 8: // Data Validation
+        // If we have parsed data, show real validation results
+        if (parsedData && parsedData.columns.length > 0) {
+          const overallScore = Math.round((parsedData.completenessScore + parsedData.validityScore + parsedData.consistencyScore) / 3);
+          const passThreshold = 70;
+          const validationStatus = overallScore >= passThreshold ? 'PASSED' : 'NEEDS REVIEW';
+
+          const numericCols = parsedData.columns.filter(c => c.type === 'number' || c.type === 'integer');
+          const categoricalCols = parsedData.columns.filter(c => c.type === 'string' && c.uniqueValues < parsedData.rowCount * 0.5);
+          const dateCols = parsedData.columns.filter(c => c.type === 'date');
+
+          const validationChecks = [
+            { check: 'Completeness Check', score: parsedData.completenessScore, status: parsedData.completenessScore >= 80 ? '✅ PASS' : '⚠️ REVIEW' },
+            { check: 'Data Type Consistency', score: parsedData.consistencyScore, status: parsedData.consistencyScore >= 90 ? '✅ PASS' : '⚠️ REVIEW' },
+            { check: 'Value Validity', score: parsedData.validityScore, status: parsedData.validityScore >= 85 ? '✅ PASS' : '⚠️ REVIEW' },
+            { check: 'Duplicate Detection', score: parsedData.duplicateRows === 0 ? 100 : Math.max(0, 100 - (parsedData.duplicateRows / parsedData.rowCount * 100)), status: parsedData.duplicateRows === 0 ? '✅ PASS' : '⚠️ REVIEW' }
+          ];
+
+          return {
+            summary: `Data validation ${validationStatus}: Overall quality score ${overallScore}% (${records.toLocaleString()} records validated).`,
+            outputs: [
+              {
+                title: "Validation Results Summary",
+                content: `${'═'.repeat(60)}\nDATA VALIDATION REPORT\n${'═'.repeat(60)}\n\nDATASET: ${dataset}\nRECORDS VALIDATED: ${records.toLocaleString()}\nVARIABLES: ${parsedData.columns.length}\n\n${'─'.repeat(40)}\nOVERALL STATUS: ${validationStatus}\nQUALITY SCORE: ${overallScore}%\n${'─'.repeat(40)}\n\nVALIDATION CHECKS:\n${validationChecks.map(v => `  ${v.status} ${v.check}: ${v.score}%`).join('\n')}`,
+                type: "document"
+              },
+              {
+                title: "Quality Metrics Detail",
+                content: `QUALITY DIMENSIONS:\n${'─'.repeat(40)}\n\n📊 COMPLETENESS: ${parsedData.completenessScore}%\n   Non-null cells across all columns\n\n🔍 VALIDITY: ${parsedData.validityScore}%\n   Values within expected ranges\n\n🔗 CONSISTENCY: ${parsedData.consistencyScore}%\n   Data type consistency within columns\n\n${'─'.repeat(40)}\nCOLUMN TYPE BREAKDOWN:\n• Numeric columns: ${numericCols.length}\n• Categorical columns: ${categoricalCols.length}\n• Date columns: ${dateCols.length}\n• Other: ${parsedData.columns.length - numericCols.length - categoricalCols.length - dateCols.length}`,
+                type: "text"
+              },
+              {
+                title: "Validation Warnings & Recommendations",
+                content: parsedData.warnings.length > 0
+                  ? `⚠️ ISSUES REQUIRING ATTENTION:\n${'─'.repeat(40)}\n\n${parsedData.warnings.map((w, i) => `${i + 1}. ${w}`).join('\n')}\n\n${'─'.repeat(40)}\nRECOMMENDATION: Address these issues before proceeding to analysis. Data quality directly impacts research validity.`
+                  : `✅ NO CRITICAL ISSUES DETECTED\n${'─'.repeat(40)}\n\nYour dataset has passed all validation checks. The data appears suitable for statistical analysis.\n\nRECOMMENDATION: Proceed to the Summary Characteristics stage to generate Table 1.`,
+                type: "text"
+              }
+            ]
+          };
+        }
+        // Fallback if no parsed data
         return {
-          summary: `Data validation framework ready. Run validation once data processing is complete.`,
+          summary: `Data validation ready. Complete earlier stages to validate your data.`,
           outputs: [
             {
-              title: "Validation Framework",
-              content: `VALIDATION CHECKS TO RUN:\n\n✓ Range validation: Verify values within expected limits\n✓ Internal consistency: Check for contradictory values\n✓ Completeness: Assess missing data rates\n✓ Referential integrity: Verify relationships\n✓ Business rules: Apply domain-specific logic\n\nRun validation after data scrubbing is complete.`,
-              type: "text"
-            },
-            {
-              title: "Quality Metrics Framework",
-              content: `Dimensions to Assess:\n• Completeness: % of required fields populated\n• Accuracy: Validated against source\n• Consistency: No contradictions\n• Timeliness: Data within study window\n\nScores will be calculated from your actual data.`,
+              title: "Validation Pending",
+              content: `Dataset: ${dataset}\n\nTo run validation:\n1. Complete Schema Extraction\n2. Complete Data Scrubbing\n3. Validation will assess overall data quality`,
               type: "text"
             }
           ]
@@ -2938,6 +3248,35 @@ export async function registerRoutes(
       selectedJournal: req.body?.selectedJournal
     };
 
+    // For data processing stages (6, 7, 8), try to load and parse actual file content
+    let parsedCSVData: ParsedCSVData | undefined;
+    const fileId = req.body?.fileId;
+    const csvContent = req.body?.csvContent; // Direct CSV content (from frontend upload)
+
+    if ([6, 7, 8].includes(stageId)) {
+      try {
+        if (csvContent && typeof csvContent === 'string') {
+          // Parse CSV content directly provided in request
+          parsedCSVData = parseCSVContent(csvContent);
+          console.log(`[Stage ${stageId}] Parsed CSV from request body: ${parsedCSVData.columns.length} columns, ${parsedCSVData.rowCount} rows`);
+        } else if (fileId) {
+          // Load file from storage and parse it
+          const fileUpload = await storage.getFileUpload(fileId);
+          if (fileUpload && fileUpload.storedFilename) {
+            const filePath = path.join(uploadDir, fileUpload.storedFilename);
+            if (fs.existsSync(filePath)) {
+              const fileContent = fs.readFileSync(filePath, 'utf-8');
+              parsedCSVData = parseCSVContent(fileContent);
+              console.log(`[Stage ${stageId}] Parsed CSV from file ${fileUpload.originalFilename}: ${parsedCSVData.columns.length} columns, ${parsedCSVData.rowCount} rows`);
+            }
+          }
+        }
+      } catch (parseError) {
+        console.error(`[Stage ${stageId}] Error parsing CSV:`, parseError);
+        // Continue without parsed data - will use fallback
+      }
+    }
+
     // Empty stageOutputs - all stages use generateDynamicStageOutput() instead
     const stageOutputs: Record<number, {
       summary: string;
@@ -2971,7 +3310,7 @@ export async function registerRoutes(
 
     // For stages 3, 5-19: Generate dynamic outputs based on user input
     if (![1, 2, 4].includes(stageId)) {
-      const dynamicOutput = generateDynamicStageOutput(stageId, stageFromWorkflow.name, userInputs);
+      const dynamicOutput = generateDynamicStageOutput(stageId, stageFromWorkflow.name, userInputs, parsedCSVData);
 
       // Find next stage
       const currentIndex = allStages.findIndex(s => s.id === stageId);
@@ -3733,7 +4072,7 @@ Principal Investigator: _____________________________  Date: ____________
 
     // Fallback: If we get here for stages 1, 2, 4, use dynamic output
     // (This handles AI failures gracefully)
-    const fallbackOutput = generateDynamicStageOutput(stageId, stage.name, userInputs);
+    const fallbackOutput = generateDynamicStageOutput(stageId, stage.name, userInputs, parsedCSVData);
     const currentIdx = allStages.findIndex(s => s.id === stageId);
     const nextStg = allStages[currentIdx + 1];
 
