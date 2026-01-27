@@ -51,29 +51,58 @@ Docker-first deployment architecture for ResearchFlow with clean Node.js/Python 
 
 ### Prerequisites
 
-- Docker & Docker Compose
-- Node.js 20+
-- Python 3.11+
-- Make
+- Docker & Docker Compose v2.20+
+- Node.js 20+ (for local development)
+- Python 3.11+ (for local development)
+- Make (optional, for convenience commands)
 
 ### Development Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/researchflow-production.git
+# 1. Clone the repository
+git clone https://github.com/ry86pkqf74-rgb/researchflow-production.git
 cd researchflow-production
 
-# Initial setup
-make setup
+# 2. Copy environment file and configure
+cp .env.example .env
+# Edit .env with your API keys (see Configuration section)
 
-# Start development environment
-make dev
+# 3. Start all services with Docker Compose
+docker compose up -d
+
+# 4. Wait for migrations to complete (check logs)
+docker compose logs migrate -f
+
+# 5. Verify services are running
+docker compose ps
 ```
 
 Access the application:
 - **Web UI**: http://localhost:5173
 - **API**: http://localhost:3001
 - **Worker API**: http://localhost:8000
+- **API Docs**: http://localhost:3001/api-docs
+
+### Run Migrations (if needed)
+
+```bash
+# All migrations run automatically via docker compose
+# To manually run specific migrations:
+docker compose exec postgres psql -U ros -d ros -f /migrations/006_paper_library.sql
+```
+
+### Verify Installation
+
+```bash
+# Check all services
+curl http://localhost:3001/health
+curl http://localhost:8000/health
+
+# Test authentication
+curl -X POST http://localhost:3001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"testpass123"}'
+```
 
 ### Available Commands
 
@@ -269,6 +298,62 @@ Stage 20 enforces strict PHI protection:
 └── bundles/export_bundle_{conference}_{format}.zip
 ```
 
+## Authentication & Authorization
+
+ResearchFlow uses JWT-based authentication with role-based access control (RBAC).
+
+### Modes
+
+| Mode | Authentication | Features | Data |
+|------|---------------|----------|------|
+| **Demo Mode** | Optional | Limited features | Mock data |
+| **Live Mode** | Required | Full features | Real data |
+
+### User Roles
+
+| Role | Level | Permissions |
+|------|-------|-------------|
+| VIEWER | 1 | Read-only access |
+| RESEARCHER | 2 | Create, analyze, export |
+| STEWARD | 3 | Approve workflows, data export |
+| ADMIN | 4 | Full system access |
+
+### Authentication Flow
+
+```bash
+# 1. Register
+curl -X POST http://localhost:3001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"securepass123"}'
+
+# 2. Login (returns JWT)
+curl -X POST http://localhost:3001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"securepass123"}'
+
+# 3. Use token for API calls
+curl -H "Authorization: Bearer <token>" \
+  http://localhost:3001/api/papers
+```
+
+### Protected Endpoints
+
+| Endpoint | Required Permission |
+|----------|-------------------|
+| `/api/analysis/*` | ANALYZE |
+| `/api/governance/approve` | STEWARD role |
+| `/api/ros/export/data` | STEWARD role |
+| `/api/admin/*` | ADMIN role |
+
+### Environment Variables
+
+```bash
+JWT_SECRET=<secure-random-key>      # Required in production
+JWT_EXPIRES_IN=24h                   # Token expiry
+AUTH_ALLOW_STATELESS_JWT=false      # Set false in production
+ADMIN_EMAILS=admin@example.com      # Comma-separated admin emails
+```
+
 ## Governance
 
 ResearchFlow implements strict PHI governance:
@@ -288,6 +373,34 @@ Full audit available in:
 - [docs/audit/GAP_MATRIX.md](docs/audit/GAP_MATRIX.md)
 - [docs/audit/SERVICE_INVENTORY.md](docs/audit/SERVICE_INVENTORY.md)
 - [docs/audit/REPO_STRUCTURE.md](docs/audit/REPO_STRUCTURE.md)
+- [CHECKPOINT_SUMMARY.md](CHECKPOINT_SUMMARY.md)
+
+### Track A: Production Activation ✅
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1-9 | Migration runner, healthchecks, WebSocket, Redis persistence | ✅ Complete |
+
+### Track M: Manuscript Studio ✅
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| M0-M8 | Canonical API, Yjs persistence, Comments, AI Refine, PHI gating | ✅ Complete |
+
+### Track B: SciSpace Parity ✅
+
+| Phase | Feature | API Endpoint | Status |
+|-------|---------|--------------|--------|
+| 10 | Paper Library & PDF Ingestion | `/api/papers` | ✅ |
+| 11 | PDF Viewer with Annotations | `/api/papers/:id/annotations` | ✅ |
+| 12 | AI Copilot for PDFs (RAG) | `/api/papers/:id/copilot` | ✅ |
+| 13 | Literature Review Workspace | `/api/collections`, `/api/notes` | ✅ |
+| 14 | Citation Manager (CSL) | `/api/citations` | ✅ |
+| 15 | Manuscript Export (Pandoc) | `/api/export` | ✅ |
+| 16 | Integrity Tools | `/api/integrity` | ✅ |
+| 17 | Ecosystem Integrations | `/api/ecosystem` | ✅ |
+
+### Core Features
 
 | Feature | Status | Evidence |
 |---------|--------|----------|

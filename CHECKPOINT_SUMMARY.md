@@ -149,5 +149,122 @@ When resuming development:
 
 ---
 
+## Checkpoint 4.5: Auth/Live Mode Verification ✅
+
+### Authentication Architecture
+
+The system uses a dual-mode authentication architecture:
+
+| Mode | Authentication | Features | Data |
+|------|---------------|----------|------|
+| **Demo Mode** | Unauthenticated | Limited features | Mock data acceptable |
+| **Live Mode** | JWT required | Full features | REAL data required |
+
+### Auth Middleware Stack
+
+Located in `services/orchestrator/src/services/authService.ts`:
+
+1. **`optionalAuth`** (line 530-558): Attaches user if token present, doesn't require it
+2. **`requireAuth`** (line 480-524): Requires valid JWT, returns 401 if missing/invalid
+3. **`devOrRequireAuth`** (line 579-588): Uses dev fallback in development, requires auth in production
+
+### RBAC Middleware
+
+Located in `services/orchestrator/src/middleware/rbac.ts`:
+
+1. **`requirePermission(permission)`**: Checks specific permission (e.g., 'ANALYZE', 'EXPORT')
+2. **`requireRole(minRole)`**: Checks minimum role level (VIEWER < RESEARCHER < STEWARD < ADMIN)
+3. **`protect(permission)`**: Combines active account check + permission check
+
+### Route Protection Summary
+
+| Route | Protection | Notes |
+|-------|------------|-------|
+| `/api/auth/*` | Public | Login, register, refresh |
+| `/api/analysis/extract` | `requirePermission('ANALYZE')` | Clinical extraction |
+| `/api/analysis/run` | `requirePermission('ANALYZE')` | Statistical analysis |
+| `/api/governance/approve` | `requireRole('STEWARD')` | Approval workflow |
+| `/api/ros/export/data` | `requireRole('STEWARD')` | Data export |
+| `/api/papers/*` | `optionalAuth` + user context | Paper library |
+| `/api/manuscripts/*` | `optionalAuth` + user context | Manuscript studio |
+| `/api/citations/*` | `optionalAuth` + user context | Citation manager |
+
+### Global Auth Middleware (routes.ts)
+
+Line 898 applies `optionalAuth` globally:
+```typescript
+app.use(optionalAuth);
+```
+
+Lines 902-933 set user context for all routes:
+- If JWT authenticated: Uses token user info with role
+- If unauthenticated: Sets anonymous user with VIEWER role
+
+### Frontend Auth Integration
+
+Located in `services/web/src/hooks/use-auth.ts`:
+
+- **Zustand store** for token persistence
+- **Auto-refresh** on 401 responses
+- **`useAuth()` hook** provides: `user`, `isAuthenticated`, `login`, `register`, `logout`
+
+Located in `services/web/src/lib/queryClient.ts`:
+
+- **`buildRequestHeaders()`** automatically adds `Authorization: Bearer <token>`
+- All API requests include auth token when available
+
+### Environment Variables for Auth
+
+```bash
+# JWT Configuration
+JWT_SECRET=<secure-random-key>  # REQUIRED in production
+JWT_EXPIRES_IN=24h
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Auth Modes
+AUTH_ALLOW_STATELESS_JWT=true   # Dev only, false in production
+GOVERNANCE_MODE=LIVE            # LIVE or STANDBY
+
+# Admin Access
+ADMIN_EMAILS=logan.glosser@gmail.com  # Comma-separated list
+```
+
+### Test Auth Flow
+
+```bash
+# 1. Register new user
+curl -X POST http://localhost:3001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"securepassword123"}'
+
+# 2. Login and get token
+TOKEN=$(curl -s -X POST http://localhost:3001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"securepassword123"}' | jq -r '.accessToken')
+
+# 3. Access protected endpoint
+curl -H "Authorization: Bearer $TOKEN" http://localhost:3001/api/analysis/health
+
+# 4. Test TESTROS bypass (development only)
+curl -X POST http://localhost:3001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"testros@gmail.com","password":"any"}'
+```
+
+### Verification Checklist
+
+- [x] Auth middleware exists (`authService.ts`)
+- [x] RBAC middleware exists (`rbac.ts`)
+- [x] Global `optionalAuth` applied (routes.ts:898)
+- [x] User context set for all routes (routes.ts:902-933)
+- [x] Analysis endpoints protected with `requirePermission('ANALYZE')`
+- [x] Frontend API calls include auth headers (`queryClient.ts`)
+- [x] Token persistence via Zustand + localStorage (`use-auth.ts`)
+- [x] Environment variables documented (`.env.example`)
+- [x] Docker compose includes auth env vars (`docker-compose.yml`)
+
+---
+
 **ALL TRACKS COMPLETE: Track A, Track M, Track B (10-17)**
+**Auth/Live Mode Wiring: VERIFIED ✅**
 **ResearchFlow Production is feature-complete for SciSpace parity**
