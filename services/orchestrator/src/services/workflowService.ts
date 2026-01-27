@@ -27,7 +27,7 @@ export interface CreateWorkflowInput {
   name: string;
   description?: string;
   orgId?: string;
-  createdBy: string;
+  createdBy?: string;  // Optional - will be null in DB if not provided
   definition?: WorkflowDefinition;
 }
 
@@ -35,7 +35,7 @@ export interface CreateVersionInput {
   workflowId: string;
   definition: WorkflowDefinition;
   changelog?: string;
-  createdBy: string;
+  createdBy?: string;  // Optional - will be null in DB if not provided
 }
 
 export interface UpdateWorkflowInput {
@@ -53,7 +53,7 @@ export async function createWorkflow(input: CreateWorkflowInput) {
     name: input.name,
     description: input.description,
     orgId: input.orgId,
-    createdBy: input.createdBy,
+    createdBy: input.createdBy || null,  // Use null if no user provided
     status: 'draft',
   }).returning();
 
@@ -127,7 +127,7 @@ export async function createWorkflowVersion(input: CreateVersionInput) {
     version: nextVersion,
     definition: input.definition,
     changelog: input.changelog,
-    createdBy: input.createdBy,
+    createdBy: input.createdBy || null,  // Use null if no user provided
   }).returning();
 
   // Update workflow's updatedAt

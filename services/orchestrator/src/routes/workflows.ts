@@ -60,10 +60,10 @@ const CreateVersionSchema = z.object({
 // HELPER FUNCTIONS
 // =====================
 
-function getUserFromRequest(req: Request): { id: string; orgId?: string; role?: string } {
+function getUserFromRequest(req: Request): { id: string | undefined; orgId?: string; role?: string } {
   const user = (req as any).user;
   return {
-    id: user?.id || 'anonymous',
+    id: user?.id,  // Don't default to 'anonymous' - let it be undefined if no user
     orgId: user?.orgId,
     role: user?.role,
   };
