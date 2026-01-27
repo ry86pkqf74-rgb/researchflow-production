@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { chatRepository } from '../repositories/chat.repository';
 import type { ChatSession, ChatMessage, ChatAction } from '../repositories/chat.repository';
 import { chatAgentService, ChatAgentError } from '../services/chat-agent';
+import { executeAction } from '../services/chat-agent/action-executor';
 import type { AgentType } from '../services/chat-agent';
 
 const router = Router();
@@ -255,7 +256,7 @@ router.post(
         });
       }
 
-      // Update to approved (execution handled in Phase 4)
+      // Update to approved
       const updatedAction = await chatRepository.updateActionStatus(
         actionId,
         'approved',
@@ -265,7 +266,57 @@ router.post(
       res.json({
         success: true,
         action: formatAction(updatedAction),
-        message: 'Action approved. Execution will be implemented in Phase 4.',
+        message: 'Action approved. Use /api/chat/actions/:actionId/execute to apply changes.',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/chat/actions/:actionId/execute
+ * Execute an approved action against the artifact
+ */
+router.post(
+  '/actions/:actionId/execute',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { actionId } = req.params;
+      const { artifactContent, artifactMetadata } = req.body || {};
+
+      // Artifact context is required for execution
+      if (!artifactContent) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_ARTIFACT',
+            message: 'artifactContent is required to execute action',
+          },
+        });
+      }
+
+      // Execute the action
+      const result = await executeAction(
+        actionId,
+        {
+          content: artifactContent,
+          metadata: artifactMetadata || {},
+        }
+      );
+
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          action: formatAction(result.action),
+          error: result.error,
+        });
+      }
+
+      res.json({
+        success: true,
+        action: formatAction(result.action),
+        changes: result.changes,
       });
     } catch (error) {
       next(error);
