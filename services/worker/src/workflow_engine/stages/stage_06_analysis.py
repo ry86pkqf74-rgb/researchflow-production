@@ -772,6 +772,54 @@ class AnalysisStage:
             f"type={analysis_type}, dataset={dataset_pointer}"
         )
 
+        # =========================================================================
+        # CUMULATIVE DATA ACCESS (LIVE mode)
+        # Access prior stage outputs from the cumulative data context
+        # =========================================================================
+
+        # Check PHI detection results from Stage 5 using cumulative data
+        phi_schema = None
+        phi_output = context.get_prior_stage_output(5)
+        if phi_output:
+            phi_schema = phi_output.get("phi_schema")
+            if phi_schema:
+                logger.info(
+                    f"Loaded PHI schema from Stage 5: "
+                    f"risk_level={phi_schema.get('risk_level')}, "
+                    f"columns_requiring_deidentification={phi_schema.get('columns_requiring_deidentification', [])}"
+                )
+                # Store PHI context for downstream use
+                output["phi_context"] = {
+                    "risk_level": phi_schema.get("risk_level"),
+                    "phi_detected": phi_schema.get("phi_detected"),
+                    "columns_requiring_deidentification": phi_schema.get("columns_requiring_deidentification", []),
+                }
+
+        # Also check context.phi_schemas (orchestrator-provided)
+        if context.phi_schemas:
+            logger.info(f"Loaded PHI schemas from orchestrator: {list(context.phi_schemas.keys())}")
+
+        # Access validation results from Stage 4 using cumulative data
+        validation_output = context.get_prior_stage_output(4)
+        if validation_output:
+            logger.info(
+                f"Loaded validation results from Stage 4: "
+                f"valid={validation_output.get('valid')}"
+            )
+            if not validation_output.get("valid"):
+                warnings.append(
+                    "Stage 4 validation failed - proceeding with caution"
+                )
+
+        # Access cumulative research context
+        topic_declaration = context.get_cumulative_value("topic_declaration")
+        if topic_declaration:
+            logger.info(f"Research topic from cumulative data: {topic_declaration.get('title', 'N/A')}")
+            output["research_context"] = {
+                "topic": topic_declaration.get("title"),
+                "hypothesis": topic_declaration.get("hypothesis"),
+            }
+
         # Validate analysis type
         if analysis_type not in SUPPORTED_ANALYSIS_TYPES:
             completed_at = datetime.utcnow().isoformat() + "Z"

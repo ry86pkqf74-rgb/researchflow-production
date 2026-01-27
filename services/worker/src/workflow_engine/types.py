@@ -50,8 +50,16 @@ class StageContext:
         artifact_path: Base path for artifact storage
         log_path: Base path for log storage
         governance_mode: Current governance mode (DEMO, STAGING, PRODUCTION)
-        previous_results: Results from previously executed stages
+        previous_results: Results from previously executed stages (within current job)
         metadata: Additional context metadata
+
+        # Cumulative data from orchestrator (LIVE mode)
+        manifest_id: UUID of the project manifest in the database
+        project_id: Project identifier for cumulative tracking
+        research_id: Research identifier for cumulative tracking
+        cumulative_data: Accumulated data from all prior stages across sessions
+        phi_schemas: PHI detection/protection schemas for sensitive data
+        prior_stage_outputs: Raw outputs from prior stages (from database)
     """
     job_id: str
     config: Dict[str, Any]
@@ -61,6 +69,58 @@ class StageContext:
     governance_mode: str = "DEMO"
     previous_results: Dict[int, StageResult] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+    # Cumulative data fields (populated from orchestrator in LIVE mode)
+    manifest_id: Optional[str] = None
+    project_id: Optional[str] = None
+    research_id: Optional[str] = None
+    cumulative_data: Dict[str, Any] = field(default_factory=dict)
+    phi_schemas: Dict[str, Any] = field(default_factory=dict)
+    prior_stage_outputs: Dict[int, Dict[str, Any]] = field(default_factory=dict)
+
+    def get_prior_stage_output(self, stage_number: int) -> Optional[Dict[str, Any]]:
+        """
+        Get the output from a prior stage.
+
+        First checks previous_results (current job run), then falls back to
+        prior_stage_outputs (from database/orchestrator).
+
+        Args:
+            stage_number: The stage number to retrieve output for
+
+        Returns:
+            The stage output dict, or None if not found
+        """
+        # Check in-job results first
+        if stage_number in self.previous_results:
+            return self.previous_results[stage_number].output
+
+        # Fall back to orchestrator-provided cumulative data
+        if stage_number in self.prior_stage_outputs:
+            return self.prior_stage_outputs[stage_number].get("output_data", {})
+
+        return None
+
+    def get_cumulative_value(self, key: str, default: Any = None) -> Any:
+        """
+        Get a value from cumulative data by key.
+
+        Args:
+            key: The key to look up in cumulative_data
+            default: Default value if key not found
+
+        Returns:
+            The value or default
+        """
+        return self.cumulative_data.get(key, default)
+
+    def has_phi_schema(self, schema_name: str) -> bool:
+        """Check if a PHI schema is available."""
+        return schema_name in self.phi_schemas
+
+    def get_phi_schema(self, schema_name: str) -> Optional[Dict[str, Any]]:
+        """Get a PHI schema by name."""
+        return self.phi_schemas.get(schema_name)
 
 
 @runtime_checkable

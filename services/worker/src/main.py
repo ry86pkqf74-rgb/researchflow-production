@@ -33,6 +33,12 @@ from src.workflow_engine import (
     list_stages,
 )
 
+# Cumulative data client for LIVE mode
+from src.services import (
+    get_cumulative_data_client,
+    close_cumulative_data_client,
+)
+
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper()),
@@ -121,6 +127,9 @@ class WorkerService:
 
         if self.http_client:
             await self.http_client.aclose()
+
+        # Close cumulative data client
+        await close_cumulative_data_client()
 
         logger.info("Worker stopped")
 
@@ -264,7 +273,67 @@ class WorkerService:
         registered = list_stages()
         logger.info(f"Registered stages: {[s['stage_id'] for s in registered]}")
 
-        # Create execution context
+        # Extract identifiers from job metadata
+        metadata = job.metadata or {}
+        project_id = metadata.get("project_id")
+        research_id = metadata.get("research_id")
+        user_id = metadata.get("user_id")
+
+        # Initialize cumulative data fields
+        manifest_id = None
+        cumulative_data = {}
+        phi_schemas = {}
+        prior_stage_outputs = {}
+
+        # In LIVE mode, fetch cumulative data from orchestrator
+        if self.governance_mode == "LIVE" and (project_id or research_id):
+            logger.info(f"LIVE mode: Fetching cumulative data for project={project_id}, research={research_id}")
+
+            try:
+                cumulative_client = get_cumulative_data_client()
+                identifier = {"project_id": project_id, "research_id": research_id}
+
+                # Get cumulative data up to the first stage we're running
+                first_stage = min(stages)
+                cumulative_result = await cumulative_client.get_cumulative_data(
+                    identifier=identifier,
+                    stage_number=first_stage,
+                )
+
+                manifest_id = cumulative_result.manifest_id
+                cumulative_data = cumulative_result.cumulative_data
+                phi_schemas = cumulative_result.phi_schemas
+                prior_stage_outputs = cumulative_result.stage_outputs
+
+                logger.info(
+                    f"Loaded cumulative data: manifest={manifest_id}, "
+                    f"stages_loaded={list(prior_stage_outputs.keys())}, "
+                    f"phi_schemas={list(phi_schemas.keys())}"
+                )
+
+            except Exception as e:
+                logger.warning(f"Failed to fetch cumulative data (continuing with empty): {e}")
+
+        # Also check if cumulative data was passed directly in job config
+        # (alternative path for orchestrator to pass data inline)
+        if "cumulativeData" in job.config:
+            cumulative_data = {**cumulative_data, **job.config["cumulativeData"]}
+            logger.info("Merged inline cumulativeData from job config")
+
+        if "phiSchemas" in job.config:
+            phi_schemas = {**phi_schemas, **job.config["phiSchemas"]}
+            logger.info("Merged inline phiSchemas from job config")
+
+        if "priorStageOutputs" in job.config:
+            for stage_key, output in job.config["priorStageOutputs"].items():
+                try:
+                    stage_num = int(stage_key)
+                    prior_stage_outputs[stage_num] = output
+                except (ValueError, TypeError):
+                    pass
+            logger.info("Merged inline priorStageOutputs from job config")
+
+        # Create execution context with cumulative data
         context = StageContext(
             job_id=job.job_id,
             config=job.config,
@@ -272,7 +341,20 @@ class WorkerService:
             artifact_path=self.artifact_path,
             log_path=self.log_path,
             governance_mode=self.governance_mode,
-            metadata=job.metadata or {},
+            metadata=metadata,
+            # Cumulative data fields
+            manifest_id=manifest_id,
+            project_id=project_id,
+            research_id=research_id,
+            cumulative_data=cumulative_data,
+            phi_schemas=phi_schemas,
+            prior_stage_outputs=prior_stage_outputs,
+        )
+
+        logger.info(
+            f"Stage context created: governance={self.governance_mode}, "
+            f"has_cumulative={bool(cumulative_data)}, "
+            f"prior_stages={list(prior_stage_outputs.keys())}"
         )
 
         # Execute stages via workflow engine
@@ -282,8 +364,49 @@ class WorkerService:
             stop_on_failure=job.config.get("stop_on_failure", True),
         )
 
+        # In LIVE mode, report stage completions back to orchestrator
+        if self.governance_mode == "LIVE" and (project_id or research_id):
+            await self._report_stage_results(
+                identifier={"project_id": project_id, "research_id": research_id},
+                result=result,
+            )
+
         completed = result["stages_completed"]
         return result, completed
+
+    async def _report_stage_results(
+        self,
+        identifier: Dict[str, str],
+        result: Dict[str, Any],
+    ):
+        """Report stage results back to orchestrator for persistence."""
+        try:
+            cumulative_client = get_cumulative_data_client()
+
+            # Report completed stages
+            for stage_id in result.get("stages_completed", []):
+                stage_result = result.get("results", {}).get(str(stage_id), {})
+                await cumulative_client.report_stage_completion(
+                    identifier=identifier,
+                    stage_number=stage_id,
+                    output_data=stage_result.get("output", {}),
+                    artifacts=stage_result.get("artifacts", []),
+                    processing_time_ms=stage_result.get("duration_ms", 0),
+                )
+
+            # Report failed stages
+            for stage_id in result.get("stages_failed", []):
+                stage_result = result.get("results", {}).get(str(stage_id), {})
+                errors = stage_result.get("errors", [])
+                error_message = errors[0] if errors else "Stage execution failed"
+                await cumulative_client.report_stage_failure(
+                    identifier=identifier,
+                    stage_number=stage_id,
+                    error_message=error_message,
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to report stage results to orchestrator: {e}")
 
     async def generate_artifacts(self, job: JobRequest) -> tuple:
         """Generate output artifacts (figures, tables, reports)."""

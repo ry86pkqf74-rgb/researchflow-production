@@ -411,6 +411,58 @@ class Stage05PHIDetection:
             "scan_metadata": scan_metadata,
         }
 
+        # Build PHI schema for downstream stages (cumulative data)
+        # This schema tells downstream stages which columns/fields contain PHI
+        phi_schema = {
+            "version": "1.0",
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "source_file": file_path,
+            "governance_mode": context.governance_mode,
+            "risk_level": risk_level,
+            "phi_detected": phi_count > 0,
+            # Map of column -> list of PHI categories found
+            "column_phi_map": {},
+            # List of columns requiring de-identification
+            "columns_requiring_deidentification": [],
+            # De-identification recommendations
+            "deidentification_recommendations": {},
+        }
+
+        # Build column-level PHI map from findings
+        for finding in all_findings:
+            col = finding.get("column", "_text_content")
+            cat = finding["category"]
+
+            if col not in phi_schema["column_phi_map"]:
+                phi_schema["column_phi_map"][col] = []
+
+            if cat not in phi_schema["column_phi_map"][col]:
+                phi_schema["column_phi_map"][col].append(cat)
+
+        # Identify columns requiring de-identification
+        for col, categories in phi_schema["column_phi_map"].items():
+            if categories:  # Any PHI found in column
+                phi_schema["columns_requiring_deidentification"].append(col)
+
+                # Add de-identification recommendations per category
+                recommendations = []
+                for cat in categories:
+                    if cat in ("names", "social_security_numbers", "medical_record_numbers"):
+                        recommendations.append("redact_or_pseudonymize")
+                    elif cat in ("dates",):
+                        recommendations.append("date_shift")
+                    elif cat in ("geographic_data",):
+                        recommendations.append("generalize_to_region")
+                    elif cat in ("phone_numbers", "email_addresses"):
+                        recommendations.append("redact")
+                    else:
+                        recommendations.append("redact")
+
+                phi_schema["deidentification_recommendations"][col] = list(set(recommendations))
+
+        # Store PHI schema in detection results for cumulative access
+        detection_results["phi_schema"] = phi_schema
+
         # Mode-specific handling
         if context.governance_mode == "DEMO":
             detection_results["demo_mode"] = True
