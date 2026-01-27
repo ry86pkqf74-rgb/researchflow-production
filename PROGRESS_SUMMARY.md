@@ -164,13 +164,64 @@
 
 ---
 
-## Next Steps
+## Track M: Manuscript Studio - COMPLETE
 
-1. Review DEPLOYMENT_CHECKLIST.md before production deploy
-2. Implement PHI scans table persistence (Phase 6 HIGH priority)
-3. Replace mockDatasets with database queries
-4. Complete integration test implementations
+| Phase | Status | Key Changes |
+|-------|--------|-------------|
+| M0 | ✅ COMPLETE | Wiring audit - docs/MANUSCRIPT_STUDIO_WIRING_AUDIT.md |
+| M1 | ✅ COMPLETE | Canonical /api/manuscripts CRUD endpoints |
+| M2 | ✅ COMPLETE | Document persistence (manuscript_docs table) |
+| M3 | ✅ COMPLETE | Comments system with threads and resolve |
+| M4 | ✅ COMPLETE | AI Refine returns diff structure (not overwrite) |
+| M5 | ✅ COMPLETE | PHI gating wired to manuscript routes |
+| M6 | ✅ COMPLETE | Generation UX endpoints |
+| M7 | ✅ COMPLETE | E2E tests created |
+| M8 | ✅ COMPLETE | Verification script and runbook |
+
+### Track M Files Created
+
+**Routes**
+- `services/orchestrator/src/routes/manuscripts.ts` (NEW)
+
+**Migrations**
+- `migrations/005_manuscript_docs_comments.sql` (NEW)
+
+**Tests**
+- `tests/e2e/manuscript-journey.spec.ts` (NEW)
+
+**Scripts**
+- `scripts/verify-manuscript-studio.sh` (NEW)
+
+**Documentation**
+- `docs/MANUSCRIPT_STUDIO_WIRING_AUDIT.md` (NEW)
+- `docs/runbooks/manuscript-studio.md` (NEW)
+
+### Track M Key Features
+
+- Canonical `/api/manuscripts` namespace with CRUD
+- Document persistence with Yjs state support
+- Comments with inline anchoring and threading
+- AI refine returns diff (user accepts/rejects)
+- PHI gating in LIVE mode (location-only reporting)
+- Provenance logging for all AI operations
 
 ---
 
-**Execution Complete!**
+## Next Steps
+
+1. Review DEPLOYMENT_CHECKLIST.md before production deploy
+2. Complete Track B: SciSpace Parity (Phases 10-17)
+   - Paper Library & PDF ingestion
+   - PDF Viewer with annotations
+   - AI Copilot for PDFs
+   - Literature Review workspace
+   - Citation Manager (CSL)
+   - Manuscript Export (Pandoc)
+   - Integrity Tools
+   - Ecosystem Integrations
+3. Push all commits to remote
+
+---
+
+**Track A & Track M Complete!**
+**Ready for Track B**
