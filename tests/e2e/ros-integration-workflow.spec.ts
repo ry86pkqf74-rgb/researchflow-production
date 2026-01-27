@@ -20,9 +20,9 @@ import { test, expect, Page } from '@playwright/test';
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173';
 const API_URL = process.env.PLAYWRIGHT_API_URL || 'http://localhost:3001';
 
-// Admin credentials (from execution plan)
-const ADMIN_EMAIL = 'logan.glosser@gmail.com';
-const ADMIN_PASSWORD = 'testros13!';
+// Admin credentials - using TESTROS bypass for development/testing
+const ADMIN_EMAIL = 'TESTROS_BYPASS';
+const ADMIN_PASSWORD = 'TESTROS_SECRET';
 
 // Test data
 const TEST_TOPIC = {
