@@ -47,6 +47,7 @@ import ProjectsPage from "@/pages/projects";
 import ProjectDetailPage from "@/pages/projects/project-detail";
 import SpreadsheetCellParse from "@/pages/spreadsheet-cell-parse";
 import ManuscriptEditorPage from "@/pages/manuscript-editor";
+import PapersPage from "@/pages/papers";
 import { OrgSelector } from "@/components/org";
 import { AdaptiveNavigation } from "@/components/nav";
 import { ErrorBoundary } from "@/components/errors/ErrorBoundary";
@@ -393,6 +394,11 @@ function Router() {
       </Route>
       <Route path="/manuscripts/:id">
         {() => <ProtectedRoute component={ManuscriptEditorPage} />}
+      </Route>
+
+      {/* Paper Library Routes (Track B Phase 10) */}
+      <Route path="/papers">
+        {() => <ProtectedRoute component={PapersPage} />}
       </Route>
 
       {/* 404 catch-all - must be last */}
