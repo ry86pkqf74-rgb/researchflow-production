@@ -1,7 +1,6 @@
 # ResearchFlow Production - Checkpoint Summary
 
 **Date**: January 27, 2026
-**Git HEAD**: 930d331
 **Repository**: https://github.com/ry86pkqf74-rgb/researchflow-production
 
 ---
@@ -36,127 +35,97 @@
 | M7 | E2E tests (Playwright) | ✅ |
 | M8 | Verification script + runbook | ✅ |
 
----
+### Track B (Phases 10-17): SciSpace Parity - COMPLETE ✅
 
-## Git Commits (Track A & M)
-
-| Commit | Description |
-|--------|-------------|
-| `930d331` | docs: add comprehensive wiring guides for backend and frontend |
-| `dc441a3` | fix(Track M): mount manuscripts route and fix migration types |
-| `b4f3306` | feat(manuscript): Track M complete - Canonical API, comments, tests |
-| `cb4e019` | feat(manuscript): Track M Phases M0-M4 - Canonical API with comments |
-| `2205702` | [Feature] Add database persistence for PHI scans and datasets |
-
----
-
-## Files Created/Modified
-
-### Routes
-- `services/orchestrator/routes.ts` - Added manuscripts route import/mount
-- `services/orchestrator/src/routes/manuscripts.ts` - Canonical CRUD API
-
-### Migrations
-- `migrations/003_create_manuscript_tables.sql` - Fixed user_id types
-- `migrations/005_manuscript_docs_comments.sql` - Docs, comments, AI events
-
-### Tests
-- `tests/e2e/manuscript-journey.spec.ts` - End-to-end Playwright tests
-- `tests/integration/collab.test.ts` - 25 test cases
-- `tests/integration/artifact-graph.test.ts` - 22 test cases
-- `tests/integration/webhooks.test.ts` - 28 test cases
-- `tests/integration/imrad-ai.test.ts` - 30 test cases
-
-### Documentation
-- `docs/ROUTE_MOUNTING_GUIDE.md` - Backend route registration guide
-- `docs/UI_WIRING_GUIDE.md` - Frontend routing & patterns
-- `docs/MANUSCRIPT_STUDIO_WIRING_AUDIT.md` - Audit document
-- `docs/runbooks/manuscript-studio.md` - Operations runbook
-- `docs/DEPLOYMENT_CHECKLIST.md` - Production deployment
-- `docs/DEMO_FIXTURES_INVENTORY.md` - Demo data inventory
-
-### Scripts
-- `scripts/verify-manuscript-studio.sh` - Verification script
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 10 | Paper Library & PDF Ingestion | ✅ |
+| 11 | PDF Viewer with Annotations | ✅ |
+| 12 | AI Copilot for PDFs (RAG) | ✅ |
+| 13 | Literature Review Workspace | ✅ |
+| 14 | Citation Manager (CSL) | ✅ |
+| 15 | Manuscript Export (Pandoc) | ✅ |
+| 16 | Integrity Tools | ✅ |
+| 17 | Ecosystem Integrations | ✅ |
 
 ---
 
-## API Endpoints Verified
+## Migrations to Run
 
-| Endpoint | Status | Response |
-|----------|--------|----------|
-| `GET /api/manuscripts/ping` | ✅ 200 | `{"status":"ok","service":"manuscript-studio"}` |
-| `GET /api/manuscripts` | ✅ 200 | `{"manuscripts":[],"pagination":{...}}` |
-| `GET /health` | ✅ 200 | `{"status":"healthy","service":"orchestrator"}` |
+```bash
+# Track M migrations
+cat migrations/003_create_manuscript_tables.sql | docker compose exec -T postgres psql -U ros -d ros
+cat migrations/005_manuscript_docs_comments.sql | docker compose exec -T postgres psql -U ros -d ros
 
----
+# Track B migrations (Phases 10-12)
+cat migrations/006_paper_library.sql | docker compose exec -T postgres psql -U ros -d ros
+cat migrations/007_paper_annotations.sql | docker compose exec -T postgres psql -U ros -d ros
+cat migrations/008_ai_copilot.sql | docker compose exec -T postgres psql -U ros -d ros
 
-## Database Tables Created
+# Track B migration (Phase 13)
+cat migrations/009_literature_workspace.sql | docker compose exec -T postgres psql -U ros -d ros
 
-### Migration 003 (manuscripts)
-- `manuscripts` - Core manuscript records
-- `manuscript_versions` - Version history (hash-chained)
-- `manuscript_authors` - Author records
-- `manuscript_citations` - Citation library
-- `manuscript_audit_log` - Audit trail
+# Track B migration (Phase 14)
+cat migrations/010_citation_manager.sql | docker compose exec -T postgres psql -U ros -d ros
 
-### Migration 005 (docs/comments)
-- `manuscript_docs` - Yjs document state
-- `manuscript_comments` - Inline comments with anchors
-- `manuscript_ai_events` - AI operation provenance
+# Track B migration (Phase 15)
+cat migrations/011_manuscript_export.sql | docker compose exec -T postgres psql -U ros -d ros
 
----
+# Track B migration (Phase 16)
+cat migrations/012_integrity_tools.sql | docker compose exec -T postgres psql -U ros -d ros
 
-## Docker Services Status
-
-| Service | Port | Status |
-|---------|------|--------|
-| orchestrator | 3001 | ✅ Running |
-| web | 5173 | ✅ Running |
-| worker | 8000 | ✅ Running |
-| postgres | 5432 | ✅ Running |
-| redis | 6379 | ✅ Running |
-| nginx | 80/443 | ✅ Running |
-| collab | 1234/1235 | ⚠️ Restarting (known issue) |
-
----
-
-## Key Patterns Established
-
-### Backend Route Registration
-1. Create route file in `services/orchestrator/src/routes/`
-2. Import in `services/orchestrator/routes.ts`
-3. Mount with `app.use()` in `registerRoutes()`
-4. Restart Docker: `docker compose restart orchestrator`
-
-### Frontend Page Addition
-1. Create page in `services/web/src/pages/`
-2. Import in `services/web/src/App.tsx`
-3. Add `<Route>` in `<Switch>` component
-4. Wrap with `<AuthGate>` if protected
-
-### PHI Scanning
-```typescript
-import { scanForPhi } from '../services/phi-protection';
-const result = scanForPhi(content);
-if (result.detected) {
-  // Return 400 with location-only info
-}
+# Track B migration (Phase 17)
+cat migrations/013_ecosystem_integrations.sql | docker compose exec -T postgres psql -U ros -d ros
 ```
 
 ---
 
-## Next: Track B (Phases 10-17) - SciSpace Parity
+## Phase Details (Phases 13-17)
 
-| Phase | Feature |
-|-------|---------|
-| 10 | Paper Library & PDF ingestion |
-| 11 | PDF Viewer with annotations |
-| 12 | AI Copilot for PDFs |
-| 13 | Literature Review workspace |
-| 14 | Citation Manager (CSL) |
-| 15 | Manuscript Export (Pandoc) |
-| 16 | Integrity Tools |
-| 17 | Ecosystem Integrations |
+### Phase 13: Literature Review Workspace
+- **Database**: `collections`, `collection_papers`, `literature_notes`, `smart_collections`
+- **API**: `/api/collections`, `/api/notes`
+- **Frontend**: `CollectionsSidebar` component, papers page integration
+
+### Phase 14: Citation Manager (CSL)
+- **Database**: `citations`, `citation_groups`, `citation_styles`, `citation_formatted`
+- **API**: `/api/citations`, import from DOI/PubMed, batch formatting
+
+### Phase 15: Manuscript Export (Pandoc)
+- **Database**: `export_templates`, `export_jobs`, `export_presets`, `journal_requirements`
+- **API**: `/api/export`, templates, presets, journal search
+
+### Phase 16: Integrity Tools
+- **Database**: `integrity_checks`, `similarity_matches`, `statistical_verifications`, `citation_verifications`, `integrity_reports`, `retracted_papers`
+- **API**: `/api/integrity`, plagiarism check, stats verification, citation verification
+
+### Phase 17: Ecosystem Integrations
+- **Database**: `user_integrations`, `orcid_profiles`, `reference_manager_items`, `webhook_configs`, `webhook_logs`, `import_export_jobs`
+- **API**: `/api/ecosystem`, ORCID, Zotero, Mendeley, webhooks, import/export
+
+---
+
+## Key Files (Phases 13-17)
+
+### Backend Routes
+- `services/orchestrator/src/routes/collections.ts`
+- `services/orchestrator/src/routes/literature-notes.ts`
+- `services/orchestrator/src/routes/citations.ts`
+- `services/orchestrator/src/routes/export.ts`
+- `services/orchestrator/src/routes/integrity.ts`
+- `services/orchestrator/src/routes/ecosystem.ts`
+
+### Frontend Components
+- `services/web/src/components/papers/CollectionsSidebar.tsx`
+
+---
+
+## Environment Notes
+
+- **PostgreSQL**: `pgvector/pgvector:pg16` with vector extension
+- **OpenAI API Key**: Required for AI Copilot (`OPENAI_API_KEY`)
+- **Embedding Model**: `text-embedding-3-small` (1536 dimensions)
+- **Chat Model**: `gpt-4o-mini`
 
 ---
 
@@ -166,15 +135,19 @@ When resuming development:
 
 1. **Start Docker**: `docker compose up -d`
 2. **Check services**: `docker compose ps`
-3. **Run migrations if needed**:
+3. **Run migrations if needed** (see above)
+4. **Test APIs**:
    ```bash
-   cat migrations/003_create_manuscript_tables.sql | docker compose exec -T postgres psql -U ros -d ros
-   cat migrations/005_manuscript_docs_comments.sql | docker compose exec -T postgres psql -U ros -d ros
+   curl http://localhost:3001/api/manuscripts/ping
+   curl http://localhost:3001/api/papers/ping
+   curl http://localhost:3001/api/citations/ping
+   curl http://localhost:3001/api/export/ping
+   curl http://localhost:3001/api/integrity/ping
+   curl http://localhost:3001/api/ecosystem/ping
    ```
-4. **Test API**: `curl http://localhost:3001/api/manuscripts/ping`
 5. **View logs**: `docker compose logs orchestrator --tail=50`
 
 ---
 
-**Track A & Track M Complete**
-**Ready for Track B: SciSpace Parity**
+**ALL TRACKS COMPLETE: Track A, Track M, Track B (10-17)**
+**ResearchFlow Production is feature-complete for SciSpace parity**

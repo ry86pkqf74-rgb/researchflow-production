@@ -115,6 +115,7 @@ const searchSchema = z.object({
   year_from: z.coerce.number().int().optional(),
   year_to: z.coerce.number().int().optional(),
   read_status: z.enum(['unread', 'reading', 'read']).optional(),
+  collection_id: z.string().uuid().optional(),
   sort: z.enum(['created_at', 'title', 'year', 'rating']).default('created_at'),
   order: z.enum(['asc', 'desc']).default('desc'),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -270,9 +271,66 @@ router.get('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid query', details: parsed.error.flatten() });
     }
 
-    const { sort, order, limit, offset, read_status, year_from, year_to } = parsed.data;
+    const { sort, order, limit, offset, read_status, year_from, year_to, collection_id } = parsed.data;
 
-    // Build query conditions
+    // If filtering by collection, use JOIN query
+    if (collection_id) {
+      // First verify user owns the collection
+      const collectionCheck = await db.execute(sql`
+        SELECT id FROM collections WHERE id = ${collection_id} AND user_id = ${userId}
+      `);
+      if (collectionCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Collection not found' });
+      }
+
+      // Build conditions for papers in collection
+      let conditions = sql`p.user_id = ${userId}`;
+      if (read_status) {
+        conditions = sql`${conditions} AND p.read_status = ${read_status}`;
+      }
+      if (year_from) {
+        conditions = sql`${conditions} AND p.year >= ${year_from}`;
+      }
+      if (year_to) {
+        conditions = sql`${conditions} AND p.year <= ${year_to}`;
+      }
+
+      // Get papers in collection
+      const papers = await db.execute(sql`
+        SELECT
+          p.id, p.title, p.authors, p.abstract, p.doi, p.pmid, p.year, p.journal,
+          p.pdf_path, p.page_count, p.word_count, p.status, p.read_status, p.rating, p.notes,
+          p.created_at, p.updated_at, cp.collection_notes, cp.added_at
+        FROM papers p
+        INNER JOIN collection_papers cp ON cp.paper_id = p.id
+        WHERE cp.collection_id = ${collection_id} AND ${conditions}
+        ORDER BY cp.sort_order ASC, p.${sql.raw(sort)} ${sql.raw(order.toUpperCase())}
+        LIMIT ${limit} OFFSET ${offset}
+      `);
+
+      // Get total count in collection
+      const countResult = await db.execute(sql`
+        SELECT COUNT(*) as total
+        FROM papers p
+        INNER JOIN collection_papers cp ON cp.paper_id = p.id
+        WHERE cp.collection_id = ${collection_id} AND ${conditions}
+      `);
+
+      const total = parseInt(countResult.rows[0]?.total || '0');
+
+      return res.json({
+        papers: papers.rows,
+        collection_id,
+        pagination: {
+          total,
+          limit,
+          offset,
+          hasMore: offset + papers.rows.length < total,
+        },
+      });
+    }
+
+    // Standard query (no collection filter)
     let conditions = sql`user_id = ${userId}`;
 
     if (read_status) {

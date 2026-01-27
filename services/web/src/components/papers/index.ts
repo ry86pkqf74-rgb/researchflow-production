@@ -5,3 +5,4 @@
  */
 
 export { PaperCopilotPanel } from './PaperCopilotPanel';
+export { CollectionsSidebar } from './CollectionsSidebar';

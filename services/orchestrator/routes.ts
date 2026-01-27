@@ -111,6 +111,17 @@ import manuscriptGenerationRouter from "./src/routes/manuscript-generation";
 import manuscriptsRouter from "./src/routes/manuscripts";
 // Track B Phase 10: Paper Library
 import papersRouter from "./src/routes/papers";
+// Track B Phase 13: Literature Review Workspace
+import collectionsRouter from "./src/routes/collections";
+import literatureNotesRouter from "./src/routes/literature-notes";
+// Track B Phase 14: Citation Manager
+import citationsRouter from "./src/routes/citations";
+// Track B Phase 15: Manuscript Export
+import exportRouter from "./src/routes/export";
+// Track B Phase 16: Integrity Tools
+import integrityRouter from "./src/routes/integrity";
+// Track B Phase 17: Ecosystem Integrations
+import ecosystemRouter from "./src/routes/ecosystem";
 import claimsRouter from "./src/routes/claims";
 import sharesRouter from "./src/routes/shares";
 import submissionsRouter from "./src/routes/submissions";
@@ -997,6 +1008,22 @@ export async function registerRoutes(
 
   // Track B Phase 10: Paper Library
   app.use("/api/papers", papersRouter);
+
+  // Track B Phase 13: Literature Review Workspace
+  app.use("/api/collections", collectionsRouter);
+  app.use("/api/notes", literatureNotesRouter);
+
+  // Track B Phase 14: Citation Manager
+  app.use("/api/citations", citationsRouter);
+
+  // Track B Phase 15: Manuscript Export
+  app.use("/api/export", exportRouter);
+
+  // Track B Phase 16: Integrity Tools
+  app.use("/api/integrity", integrityRouter);
+
+  // Track B Phase 17: Ecosystem Integrations
+  app.use("/api/ecosystem", ecosystemRouter);
 
   // Phase F: Observability + Feature Flags
   app.use("/api/analytics", analyticsRouter);

@@ -62,10 +62,14 @@ import {
   Plus,
   Filter,
   X,
+  PanelLeftClose,
+  PanelLeft,
+  FolderOpen,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { CollectionsSidebar } from "@/components/papers";
 
 // =============================================================================
 // Types
@@ -323,14 +327,22 @@ export default function PapersPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [showSidebar, setShowSidebar] = useState(true);
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Fetch papers
+  // Fetch papers (optionally filtered by collection)
   const { data, isLoading, error } = useQuery({
-    queryKey: ['papers', filterStatus],
-    queryFn: () => apiRequest<PaperListResponse>('/api/papers' + (filterStatus !== 'all' ? `?read_status=${filterStatus}` : '')),
+    queryKey: ['papers', filterStatus, selectedCollectionId],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (filterStatus !== 'all') params.set('read_status', filterStatus);
+      if (selectedCollectionId) params.set('collection_id', selectedCollectionId);
+      const queryStr = params.toString();
+      return apiRequest<PaperListResponse>('/api/papers' + (queryStr ? `?${queryStr}` : ''));
+    },
   });
 
   // Upload mutation
@@ -428,150 +440,183 @@ export default function PapersPage() {
   }) || [];
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <BookOpen className="h-6 w-6" />
-            Paper Library
-          </h1>
-          <p className="text-muted-foreground">
-            Manage your research papers and PDFs
-          </p>
-        </div>
-
-        <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Paper
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Upload Paper</DialogTitle>
-              <DialogDescription>
-                Upload PDF files to your library. Metadata will be extracted automatically.
-              </DialogDescription>
-            </DialogHeader>
-            <UploadZone
-              onUpload={handleUpload}
-              isUploading={uploadMutation.isPending}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search papers..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+    <div className="flex h-[calc(100vh-4rem)]">
+      {/* Collections Sidebar */}
+      {showSidebar && (
+        <div className="w-64 border-r bg-background shrink-0">
+          <CollectionsSidebar
+            selectedCollectionId={selectedCollectionId || undefined}
+            onSelectCollection={setSelectedCollectionId}
           />
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
-              onClick={() => setSearchQuery('')}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        <div className="container mx-auto py-6 space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSidebar(!showSidebar)}
+                title={showSidebar ? 'Hide collections' : 'Show collections'}
+              >
+                {showSidebar ? (
+                  <PanelLeftClose className="h-5 w-5" />
+                ) : (
+                  <PanelLeft className="h-5 w-5" />
+                )}
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold flex items-center gap-2">
+                  {selectedCollectionId ? (
+                    <FolderOpen className="h-6 w-6" />
+                  ) : (
+                    <BookOpen className="h-6 w-6" />
+                  )}
+                  {selectedCollectionId ? 'Collection Papers' : 'Paper Library'}
+                </h1>
+                <p className="text-muted-foreground">
+                  {selectedCollectionId ? 'Papers in this collection' : 'Manage your research papers and PDFs'}
+                </p>
+              </div>
+            </div>
+
+            <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Paper
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Upload Paper</DialogTitle>
+                  <DialogDescription>
+                    Upload PDF files to your library. Metadata will be extracted automatically.
+                  </DialogDescription>
+                </DialogHeader>
+                <UploadZone
+                  onUpload={handleUpload}
+                  isUploading={uploadMutation.isPending}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {/* Filters */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search papers..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[150px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Papers</SelectItem>
+                <SelectItem value="unread">Unread</SelectItem>
+                <SelectItem value="reading">Reading</SelectItem>
+                <SelectItem value="read">Read</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="flex items-center border rounded-md">
+              <Button
+                variant={view === 'grid' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="rounded-r-none"
+                onClick={() => setView('grid')}
+              >
+                <Grid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={view === 'list' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="rounded-l-none"
+                onClick={() => setView('list')}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <span>{data?.pagination.total || 0} papers</span>
+            <Separator orientation="vertical" className="h-4" />
+            <span>{filteredPapers.filter(p => p.read_status === 'unread').length} unread</span>
+            <span>{filteredPapers.filter(p => p.read_status === 'reading').length} reading</span>
+            <span>{filteredPapers.filter(p => p.read_status === 'read').length} read</span>
+          </div>
+
+          {/* Content */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : error ? (
+            <Card className="p-8 text-center">
+              <p className="text-red-500">Failed to load papers</p>
+            </Card>
+          ) : filteredPapers.length === 0 ? (
+            <Card className="p-12 text-center">
+              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="font-medium mb-2">No papers yet</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Upload your first paper to get started
+              </p>
+              <Button onClick={() => setShowUploadDialog(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Paper
+              </Button>
+            </Card>
+          ) : (
+            <div className={cn(
+              view === 'grid'
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                : "space-y-2"
+            )}>
+              {filteredPapers.map((paper) => (
+                <PaperCard
+                  key={paper.id}
+                  paper={paper}
+                  onView={handleViewPaper}
+                  onDelete={handleDelete}
+                  onUpdateStatus={handleUpdateStatus}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {data && data.pagination.hasMore && (
+            <div className="flex justify-center pt-4">
+              <Button variant="outline">Load more</Button>
+            </div>
           )}
         </div>
-
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[150px]">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Filter" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Papers</SelectItem>
-            <SelectItem value="unread">Unread</SelectItem>
-            <SelectItem value="reading">Reading</SelectItem>
-            <SelectItem value="read">Read</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <div className="flex items-center border rounded-md">
-          <Button
-            variant={view === 'grid' ? 'secondary' : 'ghost'}
-            size="icon"
-            className="rounded-r-none"
-            onClick={() => setView('grid')}
-          >
-            <Grid className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={view === 'list' ? 'secondary' : 'ghost'}
-            size="icon"
-            className="rounded-l-none"
-            onClick={() => setView('list')}
-          >
-            <List className="h-4 w-4" />
-          </Button>
-        </div>
       </div>
-
-      {/* Stats */}
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-        <span>{data?.pagination.total || 0} papers</span>
-        <Separator orientation="vertical" className="h-4" />
-        <span>{filteredPapers.filter(p => p.read_status === 'unread').length} unread</span>
-        <span>{filteredPapers.filter(p => p.read_status === 'reading').length} reading</span>
-        <span>{filteredPapers.filter(p => p.read_status === 'read').length} read</span>
-      </div>
-
-      {/* Content */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : error ? (
-        <Card className="p-8 text-center">
-          <p className="text-red-500">Failed to load papers</p>
-        </Card>
-      ) : filteredPapers.length === 0 ? (
-        <Card className="p-12 text-center">
-          <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="font-medium mb-2">No papers yet</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Upload your first paper to get started
-          </p>
-          <Button onClick={() => setShowUploadDialog(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            Upload Paper
-          </Button>
-        </Card>
-      ) : (
-        <div className={cn(
-          view === 'grid'
-            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-            : "space-y-2"
-        )}>
-          {filteredPapers.map((paper) => (
-            <PaperCard
-              key={paper.id}
-              paper={paper}
-              onView={handleViewPaper}
-              onDelete={handleDelete}
-              onUpdateStatus={handleUpdateStatus}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Pagination */}
-      {data && data.pagination.hasMore && (
-        <div className="flex justify-center pt-4">
-          <Button variant="outline">Load more</Button>
-        </div>
-      )}
     </div>
   );
 }
