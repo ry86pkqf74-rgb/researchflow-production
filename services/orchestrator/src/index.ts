@@ -90,6 +90,8 @@ import phaseChatRoutes from './routes/phaseChatRoutes';
 import guidelinesProxyRoutes from './routes/guidelines-proxy.routes';
 // Planning Hub: Notion-like pages, databases, tasks, goals, and projections
 import hubRoutes from './routes/hub';
+// Cumulative Workflow: Stage data flow between 20 research stages
+import cumulativeDataRoutes from './routes/cumulative-data';
 
 // Phase 3: Secondary Routes (Integration Plan)
 import governanceSimulateRoutes from './routes/governance-simulate';
@@ -242,6 +244,7 @@ app.use('/api/analysis', analysisPlanningRoutes);  // Agentic Planning: AI-assis
 app.use('/api/phase', phaseChatRoutes);  // Phase Chat: Stage-specific AI agents
 app.use('/api/guidelines', guidelinesProxyRoutes);  // Guidelines Engine: Proxy to Python FastAPI
 app.use('/api/hub', hubRoutes);  // Planning Hub: Notion-like pages, databases, tasks, goals, projections
+app.use('/api/cumulative', cumulativeDataRoutes);  // Cumulative Workflow: Stage data flow between 20 stages
 
 // =============================================================================
 // Integration Plan Routes - Phase 3: Secondary Routes
