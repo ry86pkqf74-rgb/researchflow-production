@@ -5,7 +5,7 @@
  * Implements cycle detection and outdated artifact detection.
  */
 
-import { db } from '../db';
+import { db } from '../../db';
 import crypto from 'crypto';
 
 export interface Artifact {

@@ -4,7 +4,7 @@
  * Data access layer for analysis plans, jobs, artifacts, and events.
  */
 
-import { db } from '../db';
+import { db } from '../../db';
 import type {
   AnalysisPlan,
   AnalysisJob,

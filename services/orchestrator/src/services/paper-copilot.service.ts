@@ -8,7 +8,7 @@
  * - Summary and claim extraction
  */
 
-import { db } from '../db';
+import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { createHash } from 'crypto';
 import OpenAI from 'openai';
