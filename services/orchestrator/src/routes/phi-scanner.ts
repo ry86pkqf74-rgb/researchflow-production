@@ -39,7 +39,7 @@ const PHI_TYPES = [
 
 type PhiType = (typeof PHI_TYPES)[number];
 
-// PHI finding structure
+// PHI finding structure (internal - includes text for redaction processing)
 interface PhiFinding {
   id: string;
   type: PhiType;
@@ -53,6 +53,34 @@ interface PhiFinding {
   confidence: number;
   context: string;
   suggestedRedaction: string;
+}
+
+// Location-only PHI report (external - NEVER includes actual PHI values)
+// This structure is safe to return to clients and log
+interface PHILocation {
+  id: string;
+  type: PhiType;
+  row: number;           // Line number (1-indexed)
+  column: number;        // Column position
+  charStart: number;     // Character offset start
+  charEnd: number;       // Character offset end
+  confidence: number;
+  fieldPath?: string;    // For structured data: "patient.contact.phone"
+}
+
+// Location-only scan result (external response format)
+interface PHILocationReport {
+  scanId: string;
+  status: 'pending' | 'scanning' | 'completed' | 'failed';
+  hasPHI: boolean;
+  locations: PHILocation[];
+  summary: {
+    totalFound: number;
+    byType: Record<string, number>;
+    highConfidenceCount: number;
+    needsReview: boolean;
+  };
+  scanDurationMs: number;
 }
 
 // Scan result structure
@@ -206,22 +234,38 @@ router.post(
       },
     });
 
-    res.json({
+    // Convert to location-only report (NEVER return actual PHI values)
+    const locationReport: PHILocationReport = {
       scanId,
       status: result.status,
-      summary: result.summary,
-      findings: findings.map((f) => ({
+      hasPHI: findings.length > 0,
+      locations: findings.map((f) => ({
         id: f.id,
         type: f.type,
-        text: maskText(f.text),
-        location: f.location,
+        row: f.location.line,
+        column: f.location.column,
+        charStart: f.location.offset,
+        charEnd: f.location.offset + f.text.length,
         confidence: f.confidence,
-        context: maskText(f.context),
-        suggestedRedaction: f.suggestedRedaction,
+        // fieldPath would be set for structured data (JSON, CSV columns)
       })),
+      summary: {
+        totalFound: result.summary.totalFindings,
+        byType: result.summary.byType,
+        highConfidenceCount: result.summary.highConfidenceCount,
+        needsReview: result.summary.needsReview,
+      },
       scanDurationMs: result.scanDurationMs,
+    };
+
+    res.json({
+      ...locationReport,
       passed: findings.length === 0,
-      needsReview: result.summary.needsReview,
+      // SECURITY: We explicitly do NOT return:
+      // - text (the actual PHI value)
+      // - context (surrounding text that might contain PHI)
+      // - suggestedRedaction (not needed in location-only mode)
+      // Clients can use row/column/charStart/charEnd to locate and fix PHI
     });
   })
 );

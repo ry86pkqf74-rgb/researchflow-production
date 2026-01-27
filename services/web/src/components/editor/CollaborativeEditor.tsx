@@ -97,15 +97,16 @@ export function CollaborativeEditor({
     const wsProtocol = isHttps ? 'wss:' : 'ws:';
 
     // Use environment variable if provided, otherwise construct from current host
-    let wsUrl = import.meta.env.VITE_WS_URL;
+    // IMPORTANT: Production uses nginx proxy at /collab path
+    let wsUrl = import.meta.env.VITE_WS_URL || import.meta.env.VITE_COLLAB_URL;
     if (!wsUrl) {
       if (isDev) {
-        // Development: connect to localhost collab service
+        // Development: connect directly to collab service on port 1234
         wsUrl = 'ws://localhost:1234';
       } else {
-        // Production: use current host with appropriate protocol
+        // Production: use current host with /collab path for nginx proxy
         const wsHost = window.location.host;
-        wsUrl = `${wsProtocol}//${wsHost}`;
+        wsUrl = `${wsProtocol}//${wsHost}/collab`;
       }
     }
 

@@ -18,6 +18,34 @@ version: '3.8'
 
 services:
   # ===================
+  # Database Migrations (runs once before other services)
+  # ===================
+  migrate:
+    image: postgres:16-alpine
+    environment:
+      - PGHOST=postgres
+      - PGUSER=${POSTGRES_USER}
+      - PGPASSWORD=${POSTGRES_PASSWORD}
+      - PGDATABASE=${POSTGRES_DB}
+    volumes:
+      - ./migrations:/migrations:ro
+    networks:
+      - researchflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    command: >
+      sh -c '
+        echo "=== Running database migrations ===" &&
+        for f in /migrations/*.sql; do
+          echo "Applying migration: $$f" &&
+          psql -f "$$f" || echo "Warning: Migration $$f may have already been applied"
+        done &&
+        echo "=== Migrations complete ==="
+      '
+
+  # ===================
   # Nginx Reverse Proxy
   # ===================
   nginx:
@@ -74,6 +102,8 @@ services:
       - ALLOW_UPLOADS=${ALLOW_UPLOADS:-true}
       - STRICT_PHI_ON_UPLOAD=${STRICT_PHI_ON_UPLOAD:-true}
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -129,6 +159,8 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -166,13 +198,26 @@ services:
       context: .
       dockerfile: services/web/Dockerfile
       target: production
+      args:
+        # API endpoints - use nginx proxy paths for production
+        VITE_API_BASE_URL: https://${DOMAIN:-localhost}/api
+        VITE_API_URL: https://${DOMAIN:-localhost}/api
+        # WebSocket URL - must include /collab path for nginx proxy
+        VITE_WS_URL: wss://${DOMAIN:-localhost}/collab
+        VITE_COLLAB_URL: wss://${DOMAIN:-localhost}/collab
+        # Application mode
+        VITE_APP_MODE: ${GOVERNANCE_MODE:-LIVE}
+        # Optional integrations
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_ENABLE_ANALYTICS: ${VITE_ENABLE_ANALYTICS:-false}
     expose:
       - "80"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:80/health"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
     environment:
       # Mode configuration (for frontend display)
       - ROS_MODE=${ROS_MODE:-}
@@ -203,9 +248,11 @@ services:
       target: production
     expose:
       - "1234"
+      - "1235"
     environment:
       - NODE_ENV=production
       - PORT=1234
+      - HEALTH_PORT=1235
       - HOST=0.0.0.0
       - APP_MODE=${APP_MODE:-LIVE}
       - REDIS_URL=${REDIS_URL}
@@ -233,10 +280,11 @@ services:
           cpus: '0.25'
           memory: 128M
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:1235/health"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:1235/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
 
   # ===================
   # PostgreSQL Database

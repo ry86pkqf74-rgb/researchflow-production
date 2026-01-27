@@ -73,17 +73,77 @@ export interface SessionState {
   updatedAt: string;
 }
 
-// In-memory session state storage
-// In production, this would use database or Redis
+// In-memory session state storage (used as synchronous cache layer)
+// Redis persistence is handled by WorkflowStateService for production scalability
 const sessionStates = new Map<string, SessionState>();
 
+// Import Redis-backed persistence service
+import { getWorkflowStateService, type PersistedSessionState } from './workflow-state.service';
+
 /**
- * Get or create session state
+ * Convert persisted state to runtime state (arrays to Sets)
+ */
+function toRuntimeState(persisted: PersistedSessionState): SessionState {
+  return {
+    currentLifecycleState: persisted.currentLifecycleState,
+    approvedAIStages: new Set(persisted.approvedAIStages),
+    completedStages: new Set(persisted.completedStages),
+    attestedGates: new Set(persisted.attestedGates),
+    auditLog: persisted.auditLog,
+    createdAt: persisted.createdAt,
+    updatedAt: persisted.updatedAt,
+  };
+}
+
+/**
+ * Convert runtime state to persisted state (Sets to arrays)
+ */
+function toPersistedState(runtime: SessionState): PersistedSessionState {
+  return {
+    currentLifecycleState: runtime.currentLifecycleState,
+    approvedAIStages: Array.from(runtime.approvedAIStages),
+    completedStages: Array.from(runtime.completedStages),
+    attestedGates: Array.from(runtime.attestedGates),
+    auditLog: runtime.auditLog,
+    createdAt: runtime.createdAt,
+    updatedAt: runtime.updatedAt,
+  };
+}
+
+/**
+ * Persist session state to Redis (async, fire-and-forget for performance)
+ */
+function persistSessionState(sessionId: string, state: SessionState): void {
+  const workflowStateService = getWorkflowStateService();
+  workflowStateService.setState(sessionId, toPersistedState(state)).catch((err) => {
+    console.warn('[LifecycleService] Failed to persist state to Redis:', err);
+  });
+}
+
+/**
+ * Load session state from Redis (async initialization)
+ */
+async function loadSessionStateFromRedis(sessionId: string): Promise<SessionState | null> {
+  try {
+    const workflowStateService = getWorkflowStateService();
+    const persisted = await workflowStateService.getState(sessionId);
+    if (persisted) {
+      return toRuntimeState(persisted);
+    }
+  } catch (err) {
+    console.warn('[LifecycleService] Failed to load state from Redis:', err);
+  }
+  return null;
+}
+
+/**
+ * Get or create session state (synchronous for API compatibility)
+ * Uses in-memory cache with async Redis persistence
  */
 export function getSessionState(sessionId: string): SessionState {
   if (!sessionStates.has(sessionId)) {
     const now = new Date().toISOString();
-    sessionStates.set(sessionId, {
+    const newState: SessionState = {
       currentLifecycleState: 'DRAFT',
       approvedAIStages: new Set(),
       completedStages: new Set(),
@@ -91,6 +151,19 @@ export function getSessionState(sessionId: string): SessionState {
       auditLog: [],
       createdAt: now,
       updatedAt: now
+    };
+    sessionStates.set(sessionId, newState);
+
+    // Try to load from Redis in background (for cross-instance continuity)
+    loadSessionStateFromRedis(sessionId).then((redisState) => {
+      if (redisState && sessionStates.has(sessionId)) {
+        // Merge Redis state if we still have the session
+        const currentState = sessionStates.get(sessionId)!;
+        // Only use Redis state if it has more activity (newer)
+        if (redisState.updatedAt > currentState.updatedAt) {
+          sessionStates.set(sessionId, redisState);
+        }
+      }
     });
   }
   return sessionStates.get(sessionId)!;
@@ -170,6 +243,9 @@ export function transitionState(
     userId
   });
 
+  // Persist to Redis
+  persistSessionState(sessionId, state);
+
   return { success: true };
 }
 
@@ -201,6 +277,9 @@ export function approveAIStage(
     userId
   });
 
+  // Persist to Redis
+  persistSessionState(sessionId, state);
+
   return { success: true };
 }
 
@@ -224,6 +303,9 @@ export function revokeAIStage(
     stageName,
     userId
   });
+
+  // Persist to Redis
+  persistSessionState(sessionId, state);
 
   return { success: true };
 }
@@ -259,6 +341,9 @@ export function completeStage(
     metadata
   });
 
+  // Persist to Redis
+  persistSessionState(sessionId, state);
+
   return { success: true };
 }
 
@@ -291,6 +376,9 @@ export function attestGate(
     details: attestationText,
     userId
   });
+
+  // Persist to Redis
+  persistSessionState(sessionId, state);
 
   return { success: true };
 }

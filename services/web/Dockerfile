@@ -44,7 +44,25 @@ COPY --from=deps /app/packages ./packages
 # Copy web source files
 COPY services/web/ ./
 
-# Build the application
+# Build arguments for Vite (must be declared before npm run build)
+ARG VITE_API_BASE_URL
+ARG VITE_API_URL
+ARG VITE_WS_URL
+ARG VITE_COLLAB_URL
+ARG VITE_APP_MODE
+ARG VITE_SENTRY_DSN
+ARG VITE_ENABLE_ANALYTICS
+
+# Export as environment variables for Vite build process
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_WS_URL=$VITE_WS_URL
+ENV VITE_COLLAB_URL=$VITE_COLLAB_URL
+ENV VITE_APP_MODE=$VITE_APP_MODE
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
+ENV VITE_ENABLE_ANALYTICS=$VITE_ENABLE_ANALYTICS
+
+# Build the application (now with access to VITE_* env vars)
 RUN npm run build
 
 # Production stage - Nginx
