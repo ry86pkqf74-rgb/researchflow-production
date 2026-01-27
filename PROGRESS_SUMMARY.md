@@ -194,6 +194,8 @@
 
 **Documentation**
 - `docs/MANUSCRIPT_STUDIO_WIRING_AUDIT.md` (NEW)
+- `docs/ROUTE_MOUNTING_GUIDE.md` (NEW) - Backend route mounting guide
+- `docs/UI_WIRING_GUIDE.md` (NEW) - Frontend routing and component wiring
 - `docs/runbooks/manuscript-studio.md` (NEW)
 
 ### Track M Key Features
@@ -204,6 +206,20 @@
 - AI refine returns diff (user accepts/rejects)
 - PHI gating in LIVE mode (location-only reporting)
 - Provenance logging for all AI operations
+
+---
+
+## Track M Deployment Status
+
+**Verified: 2026-01-27**
+
+| Check | Status |
+|-------|--------|
+| Routes mounted in orchestrator | ✅ |
+| `/api/manuscripts/ping` | ✅ 200 OK |
+| `/api/manuscripts` list | ✅ 200 OK |
+| Database migrations applied | ✅ |
+| Git pushed to remote | ✅ dc441a3 |
 
 ---
 
@@ -219,7 +235,6 @@
    - Manuscript Export (Pandoc)
    - Integrity Tools
    - Ecosystem Integrations
-3. Push all commits to remote
 
 ---
 
