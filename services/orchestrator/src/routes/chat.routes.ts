@@ -12,6 +12,8 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { chatRepository } from '../repositories/chat.repository';
 import type { ChatSession, ChatMessage, ChatAction } from '../repositories/chat.repository';
+import { chatAgentService, ChatAgentError } from '../services/chat-agent';
+import type { AgentType } from '../services/chat-agent';
 
 const router = Router();
 
@@ -158,7 +160,7 @@ router.get(
  * 1. PHI scanning (governance gate)
  * 2. Session lookup/creation
  * 3. User message storage
- * 4. AI response generation (placeholder for Phase 3)
+ * 4. AI response generation
  * 5. Assistant message + action storage
  */
 router.post(
@@ -166,86 +168,65 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { agentType, artifactType, artifactId } = req.params;
-      const governanceMode = getGovernanceMode(req);
 
       // Validate
-      const validatedAgentType = AgentTypeSchema.parse(agentType);
+      const validatedAgentType = AgentTypeSchema.parse(agentType) as AgentType;
       const body = SendMessageSchema.parse(req.body);
 
-      // Get or create session
-      const session = await chatRepository.findOrCreateSession({
+      // Use ChatAgentService for full AI processing
+      const result = await chatAgentService.sendMessage({
+        agentType: validatedAgentType,
         artifactType,
         artifactId,
-        agentType: validatedAgentType,
-        createdBy: getUserId(req),
-      });
-
-      // PHI scanning (placeholder - will be implemented in Phase 3)
-      const phiDetected = false; // TODO: import and use PHI scanner
-
-      // Governance check
-      if (phiDetected && governanceMode === 'LIVE') {
-        return res.status(403).json({
-          success: false,
-          error: {
-            code: 'PHI_BLOCKED',
-            message: 'Protected Health Information detected. Cannot proceed in LIVE mode.',
-          },
-        });
-      }
-
-      // Store user message
-      const userMessage = await chatRepository.createMessage({
-        sessionId: session.id,
-        role: 'user',
-        authorId: getUserId(req),
         content: body.content,
-        metadata: body.context || {},
-        phiDetected,
-      });
-
-      // Generate AI response (placeholder - will be implemented in Phase 3)
-      // For now, return a mock response
-      const aiResponseContent = `I understand you're asking about ${artifactType}. As the ${agentType} agent, I'm here to help. This is a placeholder response - the full AI integration will be implemented in Phase 3.`;
-
-      // Store assistant message
-      const assistantMessage = await chatRepository.createMessage({
-        sessionId: session.id,
-        role: 'assistant',
-        content: aiResponseContent,
-        metadata: {
-          model: 'placeholder',
-          context: body.context,
-        },
-      });
-
-      // Create placeholder action (example)
-      // In Phase 3, actions will be parsed from AI response
-      const action = await chatRepository.createAction({
-        messageId: assistantMessage.id,
-        actionType: 'suggest_edit',
-        payload: {
-          type: 'patch',
-          description: 'Placeholder action - full implementation in Phase 4',
+        userId: getUserId(req),
+        context: body.context as {
+          artifactContent?: string;
+          artifactMetadata?: Record<string, unknown>;
+          projectContext?: Record<string, unknown>;
         },
       });
 
       res.json({
         success: true,
-        userMessage: formatMessage(userMessage),
+        session: {
+          id: result.session.id,
+          artifactType: result.session.artifactType,
+          artifactId: result.session.artifactId,
+          agentType: result.session.agentType,
+        },
+        userMessage: formatMessage(result.userMessage),
         assistantMessage: {
-          ...formatMessage(assistantMessage),
-          actions: [formatAction(action)],
+          ...formatMessage(result.assistantMessage),
+          actions: result.actions.map(formatAction),
         },
         governance: {
-          mode: governanceMode,
-          phiDetected,
-          phiWarning: phiDetected && governanceMode === 'DEMO'
-            ? 'PHI detected in message. Proceeding in DEMO mode.'
-            : null,
+          mode: result.governance.mode,
+          phiDetected: result.governance.phiScan.hasPHI,
+          phiWarning: result.governance.decision.warning || null,
         },
       });
     } catch (error) {
+      // Handle ChatAgentError specifically
+      if (error instanceof ChatAgentError) {
+        if (error.code === 'PHI_BLOCKED') {
+          return res.status(403).json({
+            success: false,
+            error: {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+            },
+          });
+        }
+        return res.status(500).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message,
+          },
+        });
+      }
       next(error);
     }
   }
