@@ -1,0 +1,8 @@
+# Ignore all screenshots
+*.png
+*.jpg
+*.jpeg
+
+# But keep this .gitignore and README
+!.gitignore
+!README.md
