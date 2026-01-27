@@ -88,6 +88,8 @@ services:
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
       - ZOOM_WEBHOOK_SECRET_TOKEN=${ZOOM_WEBHOOK_SECRET_TOKEN}
       - ZOOM_VERIFICATION_TOKEN=${ZOOM_VERIFICATION_TOKEN}
+      # Guideline Engine Proxy
+      - GUIDELINE_ENGINE_URL=http://guideline-engine:8001
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -171,6 +173,39 @@ services:
     networks:
       - researchflow
     restart: unless-stopped
+
+  # ===================
+  # Guideline Engine - Python FastAPI (Clinical Scoring/Staging)
+  # ===================
+  guideline-engine:
+    build:
+      context: ./packages/guideline-engine
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
+      - AI_ROUTER_URL=http://orchestrator:3001/api/ai
+      - LOG_LEVEL=INFO
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    networks:
+      - researchflow
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # ===================
   # Web - React Frontend (Nginx)

@@ -85,8 +85,9 @@ import chatRoutes from './routes/chat.routes';
 import analysisPlanningRoutes from './routes/analysis-planning';
 // Phase Chat: Stage-specific AI agent chat
 import phaseChatRoutes from './routes/phaseChatRoutes';
-// Guidelines Engine: Clinical scoring systems, staging, and validation blueprints
-import guidelinesRoutes, { initializeGuidelinesRoutes } from './routes/guidelines.routes';
+// Guidelines Engine: Proxy to Python FastAPI microservice
+// Architecture: Node.js orchestrator proxies to packages/guideline-engine for deterministic calculations
+import guidelinesProxyRoutes from './routes/guidelines-proxy.routes';
 
 // Phase 3: Secondary Routes (Integration Plan)
 import governanceSimulateRoutes from './routes/governance-simulate';
@@ -237,7 +238,7 @@ app.use('/api/version', versionControlRoutes);  // Phase 5.5: Git-based version 
 app.use('/api/chat', chatRoutes);  // Chat Agents: Workflow-specific AI assistants
 app.use('/api/analysis', analysisPlanningRoutes);  // Agentic Planning: AI-assisted statistical analysis
 app.use('/api/phase', phaseChatRoutes);  // Phase Chat: Stage-specific AI agents
-app.use('/api/guidelines', guidelinesRoutes);  // Guidelines Engine: Clinical scoring systems
+app.use('/api/guidelines', guidelinesProxyRoutes);  // Guidelines Engine: Proxy to Python FastAPI
 
 // =============================================================================
 // Integration Plan Routes - Phase 3: Secondary Routes
