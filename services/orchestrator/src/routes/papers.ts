@@ -1,22 +1,25 @@
 /**
  * Paper Library API Routes
  *
- * Track B Phase 10: Paper Library & PDF Ingestion
+ * Track B Phase 10-12: Paper Library, Annotations, AI Copilot
  *
  * API namespace: /api/papers
  *
  * Endpoints:
- * - GET    /ping                   # Health check
- * - POST   /upload                 # Upload PDF
- * - POST   /import                 # Import from DOI/PMID
- * - GET    /                       # List papers
- * - GET    /:id                    # Get paper details
- * - PATCH  /:id                    # Update paper metadata
- * - DELETE /:id                    # Delete paper
- * - POST   /:id/tags               # Add tags
- * - DELETE /:id/tags/:tag          # Remove tag
- * - GET    /search                 # Full-text search
- * - GET    /:id/text               # Get extracted text
+ * - GET    /ping                           # Health check
+ * - POST   /upload                         # Upload PDF
+ * - POST   /import                         # Import from DOI/PMID
+ * - GET    /                               # List papers
+ * - GET    /:id                            # Get paper details
+ * - PATCH  /:id                            # Update paper metadata
+ * - DELETE /:id                            # Delete paper
+ * - POST   /:id/tags                       # Add tags
+ * - DELETE /:id/tags/:tag                  # Remove tag
+ * - GET    /search                         # Full-text search
+ * - GET    /:id/text                       # Get extracted text
+ *
+ * Annotations (Phase 11): /api/papers/:id/annotations/*
+ * AI Copilot (Phase 12):  /api/papers/:id/copilot/*
  *
  * @module routes/papers
  */
@@ -31,11 +34,13 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
 import annotationsRouter from './paper-annotations';
+import copilotRouter from './paper-copilot';
 
 const router = Router();
 
-// Mount annotations subrouter
+// Mount subrouters
 router.use('/:paperId/annotations', annotationsRouter);
+router.use('/:paperId/copilot', copilotRouter);
 
 // =============================================================================
 // Configuration

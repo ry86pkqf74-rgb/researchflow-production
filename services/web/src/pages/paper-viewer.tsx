@@ -57,10 +57,12 @@ import {
   Palette,
   X,
   Check,
+  Sparkles,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { PaperCopilotPanel } from "@/components/papers";
 
 // =============================================================================
 // Types
@@ -298,6 +300,7 @@ export default function PaperViewerPage() {
   const [highlightMode, setHighlightMode] = useState(false);
   const [selectedColor, setSelectedColor] = useState('yellow');
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showCopilot, setShowCopilot] = useState(false);
   const [pendingHighlight, setPendingHighlight] = useState<{
     text: string;
     rect: { x1: number; y1: number; x2: number; y2: number };
@@ -544,7 +547,7 @@ export default function PaperViewerPage() {
 
         <Separator orientation="vertical" className="h-6" />
 
-        {/* Sidebar toggle */}
+        {/* Annotations toggle */}
         <Button
           variant={showSidebar ? 'default' : 'ghost'}
           size="sm"
@@ -553,6 +556,23 @@ export default function PaperViewerPage() {
           <MessageSquare className="h-4 w-4 mr-2" />
           {annotations.length > 0 && <Badge variant="secondary" className="ml-1">{annotations.length}</Badge>}
         </Button>
+
+        {/* AI Copilot toggle */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={showCopilot ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setShowCopilot(!showCopilot)}
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              AI
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            AI Copilot - Ask questions about this paper
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Main content */}
@@ -594,7 +614,7 @@ export default function PaperViewerPage() {
           </div>
         </div>
 
-        {/* Sidebar */}
+        {/* Annotations Sidebar */}
         {showSidebar && (
           <div className="w-80 border-l bg-background">
             <AnnotationSidebar
@@ -604,6 +624,13 @@ export default function PaperViewerPage() {
               onDelete={handleDeleteAnnotation}
               currentPage={currentPage}
             />
+          </div>
+        )}
+
+        {/* AI Copilot Panel */}
+        {showCopilot && id && (
+          <div className="w-96 border-l bg-background">
+            <PaperCopilotPanel paperId={id} className="h-full" />
           </div>
         )}
       </div>

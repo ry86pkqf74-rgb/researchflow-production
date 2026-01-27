@@ -243,10 +243,10 @@ services:
       start_period: 10s
 
   # ===================
-  # PostgreSQL Database
+  # PostgreSQL Database (with pgvector for AI embeddings)
   # ===================
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     logging:
       driver: "json-file"
       options:

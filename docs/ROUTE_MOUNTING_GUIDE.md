@@ -135,14 +135,76 @@ app.use("/api/manuscripts", manuscriptsRouter);
 
 ---
 
+## Track B Routes (Paper Library & AI Copilot)
+
+### Import Statement (routes.ts)
+
+```typescript
+import papersRouter from "./src/routes/papers";
+```
+
+### Mount Statement (routes.ts)
+
+```typescript
+// Track B: Paper Library with Annotations and AI Copilot
+app.use("/api/papers", papersRouter);
+```
+
+### Endpoints Available
+
+#### Paper Library (Phase 10)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/papers/ping` | Health check |
+| POST | `/api/papers/upload` | Upload PDF |
+| POST | `/api/papers/import` | Import from DOI/PMID |
+| GET | `/api/papers` | List papers |
+| GET | `/api/papers/:id` | Get paper details |
+| PATCH | `/api/papers/:id` | Update paper |
+| DELETE | `/api/papers/:id` | Delete paper |
+| POST | `/api/papers/:id/tags` | Add tag |
+| DELETE | `/api/papers/:id/tags/:tag` | Remove tag |
+| GET | `/api/papers/search` | Full-text search |
+| GET | `/api/papers/:id/text` | Get extracted text |
+
+#### Annotations (Phase 11)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/papers/:id/annotations` | List annotations |
+| POST | `/api/papers/:id/annotations` | Create annotation |
+| PATCH | `/api/papers/:id/annotations/:annotationId` | Update annotation |
+| DELETE | `/api/papers/:id/annotations/:annotationId` | Delete annotation |
+
+#### AI Copilot (Phase 12)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/papers/:id/copilot/ping` | Health check |
+| POST | `/api/papers/:id/copilot/chunk` | Start chunking |
+| GET | `/api/papers/:id/copilot/chunks` | Get chunk status |
+| POST | `/api/papers/:id/copilot/chat` | Send chat message |
+| GET | `/api/papers/:id/copilot/chat` | Get chat history |
+| DELETE | `/api/papers/:id/copilot/chat` | Clear chat |
+| POST | `/api/papers/:id/copilot/summarize` | Generate summary |
+| GET | `/api/papers/:id/copilot/summaries` | Get summaries |
+| POST | `/api/papers/:id/copilot/extract-claims` | Extract claims |
+| GET | `/api/papers/:id/copilot/claims` | Get claims |
+
+---
+
 ## Database Migrations
 
 Migrations are in `migrations/` directory and must be run manually:
 
 ```bash
 # From project root
+# Track M migrations
 cat migrations/003_create_manuscript_tables.sql | docker compose exec -T postgres psql -U ros -d ros
 cat migrations/005_manuscript_docs_comments.sql | docker compose exec -T postgres psql -U ros -d ros
+
+# Track B migrations
+cat migrations/006_paper_library.sql | docker compose exec -T postgres psql -U ros -d ros
+cat migrations/007_paper_annotations.sql | docker compose exec -T postgres psql -U ros -d ros
+cat migrations/008_ai_copilot.sql | docker compose exec -T postgres psql -U ros -d ros
 ```
 
 ### Important: User ID Type
