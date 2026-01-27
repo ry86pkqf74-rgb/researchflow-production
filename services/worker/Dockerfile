@@ -17,12 +17,14 @@ LABEL org.opencontainers.image.description="Python FastAPI compute service for A
 LABEL org.opencontainers.image.vendor="ResearchFlow"
 LABEL org.opencontainers.image.source="https://github.com/ry86pkqf74-rgb/researchflow-production"
 
-# Install system dependencies
+# Install system dependencies (including libgit2 for pygit2 version control)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     git \
     libpq-dev \
+    libgit2-dev \
+    cmake \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -51,10 +53,12 @@ CMD ["python", "api_server.py"]
 # Production stage
 FROM python:3.11-slim AS production
 
-# Install minimal runtime dependencies
+# Install minimal runtime dependencies (including git and libgit2 for version control)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
+    git \
+    libgit2-1.1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -67,8 +71,8 @@ COPY --from=deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.
 COPY --from=deps /usr/local/bin /usr/local/bin
 COPY . .
 
-# Create data directories
-RUN mkdir -p /data/artifacts /data/logs /data/manifests && \
+# Create data directories (including projects for version control)
+RUN mkdir -p /data/artifacts /data/logs /data/manifests /data/projects && \
     chown -R worker:worker /data /app
 
 USER worker

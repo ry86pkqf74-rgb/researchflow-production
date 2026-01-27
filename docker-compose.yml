@@ -145,6 +145,8 @@ services:
       # Conference Preparation (Stage 20)
       - CONFERENCE_CACHE_TTL=${CONFERENCE_CACHE_TTL:-86400}
       - ENABLE_WEB_SEARCH=${ENABLE_WEB_SEARCH:-false}
+      # Version Control (Phase 5.5)
+      - PROJECTS_PATH=/data/projects
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -160,6 +162,7 @@ services:
         condition: service_healthy
     volumes:
       - shared-data:/data
+      - projects-data:/data/projects
       - ./services/worker:/app
     networks:
       - researchflow
@@ -299,6 +302,10 @@ services:
 volumes:
   shared-data:
     driver: local
+  projects-data:
+    driver: local
+    # Persistent storage for Git-based version control (Phase 5.5)
+    # Contains project repositories for statistical analysis and manuscripts
   postgres-data:
     driver: local
   redis-data:

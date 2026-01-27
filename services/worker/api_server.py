@@ -59,6 +59,34 @@ except ImportError as e:
     MEDICAL_AVAILABLE = False
     print(f"[ROS] Medical integrations module not available: {e}")
 
+# Import version control service for Git-based versioning
+try:
+    from version_control import (
+        VersionControlService,
+        ProjectCreateRequest,
+        ProjectInfo,
+        CommitRequest,
+        CommitResponse,
+        CommitMetadata,
+        HistoryResponse,
+        DiffRequest,
+        DiffResponse,
+        RestoreRequest,
+        RestoreResponse,
+        SaveFileRequest,
+        SaveFileResponse,
+        ListFilesRequest,
+        ListFilesResponse,
+        FileCategory,
+    )
+    VERSION_CONTROL_AVAILABLE = True
+    version_control_service = VersionControlService()
+    print("[ROS] Version control module loaded - Git-based versioning enabled")
+except ImportError as e:
+    VERSION_CONTROL_AVAILABLE = False
+    version_control_service = None
+    print(f"[ROS] Version control module not available: {e}")
+
 
 # Get runtime config - should be LIVE mode from environment
 config = RuntimeConfig.from_env_and_optional_yaml()
@@ -2134,6 +2162,264 @@ async def validate_conference_bundle(run_id: str):
                 },
                 "mode": config.ros_mode,
             }
+
+
+# ============ Version Control Endpoints (Phase 5.5) ============
+
+@app.get("/api/version/status")
+async def get_version_control_status():
+    """Check version control service availability and configuration."""
+    return {
+        "status": "success",
+        "available": VERSION_CONTROL_AVAILABLE,
+        "mode": config.ros_mode,
+        "base_path": str(version_control_service.base_path) if VERSION_CONTROL_AVAILABLE else None,
+    }
+
+
+@app.post("/api/version/project/create")
+async def create_version_project(request: ProjectCreateRequest):
+    """
+    Create a new version-controlled project.
+
+    Creates a Git repository with standard directory structure:
+    - stats/        - Statistical analysis scripts
+    - manuscripts/  - Manuscript drafts
+    - data/         - Dataset files
+    - outputs/      - Generated outputs
+    """
+    if not VERSION_CONTROL_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Version control service not available")
+
+    try:
+        project_info = version_control_service.create_project(request)
+        return {
+            "status": "success",
+            "project": project_info.model_dump(),
+            "mode": config.ros_mode,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/version/project/{project_id}")
+async def get_version_project(project_id: str):
+    """Get information about a version-controlled project."""
+    if not VERSION_CONTROL_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Version control service not available")
+
+    try:
+        project_info = version_control_service.get_project_info(project_id)
+        return {
+            "status": "success",
+            "project": project_info.model_dump(),
+            "mode": config.ros_mode,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/version/projects")
+async def list_version_projects():
+    """List all version-controlled projects."""
+    if not VERSION_CONTROL_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Version control service not available")
+
+    try:
+        projects = version_control_service.list_projects()
+        return {
+            "status": "success",
+            "projects": [p.model_dump() for p in projects],
+            "count": len(projects),
+            "mode": config.ros_mode,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/version/commit")
+async def create_version_commit(request: CommitRequest):
+    """
+    Create a commit with specified files.
+
+    Supports structured commit messages with What/Why/Linked metadata.
+    """
+    if not VERSION_CONTROL_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Version control service not available")
+
+    try:
+        response = version_control_service.commit(request)
+        return {
+            "status": "success" if response.success else "error",
+            "commit": response.model_dump(),
+            "mode": config.ros_mode,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/version/history/{project_id}")
+async def get_version_history(
+    project_id: str,
+    file_path: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0
+):
+    """
+    Get commit history for a project or specific file.
+
+    Returns commits with parsed metadata, files changed, and stats.
+    """
+    if not VERSION_CONTROL_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Version control service not available")
+
+    try:
+        response = version_control_service.get_history(
+            project_id=project_id,
+            file_path=file_path,
+            limit=limit,
+            offset=offset
+        )
+        return {
+            "status": "success" if response.success else "error",
+            "history": response.model_dump(),
+            "mode": config.ros_mode,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/version/diff")
+async def get_version_diff(request: DiffRequest):
+    """
+    Get diff between two versions.
+
+    Compare commits to see what changed.
+    """
+    if not VERSION_CONTROL_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Version control service not available")
+
+    try:
+        response = version_control_service.get_diff(request)
+        return {
+            "status": "success" if response.success else "error",
+            "diff": response.model_dump(),
+            "mode": config.ros_mode,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/version/restore")
+async def restore_version_file(request: RestoreRequest):
+    """
+    Restore a file to a previous version.
+
+    Creates backup of current version before restoring.
+    """
+    if not VERSION_CONTROL_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Version control service not available")
+
+    try:
+        response = version_control_service.restore_version(request)
+        return {
+            "status": "success" if response.success else "error",
+            "restore": response.model_dump(),
+            "mode": config.ros_mode,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/version/file/{project_id}")
+async def save_version_file(project_id: str, request: SaveFileRequest):
+    """
+    Save a file with automatic versioning.
+
+    Creates/updates file and optionally auto-commits.
+    """
+    if not VERSION_CONTROL_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Version control service not available")
+
+    # Ensure project_id in request matches path
+    request.project_id = project_id
+
+    try:
+        response = version_control_service.save_file(request)
+        return {
+            "status": "success" if response.success else "error",
+            "save": response.model_dump(),
+            "mode": config.ros_mode,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/version/file/{project_id}/{file_path:path}")
+async def read_version_file(
+    project_id: str,
+    file_path: str,
+    commit_sha: Optional[str] = None
+):
+    """
+    Read a file's content, optionally from a specific commit.
+
+    Returns current version if no commit_sha specified.
+    """
+    if not VERSION_CONTROL_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Version control service not available")
+
+    try:
+        success, content, error = version_control_service.read_file(
+            project_id=project_id,
+            file_path=file_path,
+            commit_sha=commit_sha
+        )
+        if success:
+            return {
+                "status": "success",
+                "content": content,
+                "project_id": project_id,
+                "file_path": file_path,
+                "commit_sha": commit_sha,
+                "mode": config.ros_mode,
+            }
+        else:
+            raise HTTPException(status_code=404, detail=error)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/version/files/{project_id}")
+async def list_version_files(project_id: str, request: ListFilesRequest = None):
+    """
+    List tracked files in a project.
+
+    Can filter by directory or category.
+    """
+    if not VERSION_CONTROL_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Version control service not available")
+
+    if request is None:
+        request = ListFilesRequest(project_id=project_id)
+    else:
+        request.project_id = project_id
+
+    try:
+        response = version_control_service.list_files(request)
+        return {
+            "status": "success" if response.success else "error",
+            "files": response.model_dump(),
+            "mode": config.ros_mode,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============ Metrics Endpoint (Phase 08) ============

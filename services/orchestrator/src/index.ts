@@ -77,6 +77,8 @@ import claimsRoutes from './routes/claims';
 import literatureRoutes from './routes/literature';
 import meshLookupRoutes from './routes/mesh-lookup';
 import metricsRoutes from './routes/metrics';
+// Phase 5.5: Git-based Version Control for Analysis & Manuscripts
+import versionControlRoutes from './routes/version-control';
 
 // Phase 3: Secondary Routes (Integration Plan)
 import governanceSimulateRoutes from './routes/governance-simulate';
@@ -223,6 +225,7 @@ app.use('/api/ros/claims', claimsRoutes);  // Claim extraction
 app.use('/api/ros/literature', literatureRoutes);  // Literature search API
 app.use('/api/literature/mesh', meshLookupRoutes);  // MeSH term lookup
 app.use('/api/metrics', metricsRoutes);  // Prometheus metrics
+app.use('/api/version', versionControlRoutes);  // Phase 5.5: Git-based version control
 
 // =============================================================================
 // Integration Plan Routes - Phase 3: Secondary Routes
@@ -350,6 +353,7 @@ httpServer.listen(PORT, () => {
   console.log('  ✓ Literature & MeSH Lookup');
   console.log('  ✓ Spreadsheet Cell Parsing');
   console.log('  ✓ Claims & Analysis Execution');
+  console.log('  ✓ Git Version Control (Phase 5.5)');
   console.log('  ✓ Governance Simulation');
   console.log('  ✓ Quality Dashboard');
   console.log('  ✓ Notifications & Billing');
