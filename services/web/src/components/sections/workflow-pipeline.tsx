@@ -1670,12 +1670,46 @@ export function WorkflowPipeline() {
                           )}
 
                           {/* IRB Panel for Stage 3 (IRB Proposal) */}
-                          {selectedStage.id === 3 && (
-                            <IrbPanel 
-                              researchQuestion={scopeValuesByStage[1]?.population || ""}
-                              studyTitle="Research Study"
-                            />
-                          )}
+                          {selectedStage.id === 3 && (() => {
+                            // Extract literature results from Stage 2
+                            const stage2Result = executionState[2]?.result;
+                            const literatureData = stage2Result?.literatureData as {
+                              keyPapers?: string[];
+                              keyInsights?: string[];
+                              researchGaps?: string[];
+                            } | undefined;
+
+                            // Also check outputs for list-type content (papers list)
+                            const listOutput = stage2Result?.outputs?.find(o => o.type === 'list');
+                            const keyPapers = literatureData?.keyPapers ||
+                              (listOutput?.content ? listOutput.content.split('\n').filter(Boolean) : []);
+
+                            // Build study title from topic if available
+                            const topicScope = scopeValuesByStage[1];
+                            const studyTitle = topicScope?.population
+                              ? `Study: ${topicScope.population.slice(0, 50)}${topicScope.population.length > 50 ? '...' : ''}`
+                              : "Research Study";
+
+                            return (
+                              <IrbPanel
+                                researchQuestion={topicScope?.population || overviewByStage[1] || ""}
+                                studyTitle={studyTitle}
+                                topicScope={topicScope as {
+                                  population?: string;
+                                  intervention?: string;
+                                  comparator?: string;
+                                  outcomes?: string;
+                                  timeframe?: string;
+                                }}
+                                researchOverview={overviewByStage[1]}
+                                literatureResults={{
+                                  keyPapers: keyPapers,
+                                  keyInsights: literatureData?.keyInsights || [],
+                                  researchGaps: literatureData?.researchGaps || [],
+                                }}
+                              />
+                            );
+                          })()}
 
                           {/* Summary Charts for Stage 9 (Summary Characteristics) */}
                           {selectedStage.id === 9 && executionState[9]?.status === 'completed' && (

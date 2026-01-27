@@ -58,6 +58,22 @@ interface DependencyStatus {
 interface IRBPanelProps {
   researchQuestion?: string;
   studyTitle?: string;
+  /** Topic scope values from Stage 1 (Topic Declaration) */
+  topicScope?: {
+    population?: string;
+    intervention?: string;
+    comparator?: string;
+    outcomes?: string;
+    timeframe?: string;
+  };
+  /** Research overview text from Stage 1 */
+  researchOverview?: string;
+  /** Literature search results from Stage 2 */
+  literatureResults?: {
+    keyPapers?: string[];
+    keyInsights?: string[];
+    researchGaps?: string[];
+  };
 }
 
 interface SystemStatus {
@@ -67,15 +83,38 @@ interface SystemStatus {
   no_network: boolean;
 }
 
-export function IrbPanel({ researchQuestion = "", studyTitle = "Untitled Study" }: IRBPanelProps) {
+export function IrbPanel({
+  researchQuestion = "",
+  studyTitle = "Untitled Study",
+  topicScope,
+  researchOverview,
+  literatureResults
+}: IRBPanelProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("form");
   const [questions, setQuestions] = useState<IRBQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [title, setTitle] = useState(studyTitle);
-  const [question, setQuestion] = useState(researchQuestion);
-  const [literatureQuery, setLiteratureQuery] = useState("");
-  const [aiLiteratureQuery, setAiLiteratureQuery] = useState("");
+
+  // Build research question from topic scope if available
+  const buildResearchQuestionFromScope = () => {
+    if (topicScope?.population) {
+      const parts = [topicScope.population];
+      if (topicScope.intervention) parts.push(`Intervention: ${topicScope.intervention}`);
+      if (topicScope.comparator) parts.push(`Comparator: ${topicScope.comparator}`);
+      if (topicScope.outcomes) parts.push(`Outcomes: ${topicScope.outcomes}`);
+      if (topicScope.timeframe) parts.push(`Timeframe: ${topicScope.timeframe}`);
+      return parts.join('. ');
+    }
+    return researchOverview || researchQuestion;
+  };
+
+  const [question, setQuestion] = useState(buildResearchQuestionFromScope());
+
+  // Pre-populate literature query from literature results
+  const initialLitQuery = literatureResults?.keyInsights?.slice(0, 2).join('; ') || "";
+  const [literatureQuery, setLiteratureQuery] = useState(initialLitQuery);
+  const [aiLiteratureQuery, setAiLiteratureQuery] = useState(initialLitQuery);
   const [drafts, setDrafts] = useState<IRBDraft[]>([]);
   const [dependencies, setDependencies] = useState<DependencyStatus | null>(null);
   const [irbStatus, setIrbStatus] = useState({ submitted: false, draftCount: 0 });
@@ -370,6 +409,55 @@ export function IrbPanel({ researchQuestion = "", studyTitle = "Untitled Study" 
 
           <TabsContent value="form" className="space-y-4 mt-4">
             <FatiguePolicyBanner variant="compact" showLearnMore={false} />
+
+            {/* Context from Previous Stages */}
+            {(topicScope?.population || literatureResults?.keyPapers?.length) && (
+              <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <CheckCircle2 className="h-4 w-4 text-ros-success" />
+                  <span>Context from Previous Stages</span>
+                </div>
+
+                {topicScope?.population && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Topic Declaration (Stage 1)</Label>
+                    <div className="text-sm bg-background/50 rounded p-2">
+                      <p><strong>Population:</strong> {topicScope.population}</p>
+                      {topicScope.intervention && <p><strong>Intervention:</strong> {topicScope.intervention}</p>}
+                      {topicScope.comparator && <p><strong>Comparator:</strong> {topicScope.comparator}</p>}
+                      {topicScope.outcomes && <p><strong>Outcomes:</strong> {topicScope.outcomes}</p>}
+                      {topicScope.timeframe && <p><strong>Timeframe:</strong> {topicScope.timeframe}</p>}
+                    </div>
+                  </div>
+                )}
+
+                {literatureResults?.keyPapers && literatureResults.keyPapers.length > 0 && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Literature Search (Stage 2) - {literatureResults.keyPapers.length} papers</Label>
+                    <div className="text-sm bg-background/50 rounded p-2 max-h-32 overflow-y-auto">
+                      <ul className="list-disc list-inside space-y-1">
+                        {literatureResults.keyPapers.slice(0, 5).map((paper, idx) => (
+                          <li key={idx} className="text-xs">{paper}</li>
+                        ))}
+                        {literatureResults.keyPapers.length > 5 && (
+                          <li className="text-xs text-muted-foreground">...and {literatureResults.keyPapers.length - 5} more</li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                {literatureResults?.keyInsights && literatureResults.keyInsights.length > 0 && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Key Insights</Label>
+                    <div className="text-sm bg-background/50 rounded p-2">
+                      <p className="text-xs">{literatureResults.keyInsights.slice(0, 2).join('. ')}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <Collapsible open={aiAssistOpen} onOpenChange={setAiAssistOpen}>
               <div className="rounded-lg border bg-muted/30 p-3">
                 <CollapsibleTrigger asChild>
