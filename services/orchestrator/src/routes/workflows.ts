@@ -122,11 +122,25 @@ router.post('/', requireRole('RESEARCHER'), async (req: Request, res: Response) 
 // GET /api/workflows/templates - List templates
 router.get('/templates', async (req: Request, res: Response) => {
   try {
+    console.log('[workflows] Fetching templates...');
     const templates = await workflowService.listTemplates();
+    console.log(`[workflows] Returning ${templates.length} templates`);
     res.json({ templates });
   } catch (error) {
     console.error('[workflows] Templates list error:', error);
     res.status(500).json({ error: 'Failed to list templates' });
+  }
+});
+
+// POST /api/workflows/templates/seed - Seed templates if empty (admin only)
+router.post('/templates/seed', requireRole('ADMIN'), async (req: Request, res: Response) => {
+  try {
+    console.log('[workflows] Seeding templates...');
+    const result = await workflowService.seedTemplatesIfEmpty();
+    res.json(result);
+  } catch (error) {
+    console.error('[workflows] Templates seed error:', error);
+    res.status(500).json({ error: 'Failed to seed templates' });
   }
 });
 
