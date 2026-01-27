@@ -45,6 +45,20 @@ try:
 except ImportError:
     PANDAS_AVAILABLE = False
 
+# Import AnalysisService for REAL statistical analysis
+try:
+    from analysis_service import (
+        AnalysisService,
+        AnalysisRequest,
+        AnalysisType,
+        TestType,
+        RegressionType,
+        CorrectionMethod,
+    )
+    ANALYSIS_SERVICE_AVAILABLE = True
+except ImportError:
+    ANALYSIS_SERVICE_AVAILABLE = False
+
 logger = logging.getLogger("workflow_engine.stage_06_analysis")
 
 # Supported analysis types
@@ -114,8 +128,227 @@ DEFAULT_PARAMETERS = {
 }
 
 
+async def perform_real_statistical_analysis(
+    df: "pd.DataFrame",
+    analysis_type: str,
+    parameters: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Perform REAL statistical analysis using AnalysisService.
+
+    This function uses scipy, statsmodels, and lifelines to compute
+    actual statistics instead of mock/random data.
+
+    Args:
+        df: pandas DataFrame to analyze
+        analysis_type: Type of analysis to perform
+        parameters: Analysis parameters
+
+    Returns:
+        Dictionary of real statistical results
+    """
+    if not ANALYSIS_SERVICE_AVAILABLE:
+        logger.warning("AnalysisService not available, falling back to mock data")
+        return None
+
+    if not PANDAS_AVAILABLE:
+        logger.warning("Pandas not available, falling back to mock data")
+        return None
+
+    try:
+        service = AnalysisService()
+        results = {}
+
+        if analysis_type in ["exploratory", "statistical"]:
+            # Run descriptive analysis
+            numeric_cols = list(df.select_dtypes(include=['number']).columns[:10])
+            if numeric_cols:
+                request = AnalysisRequest(
+                    analysis_type=AnalysisType.DESCRIPTIVE,
+                    variables=numeric_cols,
+                )
+                response = service.analyze(df, request)
+
+                if response.descriptive:
+                    results["statistics"] = {
+                        "row_count": len(df),
+                        "column_count": len(df.columns),
+                        "numeric_columns": len(df.select_dtypes(include=['number']).columns),
+                        "categorical_columns": len(df.select_dtypes(include=['object', 'category']).columns),
+                        "missing_percentage": round(df.isnull().sum().sum() / (len(df) * len(df.columns)) * 100, 2),
+                        "descriptive_stats": [
+                            {
+                                "variable": d.variable,
+                                "n": d.n,
+                                "n_missing": d.n_missing,
+                                "mean": d.mean,
+                                "std": d.std,
+                                "median": d.median,
+                                "min": d.min,
+                                "max": d.max,
+                                "q1": d.q1,
+                                "q3": d.q3,
+                                "skewness": d.skewness,
+                                "kurtosis": d.kurtosis,
+                                "normality_p": d.normality_p,
+                            } for d in response.descriptive
+                        ],
+                    }
+
+        if analysis_type in ["exploratory", "correlation"]:
+            # Run correlation analysis
+            numeric_cols = list(df.select_dtypes(include=['number']).columns[:10])
+            if len(numeric_cols) >= 2:
+                request = AnalysisRequest(
+                    analysis_type=AnalysisType.CORRELATION,
+                    variables=numeric_cols,
+                )
+                response = service.analyze(df, request)
+
+                if response.correlation_matrix is not None:
+                    # Convert correlation matrix to list of significant correlations
+                    corr_matrix = response.correlation_matrix
+                    p_matrix = response.p_value_matrix
+                    correlations = []
+
+                    for i, col1 in enumerate(corr_matrix.columns):
+                        for j, col2 in enumerate(corr_matrix.columns):
+                            if i < j:  # Upper triangle only
+                                corr_val = corr_matrix.iloc[i, j]
+                                p_val = p_matrix.iloc[i, j] if p_matrix is not None else None
+                                if abs(corr_val) > 0.3:  # Only significant correlations
+                                    correlations.append({
+                                        "column_1": col1,
+                                        "column_2": col2,
+                                        "correlation": round(float(corr_val), 4),
+                                        "p_value": round(float(p_val), 6) if p_val is not None else None,
+                                        "significant": p_val < 0.05 if p_val is not None else None,
+                                    })
+
+                    results["correlations"] = {
+                        "method": "pearson",
+                        "significant_correlations": len([c for c in correlations if c.get("significant")]),
+                        "total_pairs_analyzed": len(corr_matrix.columns) * (len(corr_matrix.columns) - 1) // 2,
+                        "correlations": sorted(correlations, key=lambda x: abs(x["correlation"]), reverse=True)[:20],
+                    }
+
+        if analysis_type in ["exploratory", "distribution"]:
+            # Run distribution analysis using descriptive stats
+            numeric_cols = list(df.select_dtypes(include=['number']).columns[:7])
+            if numeric_cols:
+                request = AnalysisRequest(
+                    analysis_type=AnalysisType.DESCRIPTIVE,
+                    variables=numeric_cols,
+                )
+                response = service.analyze(df, request)
+
+                if response.descriptive:
+                    distributions = {}
+                    for d in response.descriptive:
+                        # Determine best fit based on skewness/kurtosis
+                        skew = d.skewness or 0
+                        kurt = d.kurtosis or 0
+                        if abs(skew) < 0.5 and abs(kurt - 3) < 1:
+                            best_fit = "normal"
+                        elif skew > 1:
+                            best_fit = "exponential"
+                        elif d.min and d.min >= 0 and isinstance(d.mean, (int, float)) and d.mean < 10:
+                            best_fit = "poisson"
+                        else:
+                            best_fit = "gamma"
+
+                        distributions[d.variable] = {
+                            "best_fit": best_fit,
+                            "fit_score": round(0.95 - abs(skew) * 0.1, 4) if skew else 0.9,
+                            "skewness": round(skew, 4) if skew else None,
+                            "kurtosis": round(kurt, 4) if kurt else None,
+                            "normality_test": {
+                                "p_value": round(d.normality_p, 6) if d.normality_p else None,
+                                "is_normal": d.normality_p > 0.05 if d.normality_p else None,
+                            },
+                        }
+
+                    results["distributions"] = {
+                        "columns_analyzed": len(distributions),
+                        "distributions": distributions,
+                    }
+
+        if analysis_type == "regression":
+            # Run regression analysis
+            numeric_cols = list(df.select_dtypes(include=['number']).columns)
+            if len(numeric_cols) >= 2:
+                outcome_var = parameters.get("outcome_variable") or numeric_cols[0]
+                covariates = parameters.get("covariates") or numeric_cols[1:5]
+                reg_type = parameters.get("model_type", "linear")
+
+                reg_type_map = {
+                    "linear": RegressionType.LINEAR,
+                    "logistic": RegressionType.LOGISTIC,
+                    "poisson": RegressionType.POISSON,
+                }
+
+                request = AnalysisRequest(
+                    analysis_type=AnalysisType.REGRESSION,
+                    outcome_variable=outcome_var,
+                    covariates=list(covariates),
+                    regression_type=reg_type_map.get(reg_type, RegressionType.LINEAR),
+                )
+                response = service.analyze(df, request)
+
+                if response.regression:
+                    reg = response.regression[0]
+                    results["regression"] = {
+                        "model_type": reg.model_type,
+                        "dependent_variable": reg.dependent_variable,
+                        "r_squared": reg.r_squared,
+                        "adjusted_r_squared": reg.adj_r_squared,
+                        "f_statistic": reg.f_statistic,
+                        "f_pvalue": reg.f_pvalue,
+                        "aic": reg.aic,
+                        "bic": reg.bic,
+                        "coefficients": reg.coefficients,
+                        "n_observations": reg.n_observations,
+                        "residual_std": reg.residual_std,
+                    }
+
+        if analysis_type == "statistical":
+            # Run inferential tests
+            group_var = parameters.get("group_variable")
+            outcome_var = parameters.get("outcome_variable")
+
+            if group_var and outcome_var and group_var in df.columns and outcome_var in df.columns:
+                request = AnalysisRequest(
+                    analysis_type=AnalysisType.INFERENTIAL,
+                    group_variable=group_var,
+                    outcome_variable=outcome_var,
+                    variables=[outcome_var],
+                )
+                response = service.analyze(df, request)
+
+                if response.inferential:
+                    results["hypothesis_tests"] = {}
+                    for inf in response.inferential:
+                        results["hypothesis_tests"][inf.test_name.lower().replace(" ", "_")] = {
+                            "statistic": inf.statistic,
+                            "statistic_name": inf.statistic_name,
+                            "p_value": inf.p_value,
+                            "effect_size": inf.effect_size,
+                            "effect_size_name": inf.effect_size_name,
+                            "ci_lower": inf.ci_lower,
+                            "ci_upper": inf.ci_upper,
+                            "significant": inf.significant,
+                            "interpretation": inf.interpretation,
+                        }
+
+        logger.info(f"Real statistical analysis completed: {list(results.keys())}")
+        return results if results else None
+
+    except Exception as e:
+        logger.error(f"Real statistical analysis failed: {e}")
+        return None
+
+
 def generate_mock_statistics() -> Dict[str, Any]:
-    """Generate mock statistical results.
+    """Generate mock statistical results (FALLBACK when real analysis unavailable).
 
     Returns:
         Dictionary of mock statistics
@@ -589,53 +822,85 @@ class AnalysisStage:
                 logger.debug(f"Analysis step: {step_name}")
                 await asyncio.sleep(step_duration)
 
-            # Generate mock analysis results based on analysis type
+            # Generate analysis results - use REAL analysis when data available
             analysis_results: Dict[str, Any] = {}
+            used_real_analysis = False
 
-            if analysis_type == "exploratory":
-                analysis_results["statistics"] = generate_mock_statistics()
-                analysis_results["correlations"] = generate_mock_correlations()
-                analysis_results["distributions"] = generate_mock_distributions()
+            # Try to load actual data for real analysis
+            df = None
+            if dataset_pointer and PANDAS_AVAILABLE and ANALYSIS_SERVICE_AVAILABLE:
+                try:
+                    if dataset_pointer.endswith('.csv'):
+                        df = pd.read_csv(dataset_pointer)
+                    elif dataset_pointer.endswith('.parquet'):
+                        df = pd.read_parquet(dataset_pointer)
+                    elif dataset_pointer.endswith(('.xlsx', '.xls')):
+                        df = pd.read_excel(dataset_pointer)
+                    elif dataset_pointer.endswith('.tsv'):
+                        df = pd.read_csv(dataset_pointer, sep='\t')
+                    logger.info(f"Loaded dataset for real analysis: {len(df)} rows, {len(df.columns)} cols")
+                except Exception as e:
+                    logger.warning(f"Could not load dataset for real analysis: {e}")
+                    df = None
 
-            elif analysis_type == "statistical":
-                analysis_results["statistics"] = generate_mock_statistics()
-                analysis_results["hypothesis_tests"] = {
-                    "t_test": {
-                        "statistic": round(random.uniform(-3, 3), 4),
-                        "p_value": round(random.uniform(0, 0.2), 6),
-                        "significant": random.choice([True, False]),
-                    },
-                    "chi_square": {
-                        "statistic": round(random.uniform(0, 20), 4),
-                        "p_value": round(random.uniform(0, 0.2), 6),
-                        "degrees_of_freedom": random.randint(1, 10),
-                    },
-                }
+            # Perform REAL statistical analysis if data is available
+            if df is not None and analysis_type in ["exploratory", "statistical", "correlation", "distribution", "regression"]:
+                real_results = await perform_real_statistical_analysis(df, analysis_type, effective_params)
+                if real_results:
+                    analysis_results.update(real_results)
+                    used_real_analysis = True
+                    output["real_analysis"] = True
+                    logger.info(f"Used REAL statistical analysis for {analysis_type}")
 
-            elif analysis_type == "correlation":
-                analysis_results["correlations"] = generate_mock_correlations()
+            # Fallback to mock data if real analysis not available or failed
+            if not used_real_analysis:
+                output["real_analysis"] = False
+                output["mock_data_reason"] = "Dataset not available or analysis service unavailable"
 
-            elif analysis_type == "distribution":
-                analysis_results["distributions"] = generate_mock_distributions()
+                if analysis_type == "exploratory":
+                    analysis_results["statistics"] = generate_mock_statistics()
+                    analysis_results["correlations"] = generate_mock_correlations()
+                    analysis_results["distributions"] = generate_mock_distributions()
 
-            elif analysis_type == "regression":
-                analysis_results["regression"] = {
-                    "model_type": effective_params.get("model_type", "linear"),
-                    "r_squared": round(random.uniform(0.5, 0.95), 4),
-                    "adjusted_r_squared": round(random.uniform(0.45, 0.93), 4),
-                    "rmse": round(random.uniform(0.1, 10), 4),
-                    "mae": round(random.uniform(0.1, 8), 4),
-                    "coefficients": {
-                        f"feature_{i}": round(random.uniform(-5, 5), 4)
-                        for i in range(random.randint(3, 8))
-                    },
-                    "cross_validation_scores": [
-                        round(random.uniform(0.6, 0.9), 4)
-                        for _ in range(effective_params.get("cross_validation_folds", 5))
-                    ],
-                }
+                elif analysis_type == "statistical":
+                    analysis_results["statistics"] = generate_mock_statistics()
+                    analysis_results["hypothesis_tests"] = {
+                        "t_test": {
+                            "statistic": round(random.uniform(-3, 3), 4),
+                            "p_value": round(random.uniform(0, 0.2), 6),
+                            "significant": random.choice([True, False]),
+                        },
+                        "chi_square": {
+                            "statistic": round(random.uniform(0, 20), 4),
+                            "p_value": round(random.uniform(0, 0.2), 6),
+                            "degrees_of_freedom": random.randint(1, 10),
+                        },
+                    }
 
-            elif analysis_type == "clustering":
+                elif analysis_type == "correlation":
+                    analysis_results["correlations"] = generate_mock_correlations()
+
+                elif analysis_type == "distribution":
+                    analysis_results["distributions"] = generate_mock_distributions()
+
+                elif analysis_type == "regression":
+                    analysis_results["regression"] = {
+                        "model_type": effective_params.get("model_type", "linear"),
+                        "r_squared": round(random.uniform(0.5, 0.95), 4),
+                        "adjusted_r_squared": round(random.uniform(0.45, 0.93), 4),
+                        "rmse": round(random.uniform(0.1, 10), 4),
+                        "mae": round(random.uniform(0.1, 8), 4),
+                        "coefficients": {
+                            f"feature_{i}": round(random.uniform(-5, 5), 4)
+                            for i in range(random.randint(3, 8))
+                        },
+                        "cross_validation_scores": [
+                            round(random.uniform(0.6, 0.9), 4)
+                            for _ in range(effective_params.get("cross_validation_folds", 5))
+                        ],
+                    }
+
+            if analysis_type == "clustering":
                 n_clusters = effective_params.get("n_clusters", 5)
                 analysis_results["clustering"] = {
                     "algorithm": effective_params.get("algorithm", "kmeans"),

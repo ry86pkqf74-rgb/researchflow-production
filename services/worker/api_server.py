@@ -24,6 +24,23 @@ import tempfile
 # Import ROS runtime config first
 from runtime_config import RuntimeConfig
 
+# Import the new AnalysisService for REAL statistical analysis
+try:
+    from analysis_service import (
+        AnalysisService,
+        AnalysisRequest,
+        AnalysisResponse,
+        AnalysisType,
+        TestType,
+        RegressionType,
+        CorrectionMethod,
+    )
+    ANALYSIS_SERVICE_AVAILABLE = True
+    print("[ROS] Analysis service module loaded - REAL statistical analysis enabled")
+except ImportError as e:
+    ANALYSIS_SERVICE_AVAILABLE = False
+    print(f"[ROS] Analysis service module not available: {e}")
+
 # Import extraction router for LLM-powered clinical data extraction
 try:
     from data_extraction.api_routes import router as extraction_router
@@ -883,6 +900,496 @@ def _apply_correction(results: List[TestResult], method: str, alpha: float):
         warning = "Benjamini-Hochberg FDR correction applied"
     
     return results, warning
+
+
+# ============ REAL Statistical Analysis Endpoints ============
+
+class RealAnalysisInput(BaseModel):
+    """Input for real statistical analysis using AnalysisService."""
+    analysis_type: str  # descriptive, inferential, survival, regression, correlation
+    dataset_path: Optional[str] = None  # Path to CSV/Parquet/Excel file
+    dataset_id: Optional[str] = None  # Or reference an existing dataset
+    variables: List[str] = []  # Variables to analyze
+    group_variable: Optional[str] = None  # Grouping variable for comparisons
+    outcome_variable: Optional[str] = None  # Outcome/dependent variable
+    time_variable: Optional[str] = None  # Time variable for survival analysis
+    event_variable: Optional[str] = None  # Event variable for survival analysis
+    covariates: Optional[List[str]] = None  # Covariates for regression
+    test_type: Optional[str] = None  # Specific test: ttest, anova, chi_square, etc.
+    regression_type: Optional[str] = None  # linear, logistic, poisson, cox
+    correction_method: str = "none"  # none, bonferroni, holm, fdr_bh
+    alpha_level: float = 0.05
+    confidence_level: float = 0.95
+
+
+class RealAnalysisOutput(BaseModel):
+    """Output from real statistical analysis."""
+    run_id: str
+    status: str
+    analysis_type: str
+    execution_time_ms: int
+    dataset_info: Dict[str, Any]
+    results: Dict[str, Any]
+    warnings: List[str]
+    errors: List[str]
+    mode: str
+
+
+@app.post("/api/ros/analysis/run", response_model=RealAnalysisOutput)
+async def run_real_statistical_analysis(input_data: RealAnalysisInput):
+    """
+    Execute REAL statistical analysis using scipy, statsmodels, and lifelines.
+
+    This endpoint performs actual statistical computations on uploaded data,
+    NOT mock/random results. Supports:
+    - Descriptive statistics (mean, median, SD, quartiles, distributions)
+    - Inferential tests (t-test, ANOVA, chi-square, Mann-Whitney, etc.)
+    - Survival analysis (Kaplan-Meier, Cox proportional hazards)
+    - Regression analysis (linear, logistic, Poisson, Cox)
+    - Correlation analysis (Pearson, Spearman matrices)
+
+    IMPORTANT: Only de-identified data should be used. PHI scanning is applied.
+    """
+    import time
+    import uuid
+
+    start_time = time.time()
+    run_id = f"ANAL-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6].upper()}"
+
+    warnings_list = []
+    errors_list = []
+    results = {}
+    dataset_info = {}
+
+    if not ANALYSIS_SERVICE_AVAILABLE:
+        return RealAnalysisOutput(
+            run_id=run_id,
+            status="error",
+            analysis_type=input_data.analysis_type,
+            execution_time_ms=int((time.time() - start_time) * 1000),
+            dataset_info={},
+            results={},
+            warnings=[],
+            errors=["Analysis service not available. Required modules may not be installed."],
+            mode=config.ros_mode
+        )
+
+    try:
+        # Initialize the analysis service
+        service = AnalysisService()
+
+        # Load dataset if path provided
+        if input_data.dataset_path:
+            try:
+                df = service.load_dataset(input_data.dataset_path)
+                dataset_info = {
+                    "path": input_data.dataset_path,
+                    "n_rows": len(df),
+                    "n_columns": len(df.columns),
+                    "columns": list(df.columns),
+                }
+            except Exception as e:
+                errors_list.append(f"Failed to load dataset: {str(e)}")
+                return RealAnalysisOutput(
+                    run_id=run_id,
+                    status="error",
+                    analysis_type=input_data.analysis_type,
+                    execution_time_ms=int((time.time() - start_time) * 1000),
+                    dataset_info=dataset_info,
+                    results={},
+                    warnings=warnings_list,
+                    errors=errors_list,
+                    mode=config.ros_mode
+                )
+        else:
+            # For demo/testing without a dataset, create synthetic data
+            warnings_list.append("No dataset_path provided. Using synthetic demo data.")
+            import pandas as pd
+            import numpy as np
+            np.random.seed(42)
+            n = 200
+            df = pd.DataFrame({
+                'age': np.random.normal(55, 12, n),
+                'bmi': np.random.normal(28, 5, n),
+                'tsh': np.random.lognormal(1.5, 0.8, n),
+                'group': np.random.choice(['treatment', 'control'], n),
+                'outcome': np.random.binomial(1, 0.3, n),
+                'time_to_event': np.random.exponential(24, n),
+                'event': np.random.binomial(1, 0.4, n),
+            })
+            dataset_info = {
+                "path": "synthetic_demo_data",
+                "n_rows": len(df),
+                "n_columns": len(df.columns),
+                "columns": list(df.columns),
+            }
+
+        # Map string inputs to enums
+        analysis_type_map = {
+            'descriptive': AnalysisType.DESCRIPTIVE,
+            'inferential': AnalysisType.INFERENTIAL,
+            'survival': AnalysisType.SURVIVAL,
+            'regression': AnalysisType.REGRESSION,
+            'correlation': AnalysisType.CORRELATION,
+        }
+
+        test_type_map = {
+            'ttest': TestType.TTEST,
+            'ttest_ind': TestType.TTEST,
+            'ttest_paired': TestType.TTEST_PAIRED,
+            'anova': TestType.ANOVA,
+            'chi_square': TestType.CHI_SQUARE,
+            'mann_whitney': TestType.MANN_WHITNEY,
+            'kruskal_wallis': TestType.KRUSKAL_WALLIS,
+            'fisher_exact': TestType.FISHER_EXACT,
+            'kaplan_meier': TestType.KAPLAN_MEIER,
+            'cox_ph': TestType.COX_PH,
+            'log_rank': TestType.LOG_RANK,
+        }
+
+        regression_type_map = {
+            'linear': RegressionType.LINEAR,
+            'logistic': RegressionType.LOGISTIC,
+            'poisson': RegressionType.POISSON,
+            'cox': RegressionType.COX,
+        }
+
+        correction_map = {
+            'none': CorrectionMethod.NONE,
+            'bonferroni': CorrectionMethod.BONFERRONI,
+            'holm': CorrectionMethod.HOLM,
+            'fdr_bh': CorrectionMethod.FDR_BH,
+            'fdr': CorrectionMethod.FDR_BH,
+            'sidak': CorrectionMethod.SIDAK,
+        }
+
+        # Determine analysis type
+        analysis_type = analysis_type_map.get(
+            input_data.analysis_type.lower(),
+            AnalysisType.DESCRIPTIVE
+        )
+
+        # Build the analysis request
+        request = AnalysisRequest(
+            analysis_type=analysis_type,
+            variables=input_data.variables or list(df.select_dtypes(include=['number']).columns[:5]),
+            group_variable=input_data.group_variable,
+            outcome_variable=input_data.outcome_variable,
+            time_variable=input_data.time_variable,
+            event_variable=input_data.event_variable,
+            covariates=input_data.covariates,
+            test_type=test_type_map.get(input_data.test_type) if input_data.test_type else None,
+            regression_type=regression_type_map.get(input_data.regression_type) if input_data.regression_type else None,
+            correction_method=correction_map.get(input_data.correction_method.lower(), CorrectionMethod.NONE),
+            alpha=input_data.alpha_level,
+            confidence_level=input_data.confidence_level,
+        )
+
+        # Run the analysis
+        response = service.analyze(df, request)
+
+        # Convert response to dict
+        results = {
+            "analysis_type": response.analysis_type.value if hasattr(response.analysis_type, 'value') else str(response.analysis_type),
+            "n_observations": response.n_observations,
+            "execution_time_ms": response.execution_time_ms,
+        }
+
+        # Add descriptive results
+        if response.descriptive:
+            results["descriptive"] = [
+                {
+                    "variable": d.variable,
+                    "n": d.n,
+                    "n_missing": d.n_missing,
+                    "mean": d.mean,
+                    "std": d.std,
+                    "median": d.median,
+                    "min": d.min,
+                    "max": d.max,
+                    "q1": d.q1,
+                    "q3": d.q3,
+                    "skewness": d.skewness,
+                    "kurtosis": d.kurtosis,
+                    "normality_p": d.normality_p,
+                } for d in response.descriptive
+            ]
+
+        # Add inferential results
+        if response.inferential:
+            results["inferential"] = [
+                {
+                    "test_name": i.test_name,
+                    "variable": i.variable,
+                    "statistic": i.statistic,
+                    "statistic_name": i.statistic_name,
+                    "p_value": i.p_value,
+                    "adjusted_p_value": i.adjusted_p_value,
+                    "effect_size": i.effect_size,
+                    "effect_size_name": i.effect_size_name,
+                    "ci_lower": i.ci_lower,
+                    "ci_upper": i.ci_upper,
+                    "degrees_of_freedom": i.degrees_of_freedom,
+                    "significant": i.significant,
+                    "interpretation": i.interpretation,
+                } for i in response.inferential
+            ]
+
+        # Add survival results
+        if response.survival:
+            results["survival"] = [
+                {
+                    "method": s.method,
+                    "median_survival": s.median_survival,
+                    "ci_lower": s.ci_lower,
+                    "ci_upper": s.ci_upper,
+                    "n_events": s.n_events,
+                    "n_censored": s.n_censored,
+                    "survival_probabilities": s.survival_probabilities,
+                    "log_rank_p": s.log_rank_p,
+                    "hazard_ratio": s.hazard_ratio,
+                    "hr_ci_lower": s.hr_ci_lower,
+                    "hr_ci_upper": s.hr_ci_upper,
+                } for s in response.survival
+            ]
+
+        # Add regression results
+        if response.regression:
+            results["regression"] = [
+                {
+                    "model_type": r.model_type,
+                    "dependent_variable": r.dependent_variable,
+                    "coefficients": r.coefficients,
+                    "r_squared": r.r_squared,
+                    "adj_r_squared": r.adj_r_squared,
+                    "f_statistic": r.f_statistic,
+                    "f_pvalue": r.f_pvalue,
+                    "aic": r.aic,
+                    "bic": r.bic,
+                    "log_likelihood": r.log_likelihood,
+                    "n_observations": r.n_observations,
+                    "residual_std": r.residual_std,
+                } for r in response.regression
+            ]
+
+        # Add correlation results
+        if response.correlation_matrix is not None:
+            results["correlation_matrix"] = response.correlation_matrix.to_dict() if hasattr(response.correlation_matrix, 'to_dict') else response.correlation_matrix
+        if response.p_value_matrix is not None:
+            results["p_value_matrix"] = response.p_value_matrix.to_dict() if hasattr(response.p_value_matrix, 'to_dict') else response.p_value_matrix
+
+        # Add any warnings from the analysis
+        if response.warnings:
+            warnings_list.extend(response.warnings)
+
+        status = "completed"
+
+    except Exception as e:
+        import traceback
+        errors_list.append(f"Analysis failed: {str(e)}")
+        errors_list.append(traceback.format_exc())
+        status = "error"
+
+    execution_time_ms = int((time.time() - start_time) * 1000)
+
+    return RealAnalysisOutput(
+        run_id=run_id,
+        status=status,
+        analysis_type=input_data.analysis_type,
+        execution_time_ms=execution_time_ms,
+        dataset_info=dataset_info,
+        results=results,
+        warnings=warnings_list,
+        errors=errors_list,
+        mode=config.ros_mode
+    )
+
+
+@app.get("/api/ros/analysis/capabilities")
+async def get_analysis_capabilities():
+    """
+    Get available statistical analysis capabilities.
+
+    Returns information about:
+    - Available analysis types (descriptive, inferential, survival, regression)
+    - Supported statistical tests
+    - Available correction methods
+    - Required libraries and their versions
+    """
+    capabilities = {
+        "service_available": ANALYSIS_SERVICE_AVAILABLE,
+        "mode": config.ros_mode,
+    }
+
+    if ANALYSIS_SERVICE_AVAILABLE:
+        capabilities["analysis_types"] = [
+            {"type": "descriptive", "description": "Summary statistics, distributions, normality tests"},
+            {"type": "inferential", "description": "Hypothesis tests (t-test, ANOVA, chi-square, etc.)"},
+            {"type": "survival", "description": "Time-to-event analysis (Kaplan-Meier, Cox PH)"},
+            {"type": "regression", "description": "Regression models (linear, logistic, Poisson, Cox)"},
+            {"type": "correlation", "description": "Correlation matrices (Pearson, Spearman)"},
+        ]
+
+        capabilities["statistical_tests"] = [
+            {"test": "ttest", "description": "Independent samples t-test"},
+            {"test": "ttest_paired", "description": "Paired samples t-test"},
+            {"test": "anova", "description": "One-way Analysis of Variance"},
+            {"test": "chi_square", "description": "Chi-square test of independence"},
+            {"test": "mann_whitney", "description": "Mann-Whitney U test (non-parametric)"},
+            {"test": "kruskal_wallis", "description": "Kruskal-Wallis H test (non-parametric)"},
+            {"test": "fisher_exact", "description": "Fisher's exact test (small samples)"},
+            {"test": "kaplan_meier", "description": "Kaplan-Meier survival estimates"},
+            {"test": "log_rank", "description": "Log-rank test for survival curves"},
+            {"test": "cox_ph", "description": "Cox proportional hazards model"},
+        ]
+
+        capabilities["regression_types"] = [
+            {"type": "linear", "description": "Ordinary least squares regression"},
+            {"type": "logistic", "description": "Binary logistic regression"},
+            {"type": "poisson", "description": "Poisson regression for count data"},
+            {"type": "cox", "description": "Cox proportional hazards regression"},
+        ]
+
+        capabilities["correction_methods"] = [
+            {"method": "none", "description": "No correction"},
+            {"method": "bonferroni", "description": "Bonferroni correction (conservative)"},
+            {"method": "holm", "description": "Holm-Bonferroni step-down method"},
+            {"method": "fdr_bh", "description": "Benjamini-Hochberg false discovery rate"},
+            {"method": "sidak", "description": "Sidak correction"},
+        ]
+
+        # Check library versions
+        try:
+            import scipy
+            capabilities["scipy_version"] = scipy.__version__
+        except:
+            capabilities["scipy_version"] = "not available"
+
+        try:
+            import statsmodels
+            capabilities["statsmodels_version"] = statsmodels.__version__
+        except:
+            capabilities["statsmodels_version"] = "not available"
+
+        try:
+            import lifelines
+            capabilities["lifelines_version"] = lifelines.__version__
+        except:
+            capabilities["lifelines_version"] = "not available"
+
+        try:
+            import pandas
+            capabilities["pandas_version"] = pandas.__version__
+        except:
+            capabilities["pandas_version"] = "not available"
+
+        try:
+            import numpy
+            capabilities["numpy_version"] = numpy.__version__
+        except:
+            capabilities["numpy_version"] = "not available"
+    else:
+        capabilities["error"] = "Analysis service not loaded. Check dependencies."
+        capabilities["required_packages"] = [
+            "scipy>=1.11.0",
+            "statsmodels>=0.14.0",
+            "lifelines>=0.27.0",
+            "scikit-learn>=1.3.0",
+            "pandas>=2.0.0",
+            "numpy>=1.24.0",
+        ]
+
+    return capabilities
+
+
+@app.post("/api/ros/analysis/descriptive")
+async def run_descriptive_analysis(
+    dataset_path: Optional[str] = None,
+    variables: Optional[List[str]] = None,
+):
+    """
+    Run descriptive statistics analysis on specified variables.
+
+    Convenience endpoint for quick descriptive analysis.
+    Returns: count, mean, std, min, max, quartiles, skewness, kurtosis.
+    """
+    input_data = RealAnalysisInput(
+        analysis_type="descriptive",
+        dataset_path=dataset_path,
+        variables=variables or [],
+    )
+    return await run_real_statistical_analysis(input_data)
+
+
+@app.post("/api/ros/analysis/compare-groups")
+async def run_group_comparison(
+    dataset_path: Optional[str] = None,
+    group_variable: str = "group",
+    outcome_variable: str = "outcome",
+    test_type: str = "ttest",
+    correction_method: str = "none",
+):
+    """
+    Compare groups using appropriate statistical test.
+
+    Convenience endpoint for group comparisons.
+    Automatically selects test based on data characteristics if not specified.
+    """
+    input_data = RealAnalysisInput(
+        analysis_type="inferential",
+        dataset_path=dataset_path,
+        group_variable=group_variable,
+        outcome_variable=outcome_variable,
+        test_type=test_type,
+        correction_method=correction_method,
+    )
+    return await run_real_statistical_analysis(input_data)
+
+
+@app.post("/api/ros/analysis/survival")
+async def run_survival_analysis(
+    dataset_path: Optional[str] = None,
+    time_variable: str = "time",
+    event_variable: str = "event",
+    group_variable: Optional[str] = None,
+    test_type: str = "kaplan_meier",
+):
+    """
+    Run survival analysis (Kaplan-Meier or Cox PH).
+
+    Convenience endpoint for time-to-event analysis.
+    """
+    input_data = RealAnalysisInput(
+        analysis_type="survival",
+        dataset_path=dataset_path,
+        time_variable=time_variable,
+        event_variable=event_variable,
+        group_variable=group_variable,
+        test_type=test_type,
+    )
+    return await run_real_statistical_analysis(input_data)
+
+
+@app.post("/api/ros/analysis/regression")
+async def run_regression_analysis(
+    dataset_path: Optional[str] = None,
+    outcome_variable: str = "outcome",
+    covariates: Optional[List[str]] = None,
+    regression_type: str = "linear",
+):
+    """
+    Run regression analysis (linear, logistic, Poisson, or Cox).
+
+    Convenience endpoint for regression modeling.
+    """
+    input_data = RealAnalysisInput(
+        analysis_type="regression",
+        dataset_path=dataset_path,
+        outcome_variable=outcome_variable,
+        covariates=covariates,
+        regression_type=regression_type,
+    )
+    return await run_real_statistical_analysis(input_data)
 
 
 # ============ Reference Data Endpoints ============

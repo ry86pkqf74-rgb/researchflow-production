@@ -2275,6 +2275,158 @@ export async function registerRoutes(
     }
   });
 
+  // ==========================================
+  // REAL STATISTICAL ANALYSIS ENDPOINTS
+  // Routes that forward to worker's AnalysisService for REAL statistical computations
+  // ==========================================
+
+  // Analysis Capabilities - Get available analysis types and library versions
+  app.get("/api/ros/analysis/capabilities",
+    requireRole(ROLES.RESEARCHER),
+    async (req, res) => {
+    try {
+      const response = await fetch(`${ROS_API_URL}/api/ros/analysis/capabilities`);
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to fetch analysis capabilities",
+        service_available: false,
+        mode: ROS_MODE
+      });
+    }
+  });
+
+  // Run Real Statistical Analysis - Main endpoint for all analysis types
+  // Protected: Requires RESEARCHER role or higher
+  // STANDBY guard: Execution not available in STANDBY mode
+  app.post("/api/ros/analysis/run",
+    requireRole(ROLES.RESEARCHER),
+    logAuditEvent('ANALYSIS_RUN', 'statistical-analysis'),
+    async (req, res) => {
+    if (ROS_MODE === "STANDBY") {
+      return res.status(503).json({
+        error: "Analysis execution not available in STANDBY mode",
+        mode: ROS_MODE
+      });
+    }
+    try {
+      const response = await fetch(`${ROS_API_URL}/api/ros/analysis/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body)
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error running statistical analysis:", error);
+      res.status(500).json({
+        error: "Failed to execute statistical analysis",
+        mode: ROS_MODE
+      });
+    }
+  });
+
+  // Descriptive Statistics - Convenience endpoint
+  app.post("/api/ros/analysis/descriptive",
+    requireRole(ROLES.RESEARCHER),
+    logAuditEvent('ANALYSIS_DESCRIPTIVE', 'statistical-analysis'),
+    async (req, res) => {
+    if (ROS_MODE === "STANDBY") {
+      return res.status(503).json({
+        error: "Analysis not available in STANDBY mode",
+        mode: ROS_MODE
+      });
+    }
+    try {
+      const response = await fetch(`${ROS_API_URL}/api/ros/analysis/descriptive`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body)
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error running descriptive analysis:", error);
+      res.status(500).json({ error: "Failed to execute descriptive analysis" });
+    }
+  });
+
+  // Group Comparison - Convenience endpoint for t-tests, ANOVA, etc.
+  app.post("/api/ros/analysis/compare-groups",
+    requireRole(ROLES.RESEARCHER),
+    logAuditEvent('ANALYSIS_COMPARE', 'statistical-analysis'),
+    async (req, res) => {
+    if (ROS_MODE === "STANDBY") {
+      return res.status(503).json({
+        error: "Analysis not available in STANDBY mode",
+        mode: ROS_MODE
+      });
+    }
+    try {
+      const response = await fetch(`${ROS_API_URL}/api/ros/analysis/compare-groups`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body)
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error running group comparison:", error);
+      res.status(500).json({ error: "Failed to execute group comparison" });
+    }
+  });
+
+  // Survival Analysis - Kaplan-Meier, Cox PH
+  app.post("/api/ros/analysis/survival",
+    requireRole(ROLES.RESEARCHER),
+    logAuditEvent('ANALYSIS_SURVIVAL', 'statistical-analysis'),
+    async (req, res) => {
+    if (ROS_MODE === "STANDBY") {
+      return res.status(503).json({
+        error: "Analysis not available in STANDBY mode",
+        mode: ROS_MODE
+      });
+    }
+    try {
+      const response = await fetch(`${ROS_API_URL}/api/ros/analysis/survival`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body)
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error running survival analysis:", error);
+      res.status(500).json({ error: "Failed to execute survival analysis" });
+    }
+  });
+
+  // Regression Analysis - Linear, Logistic, Poisson, Cox
+  app.post("/api/ros/analysis/regression",
+    requireRole(ROLES.RESEARCHER),
+    logAuditEvent('ANALYSIS_REGRESSION', 'statistical-analysis'),
+    async (req, res) => {
+    if (ROS_MODE === "STANDBY") {
+      return res.status(503).json({
+        error: "Analysis not available in STANDBY mode",
+        mode: ROS_MODE
+      });
+    }
+    try {
+      const response = await fetch(`${ROS_API_URL}/api/ros/analysis/regression`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body)
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error running regression analysis:", error);
+      res.status(500).json({ error: "Failed to execute regression analysis" });
+    }
+  });
+
   // Conference Export - INF-26: Generate conference materials
   // Protected: Requires RESEARCHER role or higher
   // STANDBY guard: Execution not available in STANDBY mode

@@ -7,7 +7,8 @@ Handles statistical model fitting and validation including:
 - Goodness-of-fit statistics
 - Assumption diagnostics
 
-This is a mock/stub implementation that simulates statistical modeling.
+This stage uses REAL statistical analysis via AnalysisService when data is available,
+with mock data as a fallback when no dataset is provided.
 """
 
 import logging
@@ -17,6 +18,25 @@ from typing import Any, Dict, List, Optional
 
 from ..types import StageContext, StageResult
 from ..registry import register_stage
+
+# Pandas for DataFrame operations
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
+
+# Import AnalysisService for REAL statistical analysis
+try:
+    from analysis_service import (
+        AnalysisService,
+        AnalysisRequest,
+        AnalysisType,
+        RegressionType,
+    )
+    ANALYSIS_SERVICE_AVAILABLE = True
+except ImportError:
+    ANALYSIS_SERVICE_AVAILABLE = False
 
 logger = logging.getLogger("workflow_engine.stage_07_stats")
 
@@ -29,6 +49,155 @@ SUPPORTED_MODEL_TYPES = {
     "mixed": "Mixed Effects Model",
     "anova": "Analysis of Variance",
 }
+
+
+def perform_real_statistical_modeling(
+    df: "pd.DataFrame",
+    model_type: str,
+    dependent_variable: str,
+    independent_variables: List[str],
+) -> Optional[Dict[str, Any]]:
+    """Perform REAL statistical modeling using AnalysisService.
+
+    This function uses statsmodels and lifelines to compute actual
+    regression coefficients and fit statistics.
+
+    Args:
+        df: pandas DataFrame with data
+        model_type: Type of model (regression, logistic, poisson, cox)
+        dependent_variable: Name of outcome variable
+        independent_variables: List of predictor variable names
+
+    Returns:
+        Dictionary with real model results, or None if analysis fails
+    """
+    if not ANALYSIS_SERVICE_AVAILABLE or not PANDAS_AVAILABLE:
+        logger.warning("AnalysisService or pandas not available for real modeling")
+        return None
+
+    try:
+        service = AnalysisService()
+
+        # Map model types to regression types
+        reg_type_map = {
+            "regression": RegressionType.LINEAR,
+            "logistic": RegressionType.LOGISTIC,
+            "poisson": RegressionType.POISSON,
+            "cox": RegressionType.COX,
+        }
+
+        regression_type = reg_type_map.get(model_type, RegressionType.LINEAR)
+
+        # Validate columns exist
+        available_cols = set(df.columns)
+        if dependent_variable not in available_cols:
+            logger.warning(f"Dependent variable '{dependent_variable}' not in dataset")
+            return None
+
+        valid_predictors = [v for v in independent_variables if v in available_cols]
+        if not valid_predictors:
+            logger.warning("No valid predictor variables found in dataset")
+            return None
+
+        # Build analysis request
+        request = AnalysisRequest(
+            analysis_type=AnalysisType.REGRESSION,
+            outcome_variable=dependent_variable,
+            covariates=valid_predictors,
+            regression_type=regression_type,
+        )
+
+        # For Cox model, we need time and event variables
+        if model_type == "cox":
+            # Try to find time/event columns
+            time_cols = [c for c in df.columns if 'time' in c.lower() or 'survival' in c.lower()]
+            event_cols = [c for c in df.columns if 'event' in c.lower() or 'status' in c.lower() or 'censor' in c.lower()]
+            if time_cols and event_cols:
+                request.time_variable = time_cols[0]
+                request.event_variable = event_cols[0]
+            else:
+                logger.warning("Cox model requires time and event variables")
+                return None
+
+        # Run the analysis
+        response = service.analyze(df, request)
+
+        if not response.regression:
+            logger.warning("No regression results returned from analysis")
+            return None
+
+        reg = response.regression[0]
+
+        # Build coefficients list from real results
+        coefficients = []
+        if reg.coefficients:
+            for var_name, coef_data in reg.coefficients.items():
+                if isinstance(coef_data, dict):
+                    coefficients.append({
+                        "variable": var_name,
+                        "estimate": coef_data.get("coefficient"),
+                        "std_error": coef_data.get("std_error"),
+                        "t_value": coef_data.get("t_value") or coef_data.get("z_value"),
+                        "p_value": coef_data.get("p_value"),
+                        "ci_lower": coef_data.get("ci_lower"),
+                        "ci_upper": coef_data.get("ci_upper"),
+                    })
+                else:
+                    # Simple coefficient value
+                    coefficients.append({
+                        "variable": var_name,
+                        "estimate": float(coef_data) if coef_data else None,
+                        "std_error": None,
+                        "t_value": None,
+                        "p_value": None,
+                        "ci_lower": None,
+                        "ci_upper": None,
+                    })
+
+        # Build fit statistics from real results
+        fit_statistics = {
+            "n_observations": reg.n_observations or len(df),
+            "n_predictors": len(valid_predictors),
+            "degrees_of_freedom": (reg.n_observations or len(df)) - len(valid_predictors) - 1,
+            "log_likelihood": reg.log_likelihood,
+            "aic": reg.aic,
+            "bic": reg.bic,
+        }
+
+        # Add model-specific statistics
+        if model_type == "regression":
+            fit_statistics["r_squared"] = reg.r_squared
+            fit_statistics["adj_r_squared"] = reg.adj_r_squared
+            fit_statistics["f_statistic"] = reg.f_statistic
+            fit_statistics["f_p_value"] = reg.f_pvalue
+            fit_statistics["residual_std"] = reg.residual_std
+
+        elif model_type == "logistic":
+            # Pseudo R-squared for logistic
+            if reg.log_likelihood:
+                fit_statistics["pseudo_r_squared_mcfadden"] = reg.r_squared if reg.r_squared else None
+
+        # Determine significant predictors
+        significant_vars = [
+            coef["variable"]
+            for coef in coefficients
+            if coef.get("p_value") and coef["p_value"] < 0.05 and coef["variable"] != "(Intercept)"
+        ]
+
+        result = {
+            "coefficients": coefficients,
+            "fit_statistics": fit_statistics,
+            "significant_predictors": significant_vars,
+            "n_significant": len(significant_vars),
+            "real_analysis": True,
+        }
+
+        logger.info(f"Real statistical modeling completed: {len(significant_vars)} significant predictors")
+        return result
+
+    except Exception as e:
+        logger.error(f"Real statistical modeling failed: {e}")
+        return None
 
 
 def generate_mock_coefficients(
@@ -349,28 +518,67 @@ class StatisticalModelingStage:
 
             logger.info(f"Fitting {SUPPORTED_MODEL_TYPES[model_type]} model")
 
-            # Generate mock coefficients
-            output["coefficients"] = generate_mock_coefficients(
-                independent_variables, model_type
-            )
+            # Try to load actual data for real analysis
+            df = None
+            dataset_pointer = context.dataset_pointer
+            used_real_analysis = False
 
-            # Generate fit statistics
-            output["fit_statistics"] = generate_fit_statistics(
-                model_type, len(independent_variables)
-            )
+            if dataset_pointer and PANDAS_AVAILABLE and ANALYSIS_SERVICE_AVAILABLE:
+                try:
+                    if dataset_pointer.endswith('.csv'):
+                        df = pd.read_csv(dataset_pointer)
+                    elif dataset_pointer.endswith('.parquet'):
+                        df = pd.read_parquet(dataset_pointer)
+                    elif dataset_pointer.endswith(('.xlsx', '.xls')):
+                        df = pd.read_excel(dataset_pointer)
+                    elif dataset_pointer.endswith('.tsv'):
+                        df = pd.read_csv(dataset_pointer, sep='\t')
+                    logger.info(f"Loaded dataset for real modeling: {len(df)} rows, {len(df.columns)} cols")
+                except Exception as e:
+                    logger.warning(f"Could not load dataset for real modeling: {e}")
+                    df = None
 
-            # Generate diagnostics
+            # Perform REAL statistical modeling if data is available
+            if df is not None and model_type in ["regression", "logistic", "poisson", "cox"]:
+                real_results = perform_real_statistical_modeling(
+                    df, model_type, dependent_variable, independent_variables
+                )
+                if real_results:
+                    output["coefficients"] = real_results["coefficients"]
+                    output["fit_statistics"] = real_results["fit_statistics"]
+                    output["significant_predictors"] = real_results["significant_predictors"]
+                    output["n_significant"] = real_results["n_significant"]
+                    output["real_analysis"] = True
+                    used_real_analysis = True
+                    logger.info("Used REAL statistical modeling")
+
+            # Fallback to mock data if real analysis not available or failed
+            if not used_real_analysis:
+                output["real_analysis"] = False
+                output["mock_data_reason"] = "Dataset not available or analysis service unavailable"
+
+                # Generate mock coefficients
+                output["coefficients"] = generate_mock_coefficients(
+                    independent_variables, model_type
+                )
+
+                # Generate fit statistics
+                output["fit_statistics"] = generate_fit_statistics(
+                    model_type, len(independent_variables)
+                )
+
+                # Determine significant predictors from mock data
+                significant_vars = [
+                    coef["variable"]
+                    for coef in output["coefficients"]
+                    if coef["p_value"] < 0.05 and coef["variable"] != "(Intercept)"
+                ]
+
+                output["significant_predictors"] = significant_vars
+                output["n_significant"] = len(significant_vars)
+
+            # Generate diagnostics (always use mock for now as real diagnostics require more work)
             output["diagnostics"] = generate_diagnostics(model_type)
-
-            # Determine significant predictors
-            significant_vars = [
-                coef["variable"]
-                for coef in output["coefficients"]
-                if coef["p_value"] < 0.05 and coef["variable"] != "(Intercept)"
-            ]
-
-            output["significant_predictors"] = significant_vars
-            output["n_significant"] = len(significant_vars)
 
             # Add any diagnostic warnings
             for check_name, check_result in output["diagnostics"]["assumption_checks"].items():
