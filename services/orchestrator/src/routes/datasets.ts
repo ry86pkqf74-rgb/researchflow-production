@@ -21,69 +21,18 @@ import { DatasetMetadata } from "@researchflow/core/types/classification";
 import { approvalGates } from '@researchflow/core/schema';
 import { eq, and } from 'drizzle-orm';
 import { db } from '../../db.js';
+import {
+  getDatasets,
+  getDatasetById,
+  createDataset,
+  updateDataset,
+  deleteDataset as deleteDatasetFromDb,
+} from '../services/datasets-persistence.service.js';
 
 const router = Router();
 
-// Mock datasets for development
-const mockDatasets: DatasetMetadata[] = [
-  {
-    id: 'ds-001',
-    name: 'Thyroid Clinical Dataset (Synthetic)',
-    classification: 'SYNTHETIC',
-    recordCount: 2847,
-    uploadedAt: new Date('2024-01-15T10:00:00Z'),
-    uploadedBy: 'steward@researchflow.dev',
-    approvedBy: 'admin@researchflow.dev',
-    approvedAt: new Date('2024-01-15T10:05:00Z'),
-    phiScanPassed: true,
-    phiScanAt: new Date('2024-01-15T10:02:00Z'),
-    source: 'Synthea Patient Generator',
-    irbNumber: 'IRB-2024-001',
-    deidentificationMethod: 'SYNTHETIC',
-    schemaVersion: '1.0',
-    format: 'CSV',
-    sizeBytes: 1048576,
-    columns: ['patient_id', 'age', 'tsh_level', 'ft4_level', 'diagnosis', 'treatment'],
-    riskScore: 15
-  },
-  {
-    id: 'ds-002',
-    name: 'Diabetes Patient Outcomes (De-identified)',
-    classification: 'DEIDENTIFIED',
-    recordCount: 1523,
-    uploadedAt: new Date('2024-01-14T14:30:00Z'),
-    uploadedBy: 'researcher@researchflow.dev',
-    approvedBy: 'steward@researchflow.dev',
-    approvedAt: new Date('2024-01-14T15:00:00Z'),
-    phiScanPassed: true,
-    phiScanAt: new Date('2024-01-14T14:35:00Z'),
-    source: 'Academic Medical Center',
-    irbNumber: 'IRB-2024-002',
-    deidentificationMethod: 'SAFE_HARBOR',
-    schemaVersion: '1.0',
-    format: 'PARQUET',
-    sizeBytes: 2097152,
-    columns: ['study_id', 'age_group', 'hba1c', 'bmi_category', 'outcome'],
-    riskScore: 42
-  },
-  {
-    id: 'ds-003',
-    name: 'Cardiac Imaging Study (Unknown Classification)',
-    classification: 'UNKNOWN',
-    recordCount: 456,
-    uploadedAt: new Date('2024-01-16T09:00:00Z'),
-    uploadedBy: 'researcher@researchflow.dev',
-    phiScanPassed: false,
-    phiScanAt: new Date('2024-01-16T09:05:00Z'),
-    source: 'External Research Partner',
-    deidentificationMethod: 'NONE',
-    schemaVersion: '1.0',
-    format: 'JSON',
-    sizeBytes: 5242880,
-    columns: ['image_id', 'patient_name', 'ssn', 'diagnosis', 'scan_date'],
-    riskScore: 95
-  }
-];
+// Database-backed storage with memory fallback
+// See: src/services/datasets-persistence.service.ts
 
 /**
  * GET /api/datasets
@@ -96,21 +45,10 @@ router.get(
   asyncHandler(async (req, res) => {
     const { classification, format } = req.query;
 
-    let datasets = [...mockDatasets];
-
-    // Filter by classification if provided
-    if (classification && typeof classification === 'string') {
-      datasets = datasets.filter(
-        d => d.classification === classification.toUpperCase()
-      );
-    }
-
-    // Filter by format if provided
-    if (format && typeof format === 'string') {
-      datasets = datasets.filter(
-        d => d.format === format.toUpperCase()
-      );
-    }
+    const datasets = await getDatasets({
+      classification: classification as string | undefined,
+      format: format as string | undefined,
+    });
 
     res.json({
       datasets,
@@ -134,7 +72,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const { datasetId } = req.params;
 
-    const dataset = mockDatasets.find(d => d.id === datasetId);
+    const dataset = await getDatasetById(datasetId);
 
     if (!dataset) {
       res.status(404).json({
@@ -281,25 +219,25 @@ router.post(
       }
     }
 
-    // Create new dataset
-    const newDataset: DatasetMetadata = {
-      id: uploadId,
-      name,
+    // Create new dataset via persistence service
+    const newDataset = await createDataset({
+      filename: name,
       classification,
-      recordCount: estimatedRows,
-      uploadedAt: new Date(),
-      uploadedBy: (req as any).user?.username || 'unknown',
-      phiScanPassed: !hasPhiColumns,
-      phiScanAt: new Date(),
-      source,
-      irbNumber,
-      deidentificationMethod: deidentificationMethod || 'NONE',
-      schemaVersion: '1.0',
       format,
       sizeBytes: 0,
-      columns,
-      riskScore
-    };
+      rowCount: estimatedRows,
+      columnCount: columns.length,
+      uploadedBy: (req as any).user?.id || 'unknown',
+      metadata: {
+        source,
+        irbNumber,
+        deidentificationMethod: deidentificationMethod || 'NONE',
+        columns,
+        phiScanPassed: !hasPhiColumns,
+        phiScanAt: new Date(),
+        schemaVersion: '1.0',
+      },
+    });
 
     // Log audit entry for dataset upload (action matches rate limit tracking)
     await createAuditEntry({
@@ -316,8 +254,6 @@ router.post(
         columnCount: columns.length
       }
     });
-
-    mockDatasets.push(newDataset);
 
     res.status(201).json({
       message: 'Dataset uploaded successfully',
@@ -347,9 +283,10 @@ router.delete(
   asyncHandler(async (req, res) => {
     const { datasetId } = req.params;
 
-    const index = mockDatasets.findIndex(d => d.id === datasetId);
+    // Get dataset first for audit logging
+    const dataset = await getDatasetById(datasetId);
 
-    if (index === -1) {
+    if (!dataset) {
       res.status(404).json({
         error: 'Dataset not found',
         code: 'DATASET_NOT_FOUND',
@@ -358,7 +295,16 @@ router.delete(
       return;
     }
 
-    const deleted = mockDatasets.splice(index, 1)[0];
+    const deleted = await deleteDatasetFromDb(datasetId);
+
+    if (!deleted) {
+      res.status(500).json({
+        error: 'Failed to delete dataset',
+        code: 'DELETE_FAILED',
+        datasetId
+      });
+      return;
+    }
 
     // Log audit entry for dataset deletion
     await createAuditEntry({
@@ -368,16 +314,16 @@ router.delete(
       resourceType: 'dataset',
       resourceId: datasetId,
       details: {
-        deletedName: deleted.name,
-        classification: deleted.classification
+        deletedName: dataset.name,
+        classification: dataset.classification
       }
     });
 
     res.json({
       message: 'Dataset deleted successfully',
       deletedDataset: {
-        id: deleted.id,
-        name: deleted.name
+        id: dataset.id,
+        name: dataset.name
       },
       deletedBy: (req as any).user?.username,
       timestamp: new Date()
@@ -398,7 +344,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const { datasetId } = req.params;
 
-    const dataset = mockDatasets.find(d => d.id === datasetId);
+    const dataset = await getDatasetById(datasetId);
 
     if (!dataset) {
       res.status(404).json({
@@ -413,16 +359,21 @@ router.post(
     const phiDetected = detectPhiFields({});
     const scanPassed = phiDetected.length === 0;
 
-    dataset.phiScanPassed = scanPassed;
-    dataset.phiScanAt = new Date();
+    const newClassification = scanPassed ? 'DEIDENTIFIED' : 'IDENTIFIED';
+    const newRiskScore = scanPassed
+      ? calculateRiskScore([], 'DEIDENTIFIED')
+      : calculateRiskScore(phiDetected, 'IDENTIFIED');
 
-    if (scanPassed) {
-      dataset.classification = 'DEIDENTIFIED';
-      dataset.riskScore = calculateRiskScore([], 'DEIDENTIFIED');
-    } else {
-      dataset.classification = 'IDENTIFIED';
-      dataset.riskScore = calculateRiskScore(phiDetected, 'IDENTIFIED');
-    }
+    // Update dataset with scan results
+    await updateDataset(datasetId, {
+      classification: newClassification,
+      riskScore: newRiskScore,
+      metadata: {
+        ...((dataset as any).metadata || {}),
+        phiScanPassed: scanPassed,
+        phiScanAt: new Date(),
+      },
+    });
 
     // Log audit entry for PHI scan
     await createAuditEntry({
@@ -434,8 +385,8 @@ router.post(
       details: {
         passed: scanPassed,
         phiFields: phiDetected,
-        classification: dataset.classification,
-        riskScore: dataset.riskScore
+        classification: newClassification,
+        riskScore: newRiskScore
       }
     });
 
@@ -445,9 +396,9 @@ router.post(
         datasetId: dataset.id,
         passed: scanPassed,
         phiFields: phiDetected,
-        timestamp: dataset.phiScanAt,
-        classification: dataset.classification,
-        riskScore: dataset.riskScore
+        timestamp: new Date(),
+        classification: newClassification,
+        riskScore: newRiskScore
       },
       ...(scanPassed
         ? { nextSteps: ['Dataset ready for analysis'] }

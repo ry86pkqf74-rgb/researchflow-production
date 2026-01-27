@@ -13,6 +13,14 @@ import { z } from 'zod';
 import { logAction } from '../services/audit-service';
 import { requirePermission, requireRole } from '../middleware/rbac';
 import { asyncHandler } from '../middleware/asyncHandler';
+import {
+  saveScanResult,
+  getScanResult,
+  saveAccessRequest,
+  getAccessRequest,
+  updateAccessRequest,
+  listAccessRequests,
+} from '../services/phi-scan-persistence.service';
 
 const router = Router();
 
@@ -131,9 +139,8 @@ const AccessRequestSchema = z.object({
   duration: z.enum(['session', 'day', 'week', 'permanent']),
 });
 
-// In-memory store for demo (would be database in production)
-const scanResults = new Map<string, ScanResult>();
-const accessRequests = new Map<string, any>();
+// Database-backed storage with memory fallback
+// See: src/services/phi-scan-persistence.service.ts
 
 /**
  * POST /api/phi/scan
@@ -185,8 +192,6 @@ router.post(
       },
     };
 
-    scanResults.set(scanId, result);
-
     // Perform PHI detection (simplified pattern matching for demo)
     // In production, this would use ML models and more sophisticated detection
     const findings = detectPhi(content, fileName || 'content.txt', sensitivityLevel);
@@ -214,7 +219,23 @@ router.post(
       needsReview: findings.some((f) => f.confidence < 0.9 && f.confidence >= 0.5),
     };
 
-    scanResults.set(scanId, result);
+    // Persist to database
+    await saveScanResult({
+      id: scanId,
+      scanId,
+      status: result.status,
+      researchId: projectId,
+      resourceType: contentType,
+      resourceId: fileName,
+      context: 'file_upload',
+      riskLevel: result.summary.highConfidenceCount > 0 ? 'high' : (result.summary.totalFindings > 0 ? 'medium' : 'low'),
+      findings: result.findings,
+      summary: result.summary,
+      contentLength: content.length,
+      scannedBy: user.id,
+      scannedAt: result.scannedAt,
+      scanDurationMs: result.scanDurationMs,
+    });
 
     // Audit log
     await logAction({
@@ -279,7 +300,7 @@ router.get(
   requirePermission('ANALYZE'),
   asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const result = scanResults.get(id);
+    const result = await getScanResult(id);
 
     if (!result) {
       return res.status(404).json({
@@ -289,13 +310,12 @@ router.get(
     }
 
     res.json({
-      scanId: result.id,
+      scanId: result.scanId,
       status: result.status,
       summary: result.summary,
       scannedAt: result.scannedAt,
       scanDurationMs: result.scanDurationMs,
-      totalFiles: result.totalFiles,
-      totalCharacters: result.totalCharacters,
+      contentLength: result.contentLength,
       findingsCount: result.findings.length,
     });
   })
@@ -415,7 +435,7 @@ router.post(
       denialReason: null,
     };
 
-    accessRequests.set(requestId, accessRequest);
+    await saveAccessRequest(accessRequest);
 
     // Audit log
     await logAction({
@@ -450,15 +470,10 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const { status, projectId } = req.query;
 
-    let requests = Array.from(accessRequests.values());
-
-    if (status) {
-      requests = requests.filter((r) => r.status === status);
-    }
-
-    if (projectId) {
-      requests = requests.filter((r) => r.projectId === projectId);
-    }
+    const requests = await listAccessRequests({
+      status: status as string | undefined,
+      projectId: projectId as string | undefined,
+    });
 
     res.json({
       requests: requests.map((r) => ({
@@ -495,7 +510,7 @@ router.put(
       });
     }
 
-    const accessRequest = accessRequests.get(id);
+    const accessRequest = await getAccessRequest(id);
 
     if (!accessRequest) {
       return res.status(404).json({
@@ -528,12 +543,12 @@ router.put(
         break;
     }
 
-    accessRequest.status = 'approved';
-    accessRequest.approvedBy = user.id;
-    accessRequest.approvedAt = new Date();
-    accessRequest.expiresAt = expiresAt;
-
-    accessRequests.set(id, accessRequest);
+    await updateAccessRequest(id, {
+      status: 'approved',
+      approvedBy: user.id,
+      approvedAt: new Date(),
+      expiresAt,
+    });
 
     // Audit log
     await logAction({
@@ -578,7 +593,7 @@ router.put(
       });
     }
 
-    const accessRequest = accessRequests.get(id);
+    const accessRequest = await getAccessRequest(id);
 
     if (!accessRequest) {
       return res.status(404).json({
@@ -594,12 +609,15 @@ router.put(
       });
     }
 
-    accessRequest.status = 'denied';
-    accessRequest.deniedBy = user.id;
-    accessRequest.deniedAt = new Date();
-    accessRequest.denialReason = reason || 'No reason provided';
+    const denialReason = reason || 'No reason provided';
+    const deniedAt = new Date();
 
-    accessRequests.set(id, accessRequest);
+    await updateAccessRequest(id, {
+      status: 'denied',
+      deniedBy: user.id,
+      deniedAt,
+      denialReason,
+    });
 
     // Audit log
     await logAction({
@@ -611,7 +629,7 @@ router.put(
       details: {
         requesterId: accessRequest.requesterId,
         projectId: accessRequest.projectId,
-        reason: accessRequest.denialReason,
+        reason: denialReason,
       },
     });
 
@@ -619,8 +637,8 @@ router.put(
       id,
       status: 'denied',
       deniedBy: user.id,
-      deniedAt: accessRequest.deniedAt,
-      reason: accessRequest.denialReason,
+      deniedAt,
+      reason: denialReason,
     });
   })
 );
