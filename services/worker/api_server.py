@@ -68,6 +68,24 @@ except ImportError as e:
     AGENTIC_AVAILABLE = False
     print(f"[ROS] Agentic pipeline module not available: {e}")
 
+# Import guidelines router for Stage 20 guideline processing
+try:
+    from src.api.guidelines import router as guidelines_router
+    GUIDELINES_AVAILABLE = True
+    print("[ROS] Guidelines engine module loaded")
+except ImportError as e:
+    GUIDELINES_AVAILABLE = False
+    print(f"[ROS] Guidelines engine module not available: {e}")
+
+# Import projections router for Planning Hub timeline projections
+try:
+    from src.api.projections import router as projections_router
+    PROJECTIONS_AVAILABLE = True
+    print("[ROS] Projections engine module loaded")
+except ImportError as e:
+    PROJECTIONS_AVAILABLE = False
+    print(f"[ROS] Projections engine module not available: {e}")
+
 # Import version control service for Git-based versioning
 try:
     from version_control import (
@@ -128,6 +146,15 @@ if MEDICAL_AVAILABLE:
 if AGENTIC_AVAILABLE:
     app.include_router(agentic_router, tags=["agentic-pipeline"])
     print("[ROS] Agentic pipeline router registered at /api/agentic/*")
+# Register guidelines router for Stage 20 integration
+if GUIDELINES_AVAILABLE:
+    app.include_router(guidelines_router, prefix="/api", tags=["guidelines"])
+    print("[ROS] Guidelines router registered at /api/guidelines/*")
+
+# Register projections router for Planning Hub timeline projections
+if PROJECTIONS_AVAILABLE:
+    app.include_router(projections_router, prefix="/api", tags=["hub-projections"])
+    print("[ROS] Projections router registered at /api/projections/*")
 
 
 # ============ Data Models ============

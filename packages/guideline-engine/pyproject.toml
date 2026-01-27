@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "guideline-engine"
-version = "0.1.0"
-description = "Clinical guideline engine for ResearchFlow - deterministic scoring, staging, and validation planning"
+version = "0.2.0"
+description = "Clinical guideline engine for ResearchFlow - deterministic scoring, staging, validation planning, and Stage 20 integration"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.104.0",
@@ -16,6 +16,8 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "lxml>=4.9.0",
     "PyMuPDF>=1.23.0",
+    "redis>=5.0.0",
+    "aiohttp>=3.9.0",
 ]
 
 [project.optional-dependencies]
