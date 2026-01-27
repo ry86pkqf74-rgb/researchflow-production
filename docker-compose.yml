@@ -78,6 +78,9 @@ services:
       # PHI Governance
       - PHI_SCAN_ENABLED=${PHI_SCAN_ENABLED:-true}
       - PHI_FAIL_CLOSED=${PHI_FAIL_CLOSED:-true}
+      # Chat Agents
+      - CHAT_AGENT_MODEL=${CHAT_AGENT_MODEL:-gpt-4}
+      - CHAT_AGENT_PROVIDER=${CHAT_AGENT_PROVIDER:-openai}
       # Analytics (Phase F)
       - ANALYTICS_IP_SALT=${ANALYTICS_IP_SALT:-dev-salt-change-in-production}
       # Webhooks
@@ -180,6 +183,7 @@ services:
         - VITE_WS_URL=ws://localhost:1234
         - VITE_API_BASE_URL=http://localhost:3001
         - VITE_COLLAB_URL=ws://localhost:1234
+        - NEXT_PUBLIC_ENABLE_CHAT_AGENTS=${NEXT_PUBLIC_ENABLE_CHAT_AGENTS:-true}
     ports:
       - "5173:80"
     logging:

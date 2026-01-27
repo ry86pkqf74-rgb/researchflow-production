@@ -105,6 +105,10 @@ services:
       - MOCK_ONLY=${MOCK_ONLY:-false}
       - ALLOW_UPLOADS=${ALLOW_UPLOADS:-true}
       - STRICT_PHI_ON_UPLOAD=${STRICT_PHI_ON_UPLOAD:-true}
+      # Chat Agents
+      - CHAT_AGENT_MODEL=${CHAT_AGENT_MODEL:-gpt-4}
+      - CHAT_AGENT_PROVIDER=${CHAT_AGENT_PROVIDER:-openai}
+      - PHI_SCAN_ENABLED=${PHI_SCAN_ENABLED:-true}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -214,6 +218,8 @@ services:
         # Optional integrations
         VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
         VITE_ENABLE_ANALYTICS: ${VITE_ENABLE_ANALYTICS:-false}
+        # Chat Agents feature flag
+        NEXT_PUBLIC_ENABLE_CHAT_AGENTS: ${NEXT_PUBLIC_ENABLE_CHAT_AGENTS:-true}
     expose:
       - "80"
     healthcheck:
