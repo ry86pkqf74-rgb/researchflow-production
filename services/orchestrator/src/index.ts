@@ -79,6 +79,8 @@ import meshLookupRoutes from './routes/mesh-lookup';
 import metricsRoutes from './routes/metrics';
 // Phase 5.5: Git-based Version Control for Analysis & Manuscripts
 import versionControlRoutes from './routes/version-control';
+// Chat Agents: Workflow-specific AI assistants
+import chatRoutes from './routes/chat.routes';
 
 // Phase 3: Secondary Routes (Integration Plan)
 import governanceSimulateRoutes from './routes/governance-simulate';
@@ -226,6 +228,7 @@ app.use('/api/ros/literature', literatureRoutes);  // Literature search API
 app.use('/api/literature/mesh', meshLookupRoutes);  // MeSH term lookup
 app.use('/api/metrics', metricsRoutes);  // Prometheus metrics
 app.use('/api/version', versionControlRoutes);  // Phase 5.5: Git-based version control
+app.use('/api/chat', chatRoutes);  // Chat Agents: Workflow-specific AI assistants
 
 // =============================================================================
 // Integration Plan Routes - Phase 3: Secondary Routes
