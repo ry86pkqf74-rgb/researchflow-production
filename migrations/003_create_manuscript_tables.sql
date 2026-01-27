@@ -8,8 +8,8 @@ BEGIN;
 -- Manuscripts table
 CREATE TABLE IF NOT EXISTS manuscripts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id UUID,  -- Projects table may not exist yet
     title VARCHAR(500) NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'draft',
     template_type VARCHAR(50) NOT NULL DEFAULT 'imrad',
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS manuscript_versions (
     change_description TEXT,
     previous_hash VARCHAR(64),
     current_hash VARCHAR(64) NOT NULL,
-    created_by UUID NOT NULL REFERENCES users(id),
+    created_by VARCHAR(255) NOT NULL REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
     UNIQUE(manuscript_id, version_number)
@@ -58,7 +58,7 @@ ALTER TABLE manuscripts
 CREATE TABLE IF NOT EXISTS manuscript_authors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     manuscript_id UUID NOT NULL REFERENCES manuscripts(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL,
@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS manuscript_audit_log (
     manuscript_id UUID NOT NULL REFERENCES manuscripts(id) ON DELETE CASCADE,
     action VARCHAR(100) NOT NULL,
     details JSONB NOT NULL DEFAULT '{}',
-    user_id UUID NOT NULL REFERENCES users(id),
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id),
     timestamp TIMESTAMPTZ DEFAULT NOW(),
     previous_hash VARCHAR(64),
     current_hash VARCHAR(64) NOT NULL

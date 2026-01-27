@@ -107,6 +107,8 @@ import commentsRouter from "./src/routes/comments";
 import artifactVersionsRouter from "./src/routes/artifact-versions";
 import manuscriptBranchesRouter from "./src/routes/manuscript-branches";
 import manuscriptGenerationRouter from "./src/routes/manuscript-generation";
+// Track M: Canonical Manuscript Studio routes
+import manuscriptsRouter from "./src/routes/manuscripts";
 import claimsRouter from "./src/routes/claims";
 import sharesRouter from "./src/routes/shares";
 import submissionsRouter from "./src/routes/submissions";
@@ -987,6 +989,9 @@ export async function registerRoutes(
 
   // Manuscript Generation Routes (IMRaD structure, word budgets)
   app.use("/api/manuscript", manuscriptGenerationRouter);
+
+  // Track M: Canonical Manuscript Studio CRUD API
+  app.use("/api/manuscripts", manuscriptsRouter);
 
   // Phase F: Observability + Feature Flags
   app.use("/api/analytics", analyticsRouter);

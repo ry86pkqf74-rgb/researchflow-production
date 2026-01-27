@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS manuscript_docs (
     yjs_doc_state BYTEA,  -- Binary Yjs state for CRDT sync
     content_text TEXT,    -- Plain text for search/PHI scanning
     version INTEGER NOT NULL DEFAULT 1,
-    created_by UUID REFERENCES users(id),
+    created_by VARCHAR(255) REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -51,8 +51,8 @@ CREATE TABLE IF NOT EXISTS manuscript_comments (
     parent_id UUID REFERENCES manuscript_comments(id),  -- For thread replies
 
     -- User tracking
-    created_by UUID NOT NULL REFERENCES users(id),
-    resolved_by UUID REFERENCES users(id),
+    created_by VARCHAR(255) NOT NULL REFERENCES users(id),
+    resolved_by VARCHAR(255) REFERENCES users(id),
     resolved_at TIMESTAMPTZ,
 
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS manuscript_ai_events (
     latency_ms INTEGER,
 
     -- User and timestamp
-    user_id UUID NOT NULL REFERENCES users(id),
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
     CONSTRAINT chk_ai_action_type CHECK (action_type IN (

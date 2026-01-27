@@ -30,7 +30,7 @@ import { nanoid } from 'nanoid';
 import { createHash } from 'crypto';
 import { requireRole } from '../middleware/rbac';
 import { createAuditEntry } from '../services/auditService';
-import { scanForPHI, PHIScanResult } from '../services/phi-scanner.service';
+import { scanForPhi, type PhiDetectionResult } from '../services/phi-protection';
 
 const router = Router();
 
@@ -439,15 +439,15 @@ router.post('/:id/doc/save', requireRole('RESEARCHER'), async (req: Request, res
 
     // PHI scan in LIVE mode
     if (isLiveMode()) {
-      const phiResult = await scanForPHI(contentText);
-      if (phiResult.hasPHI) {
+      const phiResult = scanForPhi(contentText);
+      if (phiResult.detected) {
         return res.status(400).json({
           error: 'PHI_DETECTED',
           message: 'Content contains PHI. Please remove or redact before saving.',
-          locations: phiResult.locations?.map((loc: any) => ({
-            start: loc.charStart,
-            end: loc.charEnd,
-            type: loc.type,
+          locations: phiResult.identifiers.map((id) => ({
+            start: id.position.start,
+            end: id.position.end,
+            type: id.type,
             // NO raw value returned
           })),
         });
@@ -527,21 +527,21 @@ router.post('/:id/sections/:sectionId/refine', requireRole('RESEARCHER'), async 
 
     // PHI gate in LIVE mode
     if (isLiveMode()) {
-      const phiResult = await scanForPHI(selectedText);
-      if (phiResult.hasPHI) {
+      const phiResult = scanForPhi(selectedText);
+      if (phiResult.detected) {
         await logManuscriptEvent(id, 'PHI_BLOCKED', userId, {
           action: 'refine',
           sectionId,
-          locationsCount: phiResult.locations?.length || 0,
+          locationsCount: phiResult.identifiers.length,
         });
 
         return res.status(400).json({
           error: 'PHI_DETECTED',
           message: 'Selected text contains PHI. Please remove or redact before AI refinement.',
-          locations: phiResult.locations?.map((loc: any) => ({
-            start: loc.charStart,
-            end: loc.charEnd,
-            type: loc.type,
+          locations: phiResult.identifiers.map((id) => ({
+            start: id.position.start,
+            end: id.position.end,
+            type: id.type,
           })),
         });
       }
