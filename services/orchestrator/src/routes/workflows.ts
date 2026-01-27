@@ -44,6 +44,7 @@ const CreateWorkflowSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
   definition: WorkflowDefinitionSchema.optional(),
+  templateKey: z.string().optional(), // Optional template key to copy definition from
 });
 
 const UpdateWorkflowSchema = z.object({
@@ -95,12 +96,28 @@ router.post('/', requireRole('RESEARCHER'), async (req: Request, res: Response) 
       return res.status(400).json({ error: 'Invalid input', details: parsed.error.issues });
     }
 
+    // Determine the definition to use
+    let definition: WorkflowDefinition | undefined = parsed.data.definition as WorkflowDefinition | undefined;
+    let templateUsed: string | undefined;
+
+    // If templateKey provided, look up the template and use its definition
+    if (parsed.data.templateKey && !definition) {
+      const template = await workflowService.getTemplate(parsed.data.templateKey);
+      if (template && template.definition) {
+        definition = template.definition as WorkflowDefinition;
+        templateUsed = template.key;
+        console.log(`[workflows] Using template '${template.name}' (${template.key}) for new workflow`);
+      } else {
+        console.warn(`[workflows] Template '${parsed.data.templateKey}' not found, creating workflow without definition`);
+      }
+    }
+
     const workflow = await workflowService.createWorkflow({
       name: parsed.data.name,
       description: parsed.data.description,
       orgId,
       createdBy: userId,
-      definition: parsed.data.definition as WorkflowDefinition | undefined,
+      definition,
     });
 
     await logAuditEvent({
@@ -109,10 +126,10 @@ router.post('/', requireRole('RESEARCHER'), async (req: Request, res: Response) 
       resourceType: 'workflow',
       resourceId: workflow.id,
       action: 'CREATE',
-      details: { name: workflow.name },
+      details: { name: workflow.name, templateKey: templateUsed },
     });
 
-    res.status(201).json({ workflow });
+    res.status(201).json({ workflow, templateUsed });
   } catch (error) {
     console.error('[workflows] Create error:', error);
     res.status(500).json({ error: 'Failed to create workflow' });
