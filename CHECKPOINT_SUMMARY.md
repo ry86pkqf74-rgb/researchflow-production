@@ -611,8 +611,256 @@ Or from any workflow page, the analysis features can be accessed via the new com
 
 ---
 
+---
+
+## Checkpoint 6: Git-Based Version Control (Phase 5.5) ✅
+
+**Date**: January 27, 2026
+**Commit**: `d5b8298`
+
+### Overview
+
+Implemented Git-based version tracking for statistical analysis and manuscripts, providing structured commit messages, history retrieval, diffs, and file restoration.
+
+### New Files Created
+
+```
+services/worker/src/version_control/
+├── __init__.py          # Module exports
+├── models.py            # Data models (ProjectInfo, CommitRequest, HistoryEntry, etc.)
+└── service.py           # VersionControlService class with Git operations
+
+services/orchestrator/src/routes/
+└── version-control.ts   # Orchestrator proxy routes for version control API
+```
+
+### Features
+
+#### Project Management
+- Create projects with standard directory structure (stats/, manuscripts/, data/, outputs/)
+- List all projects
+- Get project info with commit counts and metadata
+
+#### Commit Operations
+- Structured commit messages with What/Why/Linked metadata
+- Auto-commit on file save
+- Track linked analysis and manuscript IDs
+
+#### History Operations
+- Retrieve commit history for project or specific file
+- Parse metadata from commit messages
+- Track files changed, additions, deletions per commit
+
+#### Diff Operations
+- Compare versions between commits
+- Get file-level diffs with hunks
+- Track added/modified/deleted/renamed files
+
+#### Restore Operations
+- Restore files to previous versions
+- Create backup before restoring
+- Auto-commit restoration
+
+#### File Operations
+- Save files with auto-versioning
+- Read files at specific commits
+- List tracked files by category
+
+### API Endpoints (Worker)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/version/status` | GET | Check version control service availability |
+| `/api/version/project/create` | POST | Create new version-controlled project |
+| `/api/version/project/{id}` | GET | Get project information |
+| `/api/version/projects` | GET | List all projects |
+| `/api/version/commit` | POST | Create commit with files |
+| `/api/version/history/{id}` | GET | Get commit history |
+| `/api/version/diff` | POST | Get diff between versions |
+| `/api/version/restore` | POST | Restore file to previous version |
+| `/api/version/file/{id}` | POST | Save file with auto-commit |
+| `/api/version/file/{id}/{path}` | GET | Read file content |
+| `/api/version/files/{id}` | POST | List tracked files |
+
+### API Endpoints (Orchestrator Proxy)
+
+Same endpoints at `/api/version/*` with RBAC protection and audit logging.
+
+### Docker Configuration
+
+- Added `projects-data` volume for persistent Git repositories
+- Updated worker Dockerfile with `libgit2-dev` and Git runtime
+- Added `PROJECTS_PATH=/data/projects` environment variable
+
+### Modified Files
+
+```
+docker-compose.yml                           # Added projects-data volume
+services/worker/Dockerfile                   # Added Git and libgit2 dependencies
+services/worker/requirements.txt             # Added pygit2
+services/worker/api_server.py                # Added version control endpoints
+services/orchestrator/src/index.ts           # Added version-control routes
+```
+
+### Directory Structure for Projects
+
+When a project is created, it gets the following structure:
+
+```
+/data/projects/{project_id}/
+├── .git/                    # Git repository
+├── .gitignore               # Ignore patterns
+├── README.md                # Project documentation
+├── stats/                   # Statistical analysis scripts
+│   └── .gitkeep
+├── manuscripts/             # Manuscript drafts
+│   └── .gitkeep
+├── data/                    # Dataset files
+│   └── .gitkeep
+└── outputs/                 # Generated outputs
+    └── .gitkeep
+```
+
+### Structured Commit Message Format
+
+```
+What changed: <description>
+
+Why: <reason for change>
+Linked-Analysis: <analysis_id>
+Linked-Manuscript: <manuscript_id>
+Tags: <tag1>, <tag2>
+```
+
+### Usage Examples
+
+```bash
+# Create a project
+curl -X POST http://localhost:3001/api/version/project/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "study-001",
+    "name": "Clinical Study 001",
+    "owner_id": "user-1",
+    "owner_name": "Logan Glosser",
+    "owner_email": "logan.glosser@gmail.com"
+  }'
+
+# Save file with auto-commit
+curl -X POST http://localhost:3001/api/version/file/study-001 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_path": "stats/analysis.py",
+    "content": "import pandas as pd\n# Analysis script",
+    "author_name": "Logan Glosser",
+    "author_email": "logan.glosser@gmail.com",
+    "message": "What changed: Initial analysis script"
+  }'
+
+# Get history
+curl "http://localhost:3001/api/version/history/study-001"
+
+# Get diff
+curl -X POST http://localhost:3001/api/version/diff \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "study-001",
+    "commit_old": "HEAD~1",
+    "commit_new": "HEAD"
+  }'
+
+# Restore file
+curl -X POST http://localhost:3001/api/version/restore \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "study-001",
+    "file_path": "stats/analysis.py",
+    "commit_sha": "abc1234",
+    "author_name": "Logan Glosser",
+    "author_email": "logan.glosser@gmail.com"
+  }'
+```
+
+---
+
+## Git History Summary
+
+### Recent Commits on main
+
+| Commit | Description |
+|--------|-------------|
+| `d5b8298` | feat(version-control): Git-based version tracking (Phase 5.5) |
+| `f0834e1` | docs: Checkpoint 5.5 - Frontend statistical analysis UI |
+| `da6c379` | feat(Frontend): Statistical analysis UI components |
+| `1d6b1ec` | feat(Checkpoint 5): Real statistical analysis pipeline |
+| `e6a0ff7` | docs: Checkpoint 4.5 - Auth verification and setup docs |
+| `8bed1ac` | feat(Track B): Phases 13-17 SciSpace Parity |
+
+---
+
+## Complete Feature List
+
+### Core Platform
+- ✅ Track A (1-9): Production Activation
+- ✅ Track M (M0-M8): Manuscript Studio
+- ✅ Track B (10-17): SciSpace Parity
+
+### Statistical Analysis
+- ✅ Checkpoint 5: Backend statistical analysis service
+- ✅ Checkpoint 5.5: Frontend statistical analysis UI
+- ✅ Checkpoint 6: Git-based version control for analysis/manuscripts
+
+### Analysis Types Available
+| Type | Backend | Frontend UI |
+|------|---------|-------------|
+| Descriptive Statistics | ✅ | ✅ |
+| Group Comparison (t-test, ANOVA, chi-square) | ✅ | ✅ |
+| Survival Analysis (Kaplan-Meier, Cox PH) | ✅ | ✅ |
+| Regression (linear, logistic, Poisson, Cox) | ✅ | ✅ |
+| Correlation (Pearson, Spearman) | ✅ | ✅ |
+
+### Version Control Features
+| Feature | Status |
+|---------|--------|
+| Project creation with directory structure | ✅ |
+| Structured commit messages | ✅ |
+| Commit history retrieval | ✅ |
+| File diffs between versions | ✅ |
+| File restoration | ✅ |
+| Auto-commit on save | ✅ |
+
+---
+
 **ALL TRACKS COMPLETE: Track A, Track M, Track B (10-17)**
 **Auth/Live Mode Wiring: VERIFIED ✅**
 **Statistical Analysis Implementation: COMPLETE ✅**
 **Frontend Statistical Analysis UI: COMPLETE ✅**
-**ResearchFlow Production is feature-complete for SciSpace parity with REAL statistical analysis**
+**Git-Based Version Control: COMPLETE ✅**
+**ResearchFlow Production is feature-complete for SciSpace parity with REAL statistical analysis and version tracking**
+
+---
+
+## Release Information
+
+**Release Tag**: v1.2.0-statistical-analysis
+**Release Date**: January 27, 2026
+
+### What's New in v1.2.0
+
+1. **Real Statistical Analysis** (Checkpoint 5)
+   - scipy, statsmodels, lifelines integration
+   - Descriptive, inferential, survival, regression, correlation analyses
+   - Automated test selection with multiple comparison corrections
+
+2. **Statistical Analysis UI** (Checkpoint 5.5)
+   - RealAnalysisPanel for configuration
+   - AnalysisResults with comprehensive tables
+   - SurvivalCurveChart for Kaplan-Meier visualization
+   - StatisticalSummaryCard for key metrics
+
+3. **Git-Based Version Control** (Checkpoint 6/Phase 5.5)
+   - Project creation with standard directory structure
+   - Structured commit messages (What/Why/Linked)
+   - History retrieval and file diffs
+   - File restoration with backup
+   - Persistent storage via Docker volume
