@@ -1,15 +1,21 @@
 name: PR Size Guard
 
+# SECURITY: This workflow only runs on the production repository
+# If this code is copied to another repository, workflows will be skipped
 on:
   pull_request:
     types: [opened, synchronize, reopened]
 
 env:
   MAX_CHANGED_LINES: 2500
+  # Production repository identifier
+  PRODUCTION_REPO: 'ry86pkqf74-rgb/researchflow-production'
 
 jobs:
   check-pr-size:
     runs-on: ubuntu-latest
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

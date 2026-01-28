@@ -1,5 +1,7 @@
 name: Deploy to Production
 
+# SECURITY: This workflow only runs on the production repository
+# If this code is copied to another repository, workflows will be skipped
 on:
   push:
     tags:
@@ -13,11 +15,15 @@ on:
 
 env:
   KUBE_NAMESPACE: researchflow-production
+  # Production repository identifier
+  PRODUCTION_REPO: 'ry86pkqf74-rgb/researchflow-production'
 
 jobs:
   validate:
     name: Validate Release
     runs-on: ubuntu-latest
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
 
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -52,6 +58,8 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     environment: production
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
 
     steps:
       - name: Approval granted
@@ -61,6 +69,8 @@ jobs:
     name: Backup Database
     needs: approve
     runs-on: ubuntu-latest
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
 
     steps:
       - name: Configure kubectl
@@ -82,6 +92,8 @@ jobs:
     needs: [validate, approve, backup]
     runs-on: ubuntu-latest
     environment: production
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
 
     steps:
       - name: Checkout repository
@@ -119,6 +131,8 @@ jobs:
     name: Post-Deploy Verification
     needs: deploy
     runs-on: ubuntu-latest
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
 
     steps:
       - name: Checkout repository
@@ -157,7 +171,8 @@ jobs:
   rollback:
     name: Rollback (Manual)
     needs: deploy
-    if: failure()
+    # Only run on production repository and on failure
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && failure()
     runs-on: ubuntu-latest
     environment: production
 

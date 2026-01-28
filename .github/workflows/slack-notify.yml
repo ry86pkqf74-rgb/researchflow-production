@@ -1,5 +1,7 @@
 name: Slack Notifications
 
+# SECURITY: This workflow only runs on the production repository
+# If this code is copied to another repository, workflows will be skipped
 on:
   # Notify on deployment events
   workflow_run:
@@ -31,11 +33,17 @@ on:
         required: false
         default: 'Test notification from ResearchFlow'
 
+env:
+  # Production repository identifier
+  PRODUCTION_REPO: 'ry86pkqf74-rgb/researchflow-production'
+
 jobs:
   notify-deployment:
     name: Deployment Notification
     runs-on: ubuntu-latest
+    # Only run on production repository
     if: >-
+      github.repository == 'ry86pkqf74-rgb/researchflow-production' &&
       github.event_name == 'workflow_run' &&
       (github.event.workflow.name == 'Deploy Production' ||
        github.event.workflow.name == 'Deploy Staging')
@@ -101,7 +109,9 @@ jobs:
   notify-ci-failure:
     name: CI Failure Notification
     runs-on: ubuntu-latest
+    # Only run on production repository
     if: >-
+      github.repository == 'ry86pkqf74-rgb/researchflow-production' &&
       github.event_name == 'workflow_run' &&
       github.event.workflow.name == 'CI/CD Pipeline' &&
       github.event.workflow_run.conclusion == 'failure'
@@ -167,7 +177,9 @@ jobs:
   notify-security:
     name: Security Alert
     runs-on: ubuntu-latest
+    # Only run on production repository
     if: >-
+      github.repository == 'ry86pkqf74-rgb/researchflow-production' &&
       github.event_name == 'workflow_run' &&
       github.event.workflow.name == 'Security Scan' &&
       github.event.workflow_run.conclusion == 'failure'
@@ -220,7 +232,8 @@ jobs:
   notify-pr:
     name: PR Notification
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && github.event_name == 'pull_request'
     steps:
       - name: PR Opened
         if: github.event.action == 'opened'
@@ -273,7 +286,8 @@ jobs:
   notify-issue:
     name: Issue Notification
     runs-on: ubuntu-latest
-    if: github.event_name == 'issues'
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && github.event_name == 'issues'
     steps:
       - name: Critical Issue Alert
         if: github.event.action == 'labeled' && contains(github.event.label.name, 'critical')
@@ -309,7 +323,8 @@ jobs:
   notify-manual:
     name: Manual Notification
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && github.event_name == 'workflow_dispatch'
     steps:
       - name: Send custom message
         uses: 8398a7/action-slack@v3

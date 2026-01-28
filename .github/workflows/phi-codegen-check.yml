@@ -1,5 +1,7 @@
 name: PHI Codegen Check
 
+# SECURITY: This workflow only runs on the production repository
+# If this code is copied to another repository, workflows will be skipped
 on:
   pull_request:
     paths:
@@ -8,10 +10,16 @@ on:
       - 'services/worker/src/validation/phi_patterns_generated.py'
       - 'scripts/governance/generate_phi_patterns.py'
 
+env:
+  # Production repository identifier
+  PRODUCTION_REPO: 'ry86pkqf74-rgb/researchflow-production'
+
 jobs:
   check-generated-files:
     name: Verify PHI patterns match canonical spec
     runs-on: ubuntu-latest
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
 
     steps:
       - name: Checkout

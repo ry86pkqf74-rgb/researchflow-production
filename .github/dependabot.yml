@@ -1,5 +1,14 @@
 # Dependabot configuration for automated dependency updates
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# SECURITY: This configuration is intended ONLY for the production repository:
+# ry86pkqf74-rgb/researchflow-production
+#
+# If this code is copied to another repository, you should either:
+# 1. Delete this file to disable Dependabot
+# 2. Remove or modify the configuration to match your repository needs
+#
+# Dependabot cannot be conditionally disabled like GitHub Actions workflows.
 
 version: 2
 updates:
