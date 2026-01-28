@@ -1111,6 +1111,135 @@ export async function registerRoutes(
     res.json(group);
   });
 
+  // =====================
+  // WORKFLOW STATE RESUME ENDPOINT
+  // Fetches all stage outputs for a project/research session
+  // Used when user returns to continue their workflow
+  // =====================
+  app.get("/api/workflow/resume", async (req, res) => {
+    const projectId = req.query.projectId as string | undefined;
+    const researchId = req.query.researchId as string | undefined;
+
+    if (!projectId && !researchId) {
+      return res.status(400).json({ error: "Either projectId or researchId is required" });
+    }
+
+    try {
+      const cumulativeService = getCumulativeDataService();
+      const identifier = projectId ? { projectId } : { researchId };
+
+      // Get project state from cumulative data service
+      const projectState = await cumulativeService.getProjectState(identifier);
+
+      if (!projectState.manifest) {
+        // No existing workflow state - return empty state
+        return res.json({
+          manifest: null,
+          stages: [],
+          executionState: {},
+          scopeValuesByStage: {}
+        });
+      }
+
+      // Build executionState from stage outputs
+      const executionState: Record<number, { status: string; result?: unknown }> = {};
+      const scopeValuesByStage: Record<number, Record<string, string>> = {};
+
+      for (const stage of projectState.stages) {
+        // Map database status to frontend status
+        const frontendStatus = stage.status === 'completed' ? 'completed' :
+                               stage.status === 'running' ? 'executing' :
+                               stage.status === 'failed' ? 'error' : 'idle';
+
+        executionState[stage.stageNumber] = {
+          status: frontendStatus,
+          result: stage.outputData
+        };
+
+        // Extract scope values from input data
+        if (stage.inputData && typeof stage.inputData === 'object') {
+          const inputData = stage.inputData as Record<string, unknown>;
+          const scopeValues: Record<string, string> = {};
+
+          // Extract known PICO values and other inputs
+          const scopeFields = ['population', 'intervention', 'comparator', 'outcomes', 'timeframe', 'topic', 'researchOverview'];
+          for (const field of scopeFields) {
+            if (inputData[field] && typeof inputData[field] === 'string') {
+              scopeValues[field] = inputData[field] as string;
+            }
+          }
+
+          if (Object.keys(scopeValues).length > 0) {
+            scopeValuesByStage[stage.stageNumber] = scopeValues;
+          }
+        }
+      }
+
+      return res.json({
+        manifest: {
+          id: projectState.manifest.id,
+          currentStage: projectState.manifest.currentStage,
+          governanceMode: projectState.manifest.governanceMode,
+          cumulativeData: projectState.cumulativeData
+        },
+        stages: projectState.stages.map(s => ({
+          stageNumber: s.stageNumber,
+          stageName: s.stageName,
+          status: s.status,
+          inputData: s.inputData,
+          outputData: s.outputData,
+          completedAt: s.completedAt
+        })),
+        executionState,
+        scopeValuesByStage
+      });
+    } catch (error) {
+      console.error('[Workflow Resume] Error:', error);
+      return res.status(500).json({ error: "Failed to load workflow state" });
+    }
+  });
+
+  // =====================
+  // SAVE STAGE INPUTS (Draft)
+  // Saves stage inputs without executing the stage
+  // =====================
+  app.post("/api/workflow/stages/:stageId/inputs", async (req, res) => {
+    const stageId = parseInt(req.params.stageId);
+    const { inputs, researchId, projectId } = req.body;
+
+    if (!researchId && !projectId) {
+      return res.status(400).json({ error: "Either researchId or projectId is required" });
+    }
+
+    if (!inputs || typeof inputs !== 'object') {
+      return res.status(400).json({ error: "inputs object is required" });
+    }
+
+    try {
+      const cumulativeService = getCumulativeDataService();
+      const userId = (req as any).user?.id || 'anonymous';
+      const identifier = projectId ? { projectId } : { researchId };
+      const governanceMode = (ROS_MODE === 'LIVE' ? 'LIVE' : 'DEMO') as 'DEMO' | 'LIVE';
+
+      // Get or create manifest
+      const manifest = await cumulativeService.getOrCreateManifest(identifier, userId, governanceMode);
+
+      // Get stage name
+      const stage = WORKFLOW_STAGES.find(s => s.number === stageId);
+      if (!stage) {
+        return res.status(404).json({ error: "Stage not found" });
+      }
+
+      // Save inputs as a draft (status: 'draft')
+      await cumulativeService.startStage(manifest.id, stageId, stage.name, inputs, identifier);
+
+      return res.json({ success: true, manifestId: manifest.id });
+    } catch (error) {
+      console.error('[Save Stage Inputs] Error:', error);
+      return res.status(500).json({ error: "Failed to save stage inputs" });
+    }
+  });
+
   app.get("/api/manuscripts/proposals", (_req, res) => {
     res.json(manuscriptProposals);
   });

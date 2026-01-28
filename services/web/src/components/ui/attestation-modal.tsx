@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,9 +9,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, AlertTriangle, ClipboardCheck, Lock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ShieldCheck, AlertTriangle, ClipboardCheck, Lock, User } from "lucide-react";
 import type { AttestationGate, LifecycleState } from "@/lib/governance";
 import { STATE_METADATA } from "@/lib/governance";
+import { useAuth } from "@/hooks/use-auth";
 
 interface AttestationModalProps {
   isOpen: boolean;
@@ -20,6 +23,10 @@ interface AttestationModalProps {
   gate: AttestationGate;
   stageName: string;
   currentState: LifecycleState;
+  /** Optional: pre-fill the attester name */
+  defaultAttesterName?: string;
+  /** If true, session-wide approval mode - auto-checks items and simplifies flow */
+  sessionWideApproval?: boolean;
 }
 
 export interface AttestationResult {
@@ -36,10 +43,35 @@ export function AttestationModal({
   gate,
   stageName,
   currentState,
+  defaultAttesterName,
+  sessionWideApproval = false,
 }: AttestationModalProps) {
+  const { user } = useAuth();
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
-  
+  const [attesterName, setAttesterName] = useState("");
+
+  // Auto-fill attester name from user auth or default prop
+  useEffect(() => {
+    if (isOpen) {
+      if (defaultAttesterName) {
+        setAttesterName(defaultAttesterName);
+      } else if (user) {
+        const name = user.displayName ||
+                     (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : '') ||
+                     user.email?.split('@')[0] ||
+                     "Principal Investigator";
+        setAttesterName(name);
+      }
+
+      // If session-wide approval, auto-check all items
+      if (sessionWideApproval) {
+        setCheckedItems(new Set(gate.checklistItems));
+      }
+    }
+  }, [isOpen, user, defaultAttesterName, sessionWideApproval, gate.checklistItems]);
+
   const allChecked = checkedItems.size === gate.checklistItems.length;
+  const canConfirm = allChecked && attesterName.trim().length > 0;
   const targetMeta = STATE_METADATA[gate.targetState];
   const currentMeta = STATE_METADATA[currentState];
 
@@ -54,13 +86,13 @@ export function AttestationModal({
   };
 
   const handleConfirm = () => {
-    if (!allChecked) return;
-    
+    if (!canConfirm) return;
+
     onConfirm({
       confirmed: true,
       checkedItems: Array.from(checkedItems),
       timestamp: new Date().toISOString(),
-      attestedBy: "Principal Investigator",
+      attestedBy: attesterName.trim(),
     });
     setCheckedItems(new Set());
   };
@@ -83,7 +115,7 @@ export function AttestationModal({
                 {gate.title}
               </DialogTitle>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Human Attestation Required
+                {sessionWideApproval ? "Session-Wide AI Approval" : "Human Attestation Required"}
               </p>
             </div>
           </div>
@@ -102,16 +134,37 @@ export function AttestationModal({
             </Badge>
           </div>
 
+          {/* Attester Name Field - auto-filled from auth */}
+          <div className="space-y-2">
+            <Label htmlFor="attester-name" className="text-sm font-medium flex items-center gap-2">
+              <User className="h-3 w-3" />
+              Attester Name
+            </Label>
+            <Input
+              id="attester-name"
+              value={attesterName}
+              onChange={(e) => setAttesterName(e.target.value)}
+              placeholder="Enter your name"
+              className="font-medium"
+              data-testid="input-attester-name"
+            />
+            <p className="text-xs text-muted-foreground">
+              Your name will be recorded in the audit trail.
+            </p>
+          </div>
+
           <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
             <div className="flex gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
-                  Governance Gate
+                  {sessionWideApproval ? "Session-Wide Approval Active" : "Governance Gate"}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  This transition requires explicit confirmation. State changes are logged
-                  in the audit trail for compliance.
+                  {sessionWideApproval
+                    ? "You've selected session-wide AI approval. Click Acknowledge to proceed."
+                    : "This transition requires explicit confirmation. State changes are logged in the audit trail for compliance."
+                  }
                 </p>
               </div>
             </div>
@@ -132,6 +185,7 @@ export function AttestationModal({
                     checked={checkedItems.has(item)}
                     onCheckedChange={(checked) => handleCheckChange(item, checked as boolean)}
                     className="mt-0.5"
+                    disabled={sessionWideApproval} // Disable individual checkboxes in session-wide mode
                   />
                   <span className="text-sm leading-relaxed">{item}</span>
                 </label>
@@ -150,8 +204,8 @@ export function AttestationModal({
         </div>
 
         <DialogFooter className="gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleCancel}
             data-testid="button-attestation-cancel"
           >
@@ -159,12 +213,12 @@ export function AttestationModal({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!allChecked}
+            disabled={!canConfirm}
             className="bg-ros-workflow"
             data-testid="button-attestation-confirm"
           >
             <ShieldCheck className="h-4 w-4 mr-2" />
-            Confirm & Proceed
+            {sessionWideApproval ? "Acknowledge" : "Confirm & Proceed"}
           </Button>
         </DialogFooter>
       </DialogContent>

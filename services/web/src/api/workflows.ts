@@ -247,4 +247,38 @@ export const workflowsApi = {
   },
 };
 
+  // === Workflow State Resume ===
+
+  /**
+   * Resume workflow state - fetch all stage outputs and cumulative data
+   * Used when user returns to continue their workflow
+   */
+  resume: (identifier: { projectId?: string; researchId?: string }) =>
+    api.get<{
+      manifest: {
+        id: string;
+        currentStage: number;
+        governanceMode: 'DEMO' | 'LIVE';
+        cumulativeData: Record<string, unknown>;
+      } | null;
+      stages: Array<{
+        stageNumber: number;
+        stageName: string;
+        status: string;
+        inputData: Record<string, unknown>;
+        outputData: Record<string, unknown>;
+        completedAt?: string;
+      }>;
+      executionState: Record<number, { status: string; result?: unknown }>;
+      scopeValuesByStage: Record<number, Record<string, string>>;
+    }>('/api/workflow/resume', identifier),
+
+  /**
+   * Save workflow inputs for a stage (without executing)
+   * Allows saving draft inputs that can be resumed later
+   */
+  saveStageInputs: (stageId: number, inputs: Record<string, unknown>, researchId?: string) =>
+    api.post<{ success: boolean }>(`/api/workflow/stages/${stageId}/inputs`, { inputs, researchId }),
+};
+
 export default workflowsApi;

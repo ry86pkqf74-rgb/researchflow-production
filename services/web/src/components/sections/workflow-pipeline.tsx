@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { safeFixed, formatBytes } from "@/lib/format";
 import { useWorkflowPersistence } from "@/hooks/use-workflow-persistence";
+import { workflowsApi } from "@/api/workflows";
 import {
   Accordion,
   AccordionContent,
@@ -73,6 +74,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { ChatAgentPanel } from "@/components/chat";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   FileText, BookOpen, Database, Shield, CheckCircle, BarChart3,
@@ -89,6 +91,23 @@ const outputTypeIcons: Record<string, React.ComponentType<{ className?: string }
   document: FileCode,
   chart: BarChart3
 };
+
+// Helper function to determine agent type based on stage
+function getAgentTypeForStage(stageId: number): 'irb' | 'analysis' | 'manuscript' {
+  // IRB-related stages: 1-4 (Topic through IRB Proposal)
+  if (stageId >= 1 && stageId <= 4) {
+    return 'irb';
+  }
+  // Analysis-related stages: 5-15 (Data Upload through Statistical Analysis)
+  if (stageId >= 5 && stageId <= 15) {
+    return 'analysis';
+  }
+  // Manuscript-related stages: 12-20+ (Manuscript stages)
+  if (stageId >= 12) {
+    return 'manuscript';
+  }
+  return 'analysis'; // default
+}
 
 interface ExecutionState {
   [stageId: number]: {
@@ -198,6 +217,10 @@ export function WorkflowPipeline() {
     stageName: string;
   } | null>(null);
   const [showAuditTrail, setShowAuditTrail] = useState(false);
+
+  // Research session ID for backend persistence (loaded from localStorage)
+  const [researchId, setResearchId] = useState<string | null>(null);
+  const [backendSyncComplete, setBackendSyncComplete] = useState(false);
   const [isDownloadingBundle, setIsDownloadingBundle] = useState(false);
 
   // PHI Gate Modal State
@@ -665,19 +688,56 @@ export function WorkflowPipeline() {
     }
   }, [stageGroups, selectedStage]);
 
-  // Load persisted workflow state on mount
+  // Load persisted workflow state on mount and sync with backend
   useEffect(() => {
-    const savedState = loadWorkflowState();
-    if (savedState) {
-      setExpandedGroups(savedState.expandedGroups);
-      setExecutionState(savedState.executionState as ExecutionState);
-      setScopeValuesByStage(savedState.scopeValuesByStage);
-      setTopicVersionHistory(savedState.topicVersionHistory as TopicVersionHistory);
-      setIsTopicLocked(savedState.isTopicLocked);
-      setOverviewByStage(savedState.overviewByStage);
-      setLifecycleState(savedState.lifecycleState as LifecycleState);
-    }
-  }, []);
+    const loadAndSyncState = async () => {
+      // First, load from localStorage
+      const savedState = loadWorkflowState();
+      let currentResearchId: string | null = null;
+
+      if (savedState) {
+        setExpandedGroups(savedState.expandedGroups);
+        setExecutionState(savedState.executionState as ExecutionState);
+        setScopeValuesByStage(savedState.scopeValuesByStage);
+        setTopicVersionHistory(savedState.topicVersionHistory as TopicVersionHistory);
+        setIsTopicLocked(savedState.isTopicLocked);
+        setOverviewByStage(savedState.overviewByStage);
+        setLifecycleState(savedState.lifecycleState as LifecycleState);
+        currentResearchId = savedState.researchId || null;
+        setResearchId(currentResearchId);
+      }
+
+      // If we have a researchId, try to sync with backend for more complete state
+      if (currentResearchId) {
+        try {
+          const backendState = await workflowsApi.resume({ researchId: currentResearchId });
+          if (backendState.data?.manifest) {
+            // Merge backend state with local state (backend takes priority for execution results)
+            if (backendState.data.executionState) {
+              setExecutionState(prev => ({
+                ...prev,
+                ...backendState.data!.executionState as ExecutionState
+              }));
+            }
+            if (backendState.data.scopeValuesByStage) {
+              setScopeValuesByStage(prev => ({
+                ...prev,
+                ...backendState.data!.scopeValuesByStage
+              }));
+            }
+            console.log('[WorkflowPipeline] Synced state from backend for research:', currentResearchId);
+          }
+        } catch (error) {
+          console.warn('[WorkflowPipeline] Failed to sync with backend:', error);
+          // Continue with local state - backend sync is best-effort
+        }
+      }
+
+      setBackendSyncComplete(true);
+    };
+
+    loadAndSyncState();
+  }, [loadWorkflowState]);
 
   // Auto-save workflow state when key values change
   useEffect(() => {
@@ -871,46 +931,93 @@ export function WorkflowPipeline() {
     }
     
     // Build request body based on stage requirements
-    let body: Record<string, unknown> | undefined;
-    const stage1Scope = scopeValuesByStage[1];
+    // IMPORTANT: ALL stages must pass their inputs for proper persistence in LIVE mode
+    const stage1Scope = scopeValuesByStage[1] || {};
     const stage1Overview = overviewByStage[1] || "";
     const topicText = stage1Scope?.population
       ? `${stage1Scope.population} ${stage1Scope.outcomes ? `with outcomes: ${stage1Scope.outcomes}` : ''}`
-      : stage1Overview || "Research topic to be defined";
+      : stage1Overview || "";  // No fallback template data in LIVE mode
 
+    // Base body with research context - sent for ALL stages
+    const body: Record<string, unknown> = {
+      // Always include researchId for backend persistence
+      researchId: researchId,
+      // Always include Stage 1 context for cumulative data
+      topic: topicText,
+      population: stage1Scope?.population || "",
+      intervention: stage1Scope?.intervention || "",
+      comparator: stage1Scope?.comparator || "",
+      outcomes: stage1Scope?.outcomes || "",
+      timeframe: stage1Scope?.timeframe || "",
+      researchOverview: stage1Overview,
+    };
+
+    // Stage-specific additions
     if (stageId === 1) {
-      // Stage 1 (Topic Declaration): pass the research overview and PICO scope values
-      body = {
-        researchOverview: stage1Overview,
-        population: stage1Scope?.population,
-        intervention: stage1Scope?.intervention,
-        comparator: stage1Scope?.comparator,
-        outcomes: stage1Scope?.outcomes,
-        timeframe: stage1Scope?.timeframe
-      };
+      // Stage 1 (Topic Declaration): primary input stage
+      // Body already has all needed fields
     } else if (stageId === 2) {
-      // Stage 2 (Literature Search): pass the research topic from stage 1 scope values
-      body = {
-        topic: topicText,
-        population: stage1Scope?.population,
-        outcomes: stage1Scope?.outcomes
-      };
+      // Stage 2 (Literature Search): uses topic from stage 1
+      // Body already has topic field
+    } else if (stageId === 3) {
+      // Stage 3 (IRB Proposal): uses topic and PICO
+      // Body already has all needed fields
     } else if (stageId === 4) {
-      // Stage 4 (Variable Definition): pass topic and literature data from stage 2
-      const stage2Result = executionState[2]?.result;
+      // Stage 4 (Planned Extraction): pass literature data from stage 2
+      const stage2Result = executionState[2]?.result as StageExecutionResult | undefined;
       const literatureData = stage2Result?.literatureData as { keyInsights?: string[]; researchGaps?: string[] } | undefined;
-
-      body = {
-        topic: topicText,
-        literatureSummary: literatureData?.keyInsights?.join(". ") || "",
-        researchGaps: literatureData?.researchGaps || []
-      };
+      body.literatureSummary = literatureData?.keyInsights?.join(". ") || "";
+      body.researchGaps = literatureData?.researchGaps || [];
     } else if (stageId >= 5 && stageId <= 8) {
-      // Stages 5-8 (PHI Scanning, Schema Extraction, etc.): pass fileId from uploaded file
-      body = {
-        fileId: uploadedFile?.id,
-        topic: topicText
-      };
+      // Stages 5-8 (PHI Scanning, Schema Extraction, Data Scrubbing, Data Validation)
+      body.fileId = uploadedFile?.id;
+    } else if (stageId === 9) {
+      // Stage 9 (Summary Characteristics): needs data context
+      body.fileId = uploadedFile?.id;
+    } else if (stageId === 10) {
+      // Stage 10 (Gap Analysis): uses analysis results
+      const stage9Result = executionState[9]?.result as StageExecutionResult | undefined;
+      body.summaryData = stage9Result?.outputs || [];
+    } else if (stageId === 11) {
+      // Stage 11 (Manuscript Ideation): uses gap analysis
+      const stage10Result = executionState[10]?.result as StageExecutionResult | undefined;
+      body.gapAnalysis = stage10Result?.outputs || [];
+    } else if (stageId === 12) {
+      // Stage 12 (Statistical Analysis): uses selected manuscript and data
+      body.selectedManuscript = selectedManuscript;
+      body.fileId = uploadedFile?.id;
+    } else if (stageId === 13) {
+      // Stage 13 (Results Interpretation): uses analysis results
+      const stage12Result = executionState[12]?.result as StageExecutionResult | undefined;
+      body.statisticalResults = stage12Result?.outputs || [];
+    } else if (stageId === 14) {
+      // Stage 14 (Manuscript Draft): uses interpretation
+      const stage13Result = executionState[13]?.result as StageExecutionResult | undefined;
+      body.resultsInterpretation = stage13Result?.outputs || [];
+      body.selectedManuscript = selectedManuscript;
+    } else if (stageId === 15) {
+      // Stage 15 (Polish Manuscript): uses draft
+      const stage14Result = executionState[14]?.result as StageExecutionResult | undefined;
+      body.manuscriptDraft = stage14Result?.outputs || [];
+    } else if (stageId === 16) {
+      // Stage 16 (Journal Selection): uses polished manuscript
+      const stage15Result = executionState[15]?.result as StageExecutionResult | undefined;
+      body.polishedManuscript = stage15Result?.outputs || [];
+    } else if (stageId >= 17 && stageId <= 19) {
+      // Stages 17-19 (Poster, Symposium, Presentation): use manuscript
+      body.selectedJournal = selectedJournal;
+      const stage15Result = executionState[15]?.result as StageExecutionResult | undefined;
+      body.manuscriptContent = stage15Result?.outputs || [];
+    } else if (stageId === 20) {
+      // Stage 20 (Archive): final stage - package everything
+      body.selectedJournal = selectedJournal;
+      body.selectedManuscript = selectedManuscript;
+    }
+
+    // Include current stage's scope values if any
+    const currentScopeValues = scopeValuesByStage[stageId];
+    if (currentScopeValues) {
+      body.stageInputs = currentScopeValues;
     }
 
     executeMutation.mutate({ stageId, body });
@@ -919,47 +1026,51 @@ export function WorkflowPipeline() {
   const handleRunAll = async () => {
     if (!stageGroups) return;
     const allStages = stageGroups.flatMap(g => g.stages);
-    const stage1Scope = scopeValuesByStage[1];
+    const stage1Scope = scopeValuesByStage[1] || {};
     const stage1OverviewText = overviewByStage[1] || "";
     const topicText = stage1Scope?.population
       ? `${stage1Scope.population} ${stage1Scope.outcomes ? `with outcomes: ${stage1Scope.outcomes}` : ''}`
-      : stage1OverviewText || "Research topic to be defined";
+      : stage1OverviewText || "";  // No fallback template data
 
     for (const stage of allStages) {
       if (executionState[stage.id]?.status !== 'completed') {
         await new Promise<void>((resolve) => {
-          let body: Record<string, unknown> | undefined;
+          // Build body with full context for all stages
+          const body: Record<string, unknown> = {
+            researchId: researchId,
+            topic: topicText,
+            population: stage1Scope?.population || "",
+            intervention: stage1Scope?.intervention || "",
+            comparator: stage1Scope?.comparator || "",
+            outcomes: stage1Scope?.outcomes || "",
+            timeframe: stage1Scope?.timeframe || "",
+            researchOverview: stage1OverviewText,
+          };
 
-          if (stage.id === 1) {
-            // Stage 1: pass research overview and PICO scope values
-            body = {
-              researchOverview: stage1OverviewText,
-              population: stage1Scope?.population,
-              intervention: stage1Scope?.intervention,
-              comparator: stage1Scope?.comparator,
-              outcomes: stage1Scope?.outcomes,
-              timeframe: stage1Scope?.timeframe
-            };
-          } else if (stage.id === 2) {
-            body = {
-              topic: topicText,
-              population: stage1Scope?.population,
-              outcomes: stage1Scope?.outcomes
-            };
-          } else if (stage.id === 4) {
-            const stage2Result = executionState[2]?.result;
+          // Add stage-specific data
+          if (stage.id === 4) {
+            const stage2Result = executionState[2]?.result as StageExecutionResult | undefined;
             const literatureData = stage2Result?.literatureData as { keyInsights?: string[]; researchGaps?: string[] } | undefined;
-            body = {
-              topic: topicText,
-              literatureSummary: literatureData?.keyInsights?.join(". ") || "",
-              researchGaps: literatureData?.researchGaps || []
-            };
+            body.literatureSummary = literatureData?.keyInsights?.join(". ") || "";
+            body.researchGaps = literatureData?.researchGaps || [];
           } else if (stage.id >= 5 && stage.id <= 8) {
-            // Stages 5-8: pass fileId from uploaded file
-            body = {
-              fileId: uploadedFile?.id,
-              topic: topicText
-            };
+            body.fileId = uploadedFile?.id;
+          } else if (stage.id === 11) {
+            body.selectedManuscript = selectedManuscript;
+          } else if (stage.id === 12) {
+            body.selectedManuscript = selectedManuscript;
+            body.fileId = uploadedFile?.id;
+          } else if (stage.id >= 14 && stage.id <= 16) {
+            body.selectedManuscript = selectedManuscript;
+          } else if (stage.id >= 17 && stage.id <= 20) {
+            body.selectedJournal = selectedJournal;
+            body.selectedManuscript = selectedManuscript;
+          }
+
+          // Include current stage scope values
+          const currentScopeValues = scopeValuesByStage[stage.id];
+          if (currentScopeValues) {
+            body.stageInputs = currentScopeValues;
           }
 
           executeMutation.mutate({ stageId: stage.id, body }, {
@@ -2681,6 +2792,46 @@ export function WorkflowPipeline() {
 
                             </div>
                           )}
+
+                          {/* Chat Agent Panel for Stage Support */}
+                          <div className="mt-6 border-t pt-6" data-testid="section-chat-agent">
+                            <ChatAgentPanel
+                              agentType={getAgentTypeForStage(selectedStage.id)}
+                              artifactType={
+                                selectedStage.id <= 4 ? 'irb' :
+                                selectedStage.id <= 15 ? 'analysis' :
+                                'manuscript'
+                              }
+                              artifactId={`stage-${selectedStage.id}`}
+                              projectId="workflow-pipeline"
+                              getClientContext={() => ({
+                                artifactContent: JSON.stringify({
+                                  stage: selectedStage.name,
+                                  stageId: selectedStage.id,
+                                  status: getStageStatus(selectedStage),
+                                  executionResult: executionState[selectedStage.id]?.result || null,
+                                  outputs: executionState[selectedStage.id]?.result?.outputs || [],
+                                  description: selectedStage.description,
+                                }, null, 2),
+                                artifactMetadata: {
+                                  stageId: selectedStage.id,
+                                  stageName: selectedStage.name,
+                                  stageStatus: getStageStatus(selectedStage),
+                                  agentType: getAgentTypeForStage(selectedStage.id),
+                                  hasResults: executionState[selectedStage.id]?.status === 'completed',
+                                  selectedManuscript: selectedManuscript || null,
+                                  selectedJournal: selectedJournal || null,
+                                },
+                              })}
+                              onActionExecuted={(action, result) => {
+                                toast({
+                                  title: "Action Applied",
+                                  description: `${action.actionType} has been executed successfully.`,
+                                });
+                              }}
+                              defaultOpen={false}
+                            />
+                          </div>
                         </div>
                     </Card>
                   </motion.div>

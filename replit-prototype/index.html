@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ResearchFlow Design System - Live Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#4A7FC1', hover: '#3D6BA8', light: '#E8F0F8' },
+            success: { DEFAULT: '#4CAF50', hover: '#43A047', light: '#E8F5E9' },
+            workflow: { DEFAULT: '#9575CD', hover: '#7E57C2', light: '#EDE7F6' },
+            error: { DEFAULT: '#E57373', hover: '#EF5350', light: '#FFEBEE' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .stage-dot { transition: all 0.3s ease; }
+    .stage-line { transition: all 0.3s ease; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+  <div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <header class="mb-8">
+      <h1 class="text-4xl font-bold text-gray-900">ResearchFlow Design System</h1>
+      <p class="text-gray-600 mt-2">Live preview of components extracted from Figma</p>
+    </header>
+
+    <!-- Color Palette -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">Color Palette</h2>
+      <div class="grid grid-cols-5 gap-4">
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-lg bg-primary mx-auto shadow-md"></div>
+          <p class="mt-2 text-sm font-medium">Primary</p>
+          <p class="text-xs text-gray-500">#4A7FC1</p>
+        </div>
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-lg bg-success mx-auto shadow-md"></div>
+          <p class="mt-2 text-sm font-medium">Success</p>
+          <p class="text-xs text-gray-500">#4CAF50</p>
+        </div>
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-lg bg-workflow mx-auto shadow-md"></div>
+          <p class="mt-2 text-sm font-medium">Workflow</p>
+          <p class="text-xs text-gray-500">#9575CD</p>
+        </div>
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-lg bg-error mx-auto shadow-md"></div>
+          <p class="mt-2 text-sm font-medium">Error</p>
+          <p class="text-xs text-gray-500">#E57373</p>
+        </div>
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-lg bg-gray-900 mx-auto shadow-md"></div>
+          <p class="mt-2 text-sm font-medium">Text</p>
+          <p class="text-xs text-gray-500">#212121</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Buttons -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">Buttons</h2>
+      <div class="flex flex-wrap gap-4 items-center">
+        <button class="px-4 py-2 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg border-2 border-transparent transition-colors">
+          Primary Button
+        </button>
+        <button class="px-4 py-2 bg-transparent hover:bg-primary-light text-primary font-semibold rounded-lg border-2 border-primary transition-colors">
+          Secondary Button
+        </button>
+        <button class="px-4 py-2 bg-success hover:bg-success-hover text-white font-semibold rounded-lg border-2 border-transparent transition-colors">
+          Success
+        </button>
+        <button class="px-4 py-2 bg-error hover:bg-error-hover text-white font-semibold rounded-lg border-2 border-transparent transition-colors">
+          Error
+        </button>
+        <button class="px-4 py-2 bg-workflow hover:bg-workflow-hover text-white font-semibold rounded-lg border-2 border-transparent transition-colors">
+          Workflow
+        </button>
+      </div>
+    </section>
+
+    <!-- Cards -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">Cards</h2>
+      <div class="grid grid-cols-3 gap-6">
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+          <h3 class="text-xl font-semibold text-gray-900">Default Card</h3>
+          <p class="mt-2 text-gray-600">A simple card with border styling.</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-4">
+          <h3 class="text-xl font-semibold text-gray-900">Elevated Card</h3>
+          <p class="mt-2 text-gray-600">A card with shadow for depth.</p>
+        </div>
+        <div class="bg-transparent rounded-lg border-2 border-primary p-4">
+          <h3 class="text-xl font-semibold text-gray-900">Outlined Card</h3>
+          <p class="mt-2 text-gray-600">A card with primary border.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stage Indicator -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">Stage Indicator</h2>
+      <div class="bg-white rounded-lg p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-sm font-medium text-gray-700">Current Stage: <span id="current-stage" class="text-primary">Analysis</span></span>
+          <div class="flex gap-2">
+            <button onclick="prevStage()" class="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded">← Previous</button>
+            <button onclick="nextStage()" class="px-3 py-1 text-sm bg-primary hover:bg-primary-hover text-white rounded">Next →</button>
+          </div>
+        </div>
+        <div id="stage-indicator" class="flex items-center gap-2">
+          <!-- Generated by JS -->
+        </div>
+        <div class="flex justify-between mt-2 text-xs text-gray-500">
+          <span>Planning</span>
+          <span>Data Collection</span>
+          <span>Analysis</span>
+          <span>Writing</span>
+          <span>Review</span>
+          <span>Complete</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Typography -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">Typography</h2>
+      <div class="bg-white rounded-lg p-6 shadow-sm space-y-4">
+        <p class="text-5xl font-bold text-gray-900">Display Text</p>
+        <p class="text-3xl font-semibold text-gray-900">H1 Heading</p>
+        <p class="text-2xl font-semibold text-gray-900">H2 Heading</p>
+        <p class="text-base text-gray-700">Body text for regular content and descriptions.</p>
+        <p class="text-sm text-gray-500">Caption text for smaller details.</p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="text-center text-gray-500 text-sm">
+      <p>ResearchFlow Design System • Generated from Figma • Deployed on Replit</p>
+      <p class="mt-1">Built with Tailwind CSS</p>
+    </footer>
+  </div>
+
+  <script>
+    const stages = ['Planning', 'Data Collection', 'Analysis', 'Writing', 'Review', 'Complete'];
+    const stageColors = ['#9575CD', '#4A7FC1', '#4CAF50', '#FF9800', '#E57373', '#4CAF50'];
+    let currentIndex = 2; // Analysis
+
+    function renderStages() {
+      const container = document.getElementById('stage-indicator');
+      const label = document.getElementById('current-stage');
+      label.textContent = stages[currentIndex];
+
+      container.innerHTML = stages.map((stage, i) => {
+        const isComplete = i < currentIndex;
+        const isCurrent = i === currentIndex;
+        const color = isComplete || isCurrent ? stageColors[i] : '#E0E0E0';
+        const ringStyle = isCurrent ? 'ring-2 ring-offset-2 ring-blue-400' : '';
+
+        const dot = `<div class="stage-dot w-4 h-4 rounded-full ${ringStyle}" style="background-color: ${color}"></div>`;
+        const line = i < stages.length - 1
+          ? `<div class="stage-line flex-1 h-1 rounded-full" style="background-color: ${i < currentIndex ? '#4A7FC1' : '#E0E0E0'}"></div>`
+          : '';
+
+        return dot + line;
+      }).join('');
+    }
+
+    function nextStage() {
+      if (currentIndex < stages.length - 1) {
+        currentIndex++;
+        renderStages();
+      }
+    }
+
+    function prevStage() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        renderStages();
+      }
+    }
+
+    renderStages();
+  </script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+# ============================================
+# ResearchFlow - Backend-Only Docker Compose
+# ============================================
+# Usage: docker-compose -f docker-compose.backend.yml up -d
+#
+# This configuration runs backend services only:
+# - PostgreSQL with pgvector (database)
+# - Redis (cache with authentication)
+# - Orchestrator (Node.js API)
+# - Worker (Python FastAPI)
+# - Guideline Engine (Python FastAPI)
+#
+# Frontend (web) and collaboration server (collab) are excluded.
+# All services have proper health checks and authentication.
+
+services:
+  # ===================
+  # Database Migrations (runs once before other services)
+  # ===================
+  migrate:
+    image: postgres:16-alpine
+    environment:
+      - PGHOST=postgres
+      - PGUSER=${POSTGRES_USER:-ros}
+      - PGPASSWORD=${POSTGRES_PASSWORD:-ros}
+      - PGDATABASE=${POSTGRES_DB:-ros}
+    volumes:
+      - ./migrations:/migrations:ro
+    networks:
+      - researchflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    command: >
+      sh -c '
+        echo "=== Running database migrations ===" &&
+        for f in /migrations/*.sql; do
+          echo "Applying migration: $$f" &&
+          psql -f "$$f" || echo "Warning: Migration $$f may have already been applied"
+        done &&
+        echo "=== Migrations complete ==="
+      '
+
+  # ===================
+  # PostgreSQL Database (with pgvector for AI embeddings)
+  # ===================
+  postgres:
+    image: pgvector/pgvector:pg16
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ros}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ros}
+      POSTGRES_DB: ${POSTGRES_DB:-ros}
+    expose:
+      - "5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - researchflow
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ros -d ros"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===================
+  # Redis Cache (with authentication)
+  # ===================
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis-dev-password}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - researchflow
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    environment:
+      # Redis authentication is configured via command-line requirepass
+      # Clients must use: redis://:password@redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redis-dev-password}
+
+  # ===================
+  # Orchestrator - Node.js API
+  # ===================
+  orchestrator:
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+      target: development
+    ports:
+      - "3001:3001"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis-dev-password}@redis:6379
+      - WORKER_CALLBACK_URL=http://worker:8000
+      - WORKER_URL=http://worker:8000
+      - ROS_API_URL=http://worker:8000
+      - UPLOADS_PATH=/data/uploads
+      - GOVERNANCE_MODE=LIVE
+      - AUTH_ALLOW_STATELESS_JWT=${AUTH_ALLOW_STATELESS_JWT:-true}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - MERCURY_API_KEY=${MERCURY_API_KEY}
+      - INCEPTIONLABS_API_KEY=${INCEPTIONLABS_API_KEY}
+      - CODEX_API_KEY=${CODEX_API_KEY}
+      # AI Router integrations
+      - AI_INTEGRATIONS_OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AI_INTEGRATIONS_ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - AI_INTEGRATIONS_XAI_API_KEY=${XAI_API_KEY}
+      - AI_INTEGRATIONS_MERCURY_API_KEY=${MERCURY_API_KEY}
+      # Sourcegraph code intelligence
+      - SOURCEGRAPH_API_KEY=${SOURCEGRAPH_API_KEY}
+      - SRC_ACCESS_TOKEN=${SOURCEGRAPH_API_KEY}
+      # Notion integration
+      - NOTION_API_KEY=${NOTION_API_KEY}
+      # Figma integration
+      - FIGMA_API_KEY=${FIGMA_API_KEY}
+      # NLM/NCBI for MeSH term enrichment
+      - NCBI_API_KEY=${NCBI_API_KEY}
+      # Literature Integration
+      - SEMANTIC_SCHOLAR_API_KEY=${SEMANTIC_SCHOLAR_API_KEY}
+      - LITERATURE_CACHE_TTL=${LITERATURE_CACHE_TTL:-3600}
+      # PHI Governance
+      - PHI_SCAN_ENABLED=${PHI_SCAN_ENABLED:-true}
+      - PHI_FAIL_CLOSED=${PHI_FAIL_CLOSED:-true}
+      # Chat Agents
+      - CHAT_AGENT_MODEL=${CHAT_AGENT_MODEL:-gpt-4}
+      - CHAT_AGENT_PROVIDER=${CHAT_AGENT_PROVIDER:-openai}
+      - CHAT_AGENT_ENABLED=${CHAT_AGENT_ENABLED:-true}
+      # Dashboard features (from commit 2b65a72)
+      - DASHBOARD_ENABLED=${DASHBOARD_ENABLED:-true}
+      - DASHBOARD_CALENDAR_INTEGRATION=${DASHBOARD_CALENDAR_INTEGRATION:-true}
+      - DASHBOARD_REFRESH_INTERVAL=${DASHBOARD_REFRESH_INTERVAL:-5000}
+      # Analytics (Phase F)
+      - ANALYTICS_IP_SALT=${ANALYTICS_IP_SALT:-dev-salt-change-in-production}
+      # Webhooks
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - ZOOM_WEBHOOK_SECRET_TOKEN=${ZOOM_WEBHOOK_SECRET_TOKEN}
+      - ZOOM_VERIFICATION_TOKEN=${ZOOM_VERIFICATION_TOKEN}
+      # Guideline Engine Proxy
+      - GUIDELINE_ENGINE_URL=http://guideline-engine:8001
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - shared-data:/data
+      - ./services/orchestrator:/app
+      - /app/node_modules
+      - /app/packages
+    networks:
+      - researchflow
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ===================
+  # Worker - Python FastAPI
+  # ===================
+  worker:
+    build:
+      context: ./services/worker
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "8000:8000"  # Expose worker API for external access
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis-dev-password}@redis:6379
+      # Support both naming conventions for backwards compatibility
+      - ARTIFACT_PATH=/data/artifacts
+      - ARTIFACTS_PATH=/data/artifacts
+      - LOG_PATH=/data/logs
+      - GOVERNANCE_MODE=LIVE
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - MERCURY_API_KEY=${MERCURY_API_KEY}
+      - INCEPTIONLABS_API_KEY=${INCEPTIONLABS_API_KEY}
+      - CODEX_API_KEY=${CODEX_API_KEY}
+      # Sourcegraph code intelligence
+      - SOURCEGRAPH_API_KEY=${SOURCEGRAPH_API_KEY}
+      - SRC_ACCESS_TOKEN=${SOURCEGRAPH_API_KEY}
+      # LLM Extraction System
+      - AI_ROUTER_URL=http://orchestrator:3001/api/ai/extraction/generate
+      - ORCHESTRATOR_URL=http://orchestrator:3001
+      - EXTRACTION_TIMEOUT_SECONDS=60
+      - ENRICHMENT_TIMEOUT_SECONDS=30
+      # PHI Governance
+      - PHI_SCAN_ENABLED=${PHI_SCAN_ENABLED:-true}
+      - PHI_FAIL_CLOSED=${PHI_FAIL_CLOSED:-true}
+      # Conference Preparation (Stage 20)
+      - CONFERENCE_CACHE_TTL=${CONFERENCE_CACHE_TTL:-86400}
+      - ENABLE_WEB_SEARCH=${ENABLE_WEB_SEARCH:-false}
+      # Version Control (Phase 5.5)
+      - PROJECTS_PATH=/data/projects
+      # CSV parsing strict mode (from commit d22b229)
+      - DATA_PARSE_STRICT=${DATA_PARSE_STRICT:-true}
+      # Chat agent configuration (from commit 15faea0)
+      - CHAT_AGENT_MODEL=${CHAT_AGENT_MODEL:-gpt-4}
+      - CHAT_AGENT_ENABLED=${CHAT_AGENT_ENABLED:-true}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    volumes:
+      - shared-data:/data
+      - projects-data:/data/projects
+      - ./services/worker:/app
+    networks:
+      - researchflow
+    restart: unless-stopped
+
+  # ===================
+  # Guideline Engine - Python FastAPI (Clinical Scoring/Staging)
+  # ===================
+  guideline-engine:
+    build:
+      context: ./packages/guideline-engine
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
+      - AI_ROUTER_URL=http://orchestrator:3001/api/ai
+      - LOG_LEVEL=INFO
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    networks:
+      - researchflow
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  shared-data:
+    driver: local
+  projects-data:
+    driver: local
+    # Persistent storage for Git-based version control (Phase 5.5)
+    # Contains project repositories for statistical analysis and manuscripts
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  researchflow:
+    driver: bridge
