@@ -138,10 +138,105 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// Middleware
+// ============================================================================
+// CORS ORIGIN VALIDATION (SEC-002 Security Fix)
+// ============================================================================
+
+/**
+ * Validates if a URL origin matches a pattern
+ * Supports exact matches and wildcard subdomains (*.example.com)
+ * Enforces HTTPS in production
+ */
+function isOriginValid(origin: string | undefined, whitelist: string[], isDevelopment: boolean): boolean {
+  if (!origin) {
+    return false;
+  }
+
+  try {
+    const url = new URL(origin);
+
+    // In production, enforce HTTPS
+    if (!isDevelopment && url.protocol !== 'https:') {
+      console.warn(`[CORS] Rejected non-HTTPS origin in production: ${origin}`);
+      return false;
+    }
+
+    // Check against whitelist
+    return whitelist.some(pattern => {
+      // Exact match
+      if (pattern === origin) {
+        return true;
+      }
+
+      // Wildcard subdomain match (e.g., *.example.com)
+      if (pattern.startsWith('*.')) {
+        const domain = pattern.substring(2);
+        return url.hostname.endsWith('.' + domain) || url.hostname === domain;
+      }
+
+      return false;
+    });
+  } catch (error) {
+    console.warn(`[CORS] Invalid origin URL: ${origin}`);
+    return false;
+  }
+}
+
+/**
+ * Parses CORS_WHITELIST environment variable
+ * Format: comma-separated list of origins
+ * Example: https://app.example.com,https://admin.example.com,*.example.com
+ */
+function parseCorsList(corsEnv: string | undefined): string[] {
+  if (!corsEnv) {
+    return [];
+  }
+
+  return corsEnv
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(origin => origin.length > 0);
+}
+
+// Build allowed origins list
+const corsWhitelist = parseCorsList(process.env.CORS_WHITELIST);
+
+// Development fallback: allow localhost in development
+if (NODE_ENV === 'development') {
+  if (!corsWhitelist.includes('http://localhost:5173')) {
+    corsWhitelist.push('http://localhost:5173');
+  }
+  if (!corsWhitelist.includes('http://localhost:3001')) {
+    corsWhitelist.push('http://localhost:3001');
+  }
+  if (!corsWhitelist.includes('http://localhost:3000')) {
+    corsWhitelist.push('http://localhost:3000');
+  }
+}
+
+console.log(`[CORS] Configured whitelist (${NODE_ENV}):`, corsWhitelist);
+
+// CORS middleware with origin validation
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true
+  origin: (origin, callback) => {
+    const isDev = NODE_ENV === 'development';
+
+    // Allow requests without Origin header (same-origin requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (isOriginValid(origin, corsWhitelist, isDev)) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Rejected origin: ${origin} (NODE_ENV: ${NODE_ENV})`);
+      callback(new Error(`CORS policy: Origin not allowed`), false);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200
 }));
 
 app.use(express.json());
@@ -329,15 +424,41 @@ try {
 
 // Initialize Planning Queues (BullMQ)
 import { initPlanningQueues, shutdownPlanningQueues } from './services/planning';
-initPlanningQueues()
-  .then(() => console.log('[Agentic] Planning queues initialized'))
-  .catch((error) => {
-    console.error('[Agentic] Failed to initialize planning queues:', error);
-    console.log('[Agentic] Continuing without queue support - jobs will run inline');
-  });
 
-// Start server
-httpServer.listen(PORT, () => {
+// SEC-004: PHI Scanner Startup Validation
+import {
+  performPhiScannerHealthCheck,
+  logHealthCheckResults,
+  validateHealthCheckForStartup
+} from './services/phi-scanner-healthcheck';
+
+// Initialize services and start server
+async function initializeServer() {
+  try {
+    // Initialize Planning Queues
+    try {
+      await initPlanningQueues();
+      console.log('[Agentic] Planning queues initialized');
+    } catch (error) {
+      console.error('[Agentic] Failed to initialize planning queues:', error);
+      console.log('[Agentic] Continuing without queue support - jobs will run inline');
+    }
+
+    // SEC-004: Validate PHI Scanner (before accepting requests)
+    const phiHealthCheck = await performPhiScannerHealthCheck();
+    logHealthCheckResults(phiHealthCheck);
+    validateHealthCheckForStartup(phiHealthCheck, NODE_ENV === 'production');
+
+    // Start server
+    startServer();
+  } catch (error) {
+    console.error('[Server Init] Fatal error during initialization:', error);
+    process.exit(1);
+  }
+}
+
+function startServer() {
+  httpServer.listen(PORT, () => {
   console.log('='.repeat(60));
   console.log('ResearchFlow Canvas Server');
   console.log('='.repeat(60));
@@ -460,6 +581,13 @@ httpServer.listen(PORT, () => {
   console.log('  ✓ SSE Job Status Streaming');
   console.log('  ✓ Statistical Method Suggestion');
   console.log('='.repeat(60));
+  });
+}
+
+// Start initialization sequence
+initializeServer().catch((error) => {
+  console.error('[Server Init] Failed to initialize server:', error);
+  process.exit(1);
 });
 
 // Graceful shutdown

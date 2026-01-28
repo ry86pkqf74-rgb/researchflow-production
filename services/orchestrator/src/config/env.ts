@@ -178,28 +178,118 @@ export const config = {
 } as const;
 
 /**
+ * Validate JWT secret strength and entropy
+ * @param secret The secret string to validate
+ * @param minLength Minimum required length (default: 32)
+ * @returns { valid: boolean, reason?: string }
+ */
+function validateJwtSecretEntropy(
+  secret: string,
+  minLength: number = 32
+): { valid: boolean; reason?: string } {
+  // Check minimum length
+  if (secret.length < minLength) {
+    return {
+      valid: false,
+      reason: `JWT_SECRET must be at least ${minLength} characters long (current: ${secret.length})`,
+    };
+  }
+
+  // List of weak/common patterns to reject
+  const weakPatterns = [
+    'secret',
+    'password',
+    'test',
+    'demo',
+    'dev-secret',
+    'dev-',
+    '123456',
+    'password123',
+    'qwerty',
+    'abc123',
+    'admin',
+    'changeme',
+    '12345678',
+    'default',
+  ];
+
+  const lowerSecret = secret.toLowerCase();
+  for (const pattern of weakPatterns) {
+    if (lowerSecret.includes(pattern)) {
+      return {
+        valid: false,
+        reason: `JWT_SECRET contains weak pattern "${pattern}" - use a randomly generated secret`,
+      };
+    }
+  }
+
+  // Check for adequate character variety (at least 2 of: uppercase, lowercase, numbers, special chars)
+  const hasUppercase = /[A-Z]/.test(secret);
+  const hasLowercase = /[a-z]/.test(secret);
+  const hasNumbers = /[0-9]/.test(secret);
+  const hasSpecialChars = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(secret);
+
+  const varietyCount = [hasUppercase, hasLowercase, hasNumbers, hasSpecialChars].filter(
+    Boolean
+  ).length;
+  if (varietyCount < 2) {
+    return {
+      valid: false,
+      reason: 'JWT_SECRET must contain at least 2 of: uppercase, lowercase, numbers, special characters',
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
  * Validate critical configuration on startup
  */
 export function validateConfig(): void {
   const errors: string[] = [];
+  const warnings: string[] = [];
 
-  // Check for dev secrets in production
-  if (config.nodeEnv === 'production') {
-    if (config.jwtSecret.includes('dev-secret') || config.jwtSecret.length < 32) {
-      errors.push('JWT_SECRET must be set to a secure value in production');
+  // JWT Secret validation
+  const jwtValidation = validateJwtSecretEntropy(config.jwtSecret);
+  if (!jwtValidation.valid) {
+    if (config.nodeEnv === 'production') {
+      // Hard block in production
+      errors.push(`JWT_SECRET validation failed: ${jwtValidation.reason}`);
+    } else {
+      // Warn in development
+      warnings.push(`JWT_SECRET validation failed: ${jwtValidation.reason}`);
     }
-    if (config.sessionSecret.includes('dev-session') || config.sessionSecret.length < 32) {
-      errors.push('SESSION_SECRET must be set to a secure value in production');
+  }
+
+  // Session Secret validation (same rules as JWT)
+  const sessionValidation = validateJwtSecretEntropy(config.sessionSecret);
+  if (!sessionValidation.valid) {
+    if (config.nodeEnv === 'production') {
+      // Hard block in production
+      errors.push(`SESSION_SECRET validation failed: ${sessionValidation.reason}`);
+    } else {
+      // Warn in development
+      warnings.push(`SESSION_SECRET validation failed: ${sessionValidation.reason}`);
     }
   }
 
   // Validate governance mode
   if (config.governanceMode === 'LIVE' && config.nodeEnv === 'development') {
-    console.warn('WARNING: GOVERNANCE_MODE=LIVE in development environment');
+    warnings.push('GOVERNANCE_MODE=LIVE in development environment');
   }
 
+  // Log warnings in development
+  if (warnings.length > 0) {
+    warnings.forEach((warning) => {
+      console.warn(`⚠️  WARNING: ${warning}`);
+    });
+  }
+
+  // Throw fatal error in production if any errors
   if (errors.length > 0) {
-    throw new Error(`Configuration validation failed:\n${errors.join('\n')}`);
+    const errorMessage = `Configuration validation failed:\n${errors.map((e) => `  - ${e}`).join('\n')}`;
+    console.error(`🚨 FATAL: ${errorMessage}`);
+    throw new Error(errorMessage);
   }
 }
 

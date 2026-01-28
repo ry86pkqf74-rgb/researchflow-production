@@ -85,5 +85,9 @@ export default defineConfig({
     },
     // Chunk size warnings at 500KB
     chunkSizeWarningLimit: 500
+  },
+  // Environment variables configuration
+  define: {
+    'import.meta.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV)
   }
 });
