@@ -194,7 +194,7 @@ export default function GovernancePage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6 flex-wrap">
+          <TabsList className="mb-6 flex-wrap gap-1 sm:gap-2">
             <TabsTrigger value="status" data-testid="tab-status">
               <Activity className="h-4 w-4 mr-2" />
               System Status

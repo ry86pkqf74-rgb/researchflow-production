@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -70,6 +71,7 @@ export function LaySummaryEditor({
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [showGuidance, setShowGuidance] = useState(true);
   const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  const { toast } = useToast();
 
   const validateMutation = useMutation({
     mutationFn: async (text: string) => {
@@ -88,6 +90,13 @@ export function LaySummaryEditor({
     },
     onSuccess: (data) => {
       setValidation(data);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Failed',
+        description: error.message || 'Failed to validate lay summary',
+      });
     },
   });
 

@@ -221,7 +221,7 @@ export function GlobalSearch({ isOpen: controlledOpen, onClose, onResultClick }:
       />
 
       {/* Search Modal */}
-      <div className="fixed inset-x-4 top-20 mx-auto max-w-2xl z-50">
+      <div className="fixed inset-x-3 sm:inset-x-4 top-16 sm:top-20 mx-auto max-w-2xl z-50">
         <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
           {/* Search Input */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">

@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -81,6 +82,7 @@ const MODEL_TYPES = [
 
 export function AIMLDisclosure({ value, onChange, institutionId }: AIMLDisclosureProps) {
   const [showGuidance, setShowGuidance] = useState(true);
+  const { toast } = useToast();
 
   const complianceMutation = useMutation({
     mutationFn: async (disclosure: AIMLUsage) => {
@@ -94,6 +96,13 @@ export function AIMLDisclosure({ value, onChange, institutionId }: AIMLDisclosur
       });
       if (!res.ok) throw new Error("Compliance check failed");
       return res.json() as Promise<ComplianceResult>;
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Compliance Check Failed',
+        description: error.message || 'Failed to check compliance',
+      });
     },
   });
 
