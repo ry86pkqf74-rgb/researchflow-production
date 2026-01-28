@@ -1,0 +1,88 @@
+{
+  "name": "ResearchFlow: GitHub → Notion Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "github-notion-sync",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.event }}",
+              "value2": "github.issue.sync"
+            }
+          ]
+        }
+      },
+      "id": "if-1",
+      "name": "Check Event",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": "52e84cac-8ed0-4231-b9c8-5b854d042b9b",
+        "properties": {
+          "title": "={{ $json.data.title }}",
+          "Task ID": "={{ 'GH-' + $json.data.number }}",
+          "Status": "🟡 In Progress"
+        }
+      },
+      "id": "notion-1",
+      "name": "Create Notion Task",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [650, 200],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-cred",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, taskId: 'GH-' + $json.data.number }) }}"
+      },
+      "id": "respond-1",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Check Event", "type": "main", "index": 0 }]]
+    },
+    "Check Event": {
+      "main": [
+        [{ "node": "Create Notion Task", "type": "main", "index": 0 }],
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    },
+    "Create Notion Task": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "ResearchFlow" }]
+}

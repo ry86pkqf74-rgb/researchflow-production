@@ -1,0 +1,114 @@
+{
+  "name": "ResearchFlow: Notion → CI Trigger",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notion-ci-trigger",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "value2": "Queue CI"
+            }
+          ]
+        }
+      },
+      "id": "if-1",
+      "name": "Check Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "resource": "workflowRun",
+        "operation": "trigger",
+        "owner": "={{ $json.github.owner }}",
+        "repo": "={{ $json.github.repo }}",
+        "workflowId": "ci-pipeline.yml",
+        "ref": "={{ $json.github.branch || 'main' }}",
+        "inputs": {
+          "taskId": "={{ $json.taskId }}",
+          "notionPageId": "={{ $json.pageId }}"
+        }
+      },
+      "id": "github-1",
+      "name": "Trigger GitHub Actions",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [650, 200],
+      "credentials": {
+        "githubApi": {
+          "id": "github-cred",
+          "name": "GitHub API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $json.pageId }}",
+        "properties": {
+          "Status": "🔄 CI Running"
+        }
+      },
+      "id": "notion-1",
+      "name": "Update Notion Status",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [850, 200],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-cred",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'CI pipeline triggered', runId: $json.id }) }}"
+      },
+      "id": "respond-1",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Check Status", "type": "main", "index": 0 }]]
+    },
+    "Check Status": {
+      "main": [
+        [{ "node": "Trigger GitHub Actions", "type": "main", "index": 0 }],
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    },
+    "Trigger GitHub Actions": {
+      "main": [[{ "node": "Update Notion Status", "type": "main", "index": 0 }]]
+    },
+    "Update Notion Status": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "ResearchFlow" }]
+}

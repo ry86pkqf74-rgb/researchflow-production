@@ -1,0 +1,166 @@
+{
+  "name": "ResearchFlow: Stage Completion Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stage-completion",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.event }}",
+              "value2": "workflow.stage.complete"
+            }
+          ]
+        }
+      },
+      "id": "if-1",
+      "name": "Check Event Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": "7f9a2c1d-5e8b-4a6f-9c3d-2b1e8f5a7c9d",
+        "properties": {
+          "Timestamp": "={{ new Date().toISOString() }}",
+          "Stage": "={{ $json.stageName }}",
+          "Workflow ID": "={{ $json.workflowId }}",
+          "Status": "={{ $json.stageStatus }}",
+          "Duration": "={{ $json.duration }}",
+          "Execution Log": "={{ $json.executionDetails || '' }}"
+        }
+      },
+      "id": "notion-1",
+      "name": "Add to Execution Log",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [650, 200],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-cred",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.isMilestone }}",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "if-2",
+      "name": "Check if Milestone",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "webhookUrl": "={{ $json.slackWebhookUrl }}",
+        "text": "={{ `🎯 Milestone Reached: ${$json.stageName}` }}",
+        "otherOptions": {
+          "blocks": [
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "={{ `🎯 Milestone Reached: *${$json.stageName}*` }}"
+              }
+            },
+            {
+              "type": "section",
+              "fields": [
+                {
+                  "type": "mrkdwn",
+                  "text": "*Workflow:*\n={{ $json.workflowName || $json.workflowId }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Status:*\n={{ $json.stageStatus === 'success' ? '✅ Success' : '⚠️ ' + $json.stageStatus }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Duration:*\n={{ $json.duration || 'N/A' }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Completed:*\n{{ new Date().toLocaleString() }}"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "id": "slack-1",
+      "name": "Send Slack Milestone Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1050, 200],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Stage completion logged', stage: $json.stageName, timestamp: new Date().toISOString() }) }}"
+      },
+      "id": "respond-1",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Check Event Type", "type": "main", "index": 0 }]]
+    },
+    "Check Event Type": {
+      "main": [
+        [{ "node": "Add to Execution Log", "type": "main", "index": 0 }],
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    },
+    "Add to Execution Log": {
+      "main": [[{ "node": "Check if Milestone", "type": "main", "index": 0 }]]
+    },
+    "Check if Milestone": {
+      "main": [
+        [{ "node": "Send Slack Milestone Alert", "type": "main", "index": 0 }],
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Slack Milestone Alert": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "ResearchFlow" }]
+}

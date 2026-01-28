@@ -1,0 +1,147 @@
+{
+  "name": "ResearchFlow: Deployment Notifications",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "deployment-notify",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.event }}",
+              "value2": "deployment.complete"
+            }
+          ]
+        }
+      },
+      "id": "if-1",
+      "name": "Check Event Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "expression": "={{ $json.status === 'success' ? '✅' : '❌' }}"
+      },
+      "id": "code-1",
+      "name": "Determine Status Icon",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "expression": "={{ `🚀 Deployment Complete - Service: ${$json.service}, Version: ${$json.version}, Status: ${$json.status === 'success' ? '✅' : '❌'}` }}"
+      },
+      "id": "code-2",
+      "name": "Format Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "webhookUrl": "={{ $json.slackWebhookUrl }}",
+        "text": "={{ $json.message }}",
+        "otherOptions": {
+          "blocks": [
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "={{ $json.message }}"
+              }
+            },
+            {
+              "type": "section",
+              "fields": [
+                {
+                  "type": "mrkdwn",
+                  "text": "*Service:*\n={{ $json.service }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Version:*\n={{ $json.version }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Environment:*\n={{ $json.environment || 'production' }}"
+                },
+                {
+                  "type": "mrkdwn",
+                  "text": "*Timestamp:*\n={{ new Date($json.timestamp).toISOString() }}"
+                }
+              ]
+            },
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*Deployment Details:*\n`{{ $json.details || 'No additional details' }}`"
+              }
+            }
+          ]
+        }
+      },
+      "id": "slack-1",
+      "name": "Send Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1050, 200],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-cred",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Notification sent', service: $json.service, version: $json.version }) }}"
+      },
+      "id": "respond-1",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Check Event Type", "type": "main", "index": 0 }]]
+    },
+    "Check Event Type": {
+      "main": [
+        [{ "node": "Determine Status Icon", "type": "main", "index": 0 }],
+        [{ "node": "Respond", "type": "main", "index": 0 }]
+      ]
+    },
+    "Determine Status Icon": {
+      "main": [[{ "node": "Format Message", "type": "main", "index": 0 }]]
+    },
+    "Format Message": {
+      "main": [[{ "node": "Send Slack Notification", "type": "main", "index": 0 }]]
+    },
+    "Send Slack Notification": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "ResearchFlow" }]
+}

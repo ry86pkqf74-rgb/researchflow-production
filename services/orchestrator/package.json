@@ -13,6 +13,7 @@
     "@researchflow/ai-router": "file:./packages/ai-router",
     "@researchflow/core": "file:./packages/core",
     "@researchflow/manuscript-engine": "file:./packages/manuscript-engine",
+    "@researchflow/notion-integration": "workspace:*",
     "@researchflow/phi-engine": "file:./packages/phi-engine",
     "archiver": "^7.0.0",
     "axios": "^1.13.2",
