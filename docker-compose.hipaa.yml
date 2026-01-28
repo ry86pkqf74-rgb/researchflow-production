@@ -1,0 +1,235 @@
+# ============================================
+# ResearchFlow - HIPAA-Compliant Docker Overlay
+# ============================================
+#
+# Task ID: DOCK-001
+# Usage: docker compose -f docker-compose.yml -f docker-compose.hipaa.yml up -d
+#        OR for production:
+#        docker compose -f docker-compose.prod.yml -f docker-compose.hipaa.yml up -d
+#
+# This overlay adds HIPAA-compliant security hardening:
+# 1. Network isolation (internal backend network)
+# 2. Redis password authentication
+# 3. PostgreSQL SSL/TLS encryption
+# 4. Enhanced health checks
+# 5. Strict service dependencies
+#
+# Prerequisites:
+# - Set DB_PASSWORD, REDIS_PASSWORD, JWT_SECRET in .env (min 32 chars each)
+# - All secrets via environment variables, NEVER hardcoded
+#
+# Network Architecture:
+#   frontend (bridge):    web ↔ orchestrator
+#   backend (internal):   orchestrator ↔ worker ↔ postgres ↔ redis
+#
+# ============================================
+
+services:
+  # ===================
+  # Frontend - Public Network Only
+  # ===================
+  web:
+    networks:
+      - frontend
+    # Remove from default researchflow network
+    # Communicates with orchestrator via frontend network
+
+  # ===================
+  # Orchestrator - Bridge Between Frontend/Backend
+  # ===================
+  orchestrator:
+    environment:
+      - NODE_ENV=production
+      # HIPAA-compliant database connection with SSL
+      - DATABASE_URL=postgresql://ros:${DB_PASSWORD}@postgres:5432/ros?sslmode=require
+      # Redis with password authentication
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      # JWT must be validated at startup
+      - JWT_SECRET=${JWT_SECRET}
+      # PHI governance enabled
+      - PHI_SCAN_ENABLED=true
+      - PHI_FAIL_CLOSED=true
+      # Production CORS whitelist
+      - CLIENT_URL=${CLIENT_URL:-https://localhost}
+      - CORS_WHITELIST=${CORS_WHITELIST:-https://localhost}
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ===================
+  # Worker - Backend Network Only (No External Access)
+  # ===================
+  worker:
+    environment:
+      # Redis with password authentication
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      # Database with SSL
+      - DATABASE_URL=postgresql://ros:${DB_PASSWORD}@postgres:5432/ros?sslmode=require
+      # PHI governance
+      - PHI_SCAN_ENABLED=true
+      - PHI_FAIL_CLOSED=true
+    networks:
+      - backend
+    # Remove exposed ports - only accessible via internal network
+    ports: []
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
+  # ===================
+  # Guideline Engine - Backend Network Only
+  # ===================
+  guideline-engine:
+    environment:
+      - DATABASE_URL=postgresql://ros:${DB_PASSWORD}@postgres:5432/ros?sslmode=require
+    networks:
+      - backend
+    # Remove exposed ports
+    ports: []
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ===================
+  # Collab Server - Frontend + Backend (WebSocket bridge)
+  # ===================
+  collab:
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - DATABASE_URL=postgresql://ros:${DB_PASSWORD}@postgres:5432/ros?sslmode=require
+    networks:
+      - frontend
+      - backend
+    # Expose only to frontend network (nginx proxy)
+    ports: []
+
+  # ===================
+  # PostgreSQL - Backend Only, SSL Enabled
+  # ===================
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ros
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ros
+    # Enable SSL using self-signed certificates (Alpine default)
+    command:
+      - "postgres"
+      - "-c"
+      - "ssl=on"
+      - "-c"
+      - "ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem"
+      - "-c"
+      - "ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key"
+      - "-c"
+      - "log_connections=on"
+      - "-c"
+      - "log_disconnections=on"
+      - "-c"
+      - "log_statement=ddl"
+    volumes:
+      - postgres_hipaa_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - backend
+    # Remove exposed ports - backend network only
+    ports: []
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ros -d ros"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ===================
+  # Redis - Backend Only, Password Protected
+  # ===================
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --rename-command FLUSHALL ""
+      --rename-command FLUSHDB ""
+      --rename-command DEBUG ""
+    volumes:
+      - redis_hipaa_data:/data
+    networks:
+      - backend
+    # Remove exposed ports - backend network only
+    ports: []
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===================
+  # Database Migrations - Backend Network
+  # ===================
+  migrate:
+    environment:
+      - PGHOST=postgres
+      - PGUSER=ros
+      - PGPASSWORD=${DB_PASSWORD}
+      - PGDATABASE=ros
+      - PGSSLMODE=require
+    networks:
+      - backend
+
+# ===================
+# Network Configuration
+# ===================
+networks:
+  frontend:
+    driver: bridge
+    # Public-facing network for web and nginx
+  backend:
+    driver: bridge
+    internal: true
+    # CRITICAL: internal: true prevents external access
+    # Only services explicitly attached can communicate
+
+# ===================
+# Volume Configuration
+# ===================
+volumes:
+  postgres_hipaa_data:
+    driver: local
+    # Separate volume for HIPAA-compliant data
+    # Consider: encrypted volume driver for production
+  redis_hipaa_data:
+    driver: local
+    # Separate volume for authenticated Redis data
