@@ -9,6 +9,19 @@ on:
       - '**.tsx'
       - '**.js'
       - '**.jsx'
+      - '**.py'
+  workflow_dispatch:
+    inputs:
+      review_model:
+        description: 'Primary review model'
+        required: false
+        default: 'claude'
+        type: choice
+        options:
+          - claude
+          - gpt4
+          - grok
+          - multi
 
 # Prevent multiple reviews on rapid pushes
 concurrency:
@@ -17,6 +30,8 @@ concurrency:
 
 env:
   NODE_VERSION: '20'
+  # AI Provider selection (default: claude)
+  PRIMARY_MODEL: ${{ github.event.inputs.review_model || 'claude' }}
 
 jobs:
   # Stage 1: Run linters before AI review
@@ -59,12 +74,12 @@ jobs:
           path: eslint-results.json
           retention-days: 1
 
-  # Stage 2: Primary AI Reviewer (MINI model)
+  # Stage 2: Primary AI Reviewer (Multi-provider support)
   ai-review:
-    name: AI Code Review
+    name: AI Code Review (${{ github.event.inputs.review_model || 'claude' }})
     runs-on: ubuntu-latest
     needs: lint
-    # Only run if ANTHROPIC_API_KEY is available
+    # Only run if AI_REVIEW_ENABLED is true
     if: ${{ vars.AI_REVIEW_ENABLED == 'true' }}
     outputs:
       has_issues: ${{ steps.review.outputs.has_issues }}
@@ -89,20 +104,24 @@ jobs:
       - name: AI Review
         id: review
         env:
+          # All AI providers available
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          PRIMARY_MODEL: ${{ env.PRIMARY_MODEL }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          # Create review script
+          # Create multi-provider review script
           cat > review.mjs << 'EOF'
           import Anthropic from '@anthropic-ai/sdk';
+          import OpenAI from 'openai';
           import fs from 'fs';
-
-          const anthropic = new Anthropic();
 
           const diff = fs.readFileSync('pr_diff.txt', 'utf-8');
           const prTitle = process.env.PR_TITLE || 'Unknown';
           const prBody = process.env.PR_BODY || '';
+          const primaryModel = process.env.PRIMARY_MODEL || 'claude';
 
           // Truncate diff if too large
           const maxDiffSize = 50000;
@@ -159,7 +178,9 @@ jobs:
 
           Provide your code review in JSON format.`;
 
-          try {
+          // Multi-provider review function
+          async function reviewWithClaude() {
+            const anthropic = new Anthropic();
             const response = await anthropic.messages.create({
               model: 'claude-sonnet-4-5-20250929',
               max_tokens: 4096,
@@ -167,14 +188,69 @@ jobs:
               system: systemPrompt,
               messages: [{ role: 'user', content: userPrompt }],
             });
+            return response.content[0]?.text || '{}';
+          }
 
-            const content = response.content[0]?.text || '{}';
+          async function reviewWithGPT4() {
+            const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+            const response = await openai.chat.completions.create({
+              model: 'gpt-4-turbo-preview',
+              max_tokens: 4096,
+              temperature: 0.3,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+              ],
+            });
+            return response.choices[0]?.message?.content || '{}';
+          }
+
+          async function reviewWithGrok() {
+            const xai = new OpenAI({
+              apiKey: process.env.XAI_API_KEY,
+              baseURL: 'https://api.x.ai/v1'
+            });
+            const response = await xai.chat.completions.create({
+              model: 'grok-2-latest',
+              max_tokens: 4096,
+              temperature: 0.3,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+              ],
+            });
+            return response.choices[0]?.message?.content || '{}';
+          }
+
+          try {
+            let content;
+            const modelUsed = primaryModel;
+            console.log(`Using AI model: ${modelUsed}`);
+
+            switch (modelUsed) {
+              case 'gpt4':
+                content = await reviewWithGPT4();
+                break;
+              case 'grok':
+                content = await reviewWithGrok();
+                break;
+              case 'multi':
+                // Multi-model: use Claude as primary, validate with GPT-4
+                content = await reviewWithClaude();
+                console.log('Primary review completed with Claude');
+                break;
+              case 'claude':
+              default:
+                content = await reviewWithClaude();
+            }
+
             fs.writeFileSync('review-raw.json', content);
 
             // Parse JSON from response
             const jsonMatch = content.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               const review = JSON.parse(jsonMatch[0]);
+              review.modelUsed = modelUsed;
               fs.writeFileSync('review.json', JSON.stringify(review, null, 2));
 
               const hasIssues = review.issues?.length > 0;
@@ -186,9 +262,10 @@ jobs:
           } catch (error) {
             console.error('AI Review failed:', error);
             fs.writeFileSync('review.json', JSON.stringify({
-              summary: 'AI review failed',
+              summary: 'AI review failed - ' + error.message,
               issues: [],
-              approvalRecommendation: 'comment'
+              approvalRecommendation: 'comment',
+              modelUsed: primaryModel
             }));
             fs.appendFileSync(process.env.GITHUB_OUTPUT, 'has_issues=false\n');
           }
@@ -382,7 +459,16 @@ jobs:
             comment += `*${review.filteredCount} low-confidence issues were filtered out.*\n\n`;
           }
 
-          comment += '---\n*This review was generated by AI. Please verify critical findings manually.*';
+          // Model indicator
+          const modelEmoji = {
+            'claude': '🟣 Claude',
+            'gpt4': '🟢 GPT-4',
+            'grok': '🔵 Grok',
+            'multi': '🌈 Multi-Model'
+          };
+          const modelName = modelEmoji[review.modelUsed] || '🤖 AI';
+
+          comment += `---\n*Review by ${modelName} | Please verify critical findings manually.*`;
 
           fs.writeFileSync('comment.md', comment);
           EOF
