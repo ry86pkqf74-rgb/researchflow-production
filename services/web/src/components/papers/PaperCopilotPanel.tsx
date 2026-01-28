@@ -172,7 +172,7 @@ export function PaperCopilotPanel({ paperId, className }: PaperCopilotPanelProps
   const { data: chunkStatus, isLoading: chunkStatusLoading } = useQuery<ChunkStatus>({
     queryKey: ['paper-chunks', paperId],
     queryFn: async () => {
-      const res = await apiRequest(`/api/papers/${paperId}/copilot/chunks`);
+      const res = await apiRequest('GET', `/api/papers/${paperId}/copilot/chunks`);
       return res.json();
     },
     refetchInterval: (data) => {
@@ -185,7 +185,7 @@ export function PaperCopilotPanel({ paperId, className }: PaperCopilotPanelProps
   const { data: chatHistory, isLoading: chatLoading } = useQuery<{ messages: ChatMessage[] }>({
     queryKey: ['paper-chat', paperId],
     queryFn: async () => {
-      const res = await apiRequest(`/api/papers/${paperId}/copilot/chat`);
+      const res = await apiRequest('GET', `/api/papers/${paperId}/copilot/chat`);
       return res.json();
     },
     enabled: chunkStatus?.status === 'ready',
@@ -195,7 +195,7 @@ export function PaperCopilotPanel({ paperId, className }: PaperCopilotPanelProps
   const { data: summariesData } = useQuery<{ summaries: Summary[] }>({
     queryKey: ['paper-summaries', paperId],
     queryFn: async () => {
-      const res = await apiRequest(`/api/papers/${paperId}/copilot/summaries`);
+      const res = await apiRequest('GET', `/api/papers/${paperId}/copilot/summaries`);
       return res.json();
     },
     enabled: activeTab === 'summary',
@@ -205,7 +205,7 @@ export function PaperCopilotPanel({ paperId, className }: PaperCopilotPanelProps
   const { data: claimsData } = useQuery<{ claims: Claim[] }>({
     queryKey: ['paper-claims', paperId],
     queryFn: async () => {
-      const res = await apiRequest(`/api/papers/${paperId}/copilot/claims`);
+      const res = await apiRequest('GET', `/api/papers/${paperId}/copilot/claims`);
       return res.json();
     },
     enabled: activeTab === 'claims',
@@ -225,9 +225,7 @@ export function PaperCopilotPanel({ paperId, className }: PaperCopilotPanelProps
   // Start chunking
   const chunkMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest(`/api/papers/${paperId}/copilot/chunk`, {
-        method: 'POST',
-      });
+      const res = await apiRequest('POST', `/api/papers/${paperId}/copilot/chunk`);
       return res.json();
     },
     onSuccess: () => {
@@ -242,10 +240,7 @@ export function PaperCopilotPanel({ paperId, className }: PaperCopilotPanelProps
   // Send chat message
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
-      const res = await apiRequest(`/api/papers/${paperId}/copilot/chat`, {
-        method: 'POST',
-        body: JSON.stringify({ message }),
-      });
+      const res = await apiRequest('POST', `/api/papers/${paperId}/copilot/chat`, { message });
       return res.json();
     },
     onSuccess: () => {
@@ -260,9 +255,7 @@ export function PaperCopilotPanel({ paperId, className }: PaperCopilotPanelProps
   // Clear chat
   const clearChatMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest(`/api/papers/${paperId}/copilot/chat`, {
-        method: 'DELETE',
-      });
+      const res = await apiRequest('DELETE', `/api/papers/${paperId}/copilot/chat`);
       return res.json();
     },
     onSuccess: () => {
@@ -274,10 +267,7 @@ export function PaperCopilotPanel({ paperId, className }: PaperCopilotPanelProps
   // Generate summary
   const summaryMutation = useMutation({
     mutationFn: async (type: string) => {
-      const res = await apiRequest(`/api/papers/${paperId}/copilot/summarize`, {
-        method: 'POST',
-        body: JSON.stringify({ type }),
-      });
+      const res = await apiRequest('POST', `/api/papers/${paperId}/copilot/summarize`, { type });
       return res.json();
     },
     onSuccess: () => {
@@ -291,9 +281,7 @@ export function PaperCopilotPanel({ paperId, className }: PaperCopilotPanelProps
   // Extract claims
   const claimsMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest(`/api/papers/${paperId}/copilot/extract-claims`, {
-        method: 'POST',
-      });
+      const res = await apiRequest('POST', `/api/papers/${paperId}/copilot/extract-claims`);
       return res.json();
     },
     onSuccess: () => {

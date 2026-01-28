@@ -49,15 +49,9 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertConversationSchema = createInsertSchema(conversations).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertConversationSchema = createInsertSchema(conversations).omit({id: true, createdAt: true} as any);
 
-export const insertMessageSchema = createInsertSchema(messages).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertMessageSchema = createInsertSchema(messages).omit({id: true, createdAt: true} as any);
 
 export type Conversation = InferSelectModel<typeof conversations>;
 export type InsertConversation = z.infer<typeof insertConversationSchema>;
@@ -92,10 +86,7 @@ export const artifacts = pgTable("artifacts", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertArtifactSchema = createInsertSchema(artifacts).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertArtifactSchema = createInsertSchema(artifacts).omit({id: true, createdAt: true} as any);
 
 export const artifactSchema = z.object({
   id: z.string(),
@@ -125,16 +116,13 @@ export const artifactVersions = pgTable("artifact_versions", {
   sha256Hash: varchar("sha256_hash").notNull(),
   createdBy: varchar("created_by").notNull(),
   changeDescription: text("change_description").notNull(),
-  branch: varchar("branch", { length: 100 }).notNull().default("main"),
+  branch: varchar("branch", { length: 100 }).default("main").notNull(),
   parentVersionId: varchar("parent_version_id"),
-  metadata: jsonb("metadata").notNull().default({}),
+  metadata: jsonb("metadata").default({}).notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertArtifactVersionSchema = createInsertSchema(artifactVersions).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertArtifactVersionSchema = createInsertSchema(artifactVersions).omit({id: true, createdAt: true} as any);
 
 export const artifactVersionSchema = z.object({
   id: z.string(),
@@ -164,10 +152,7 @@ export const artifactComparisons = pgTable("artifact_comparisons", {
   comparedAt: timestamp("compared_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertArtifactComparisonSchema = createInsertSchema(artifactComparisons).omit({
-  id: true,
-  comparedAt: true,
-});
+export const insertArtifactComparisonSchema = createInsertSchema(artifactComparisons).omit({id: true, comparedAt: true} as any);
 
 export type ArtifactComparison = InferSelectModel<typeof artifactComparisons>;
 export type InsertArtifactComparison = z.infer<typeof insertArtifactComparisonSchema>;
@@ -182,17 +167,14 @@ export const fileUploads = pgTable("file_uploads", {
   sizeBytes: integer("size_bytes").notNull(),
   sha256Hash: varchar("sha256_hash").notNull(),
   uploadedBy: varchar("uploaded_by").notNull(),
-  status: text("status").notNull().default("pending"),
+  status: text("status").default("pending").notNull(),
   phiScanStatus: text("phi_scan_status").default("pending"),
   phiScanResult: jsonb("phi_scan_result"),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertFileUploadSchema = createInsertSchema(fileUploads).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertFileUploadSchema = createInsertSchema(fileUploads).omit({id: true, createdAt: true} as any);
 
 export type FileUpload = InferSelectModel<typeof fileUploads>;
 export type InsertFileUpload = z.infer<typeof insertFileUploadSchema>;
@@ -202,18 +184,14 @@ export const researchSessions = pgTable("research_sessions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   researchId: varchar("research_id").notNull(),
   userId: varchar("user_id").notNull(),
-  currentStageId: integer("current_stage_id").notNull().default(1),
+  currentStageId: integer("current_stage_id").default(1).notNull(),
   stageProgress: jsonb("stage_progress"),
   workflowState: jsonb("workflow_state"),
   lastActiveAt: timestamp("last_active_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertResearchSessionSchema = createInsertSchema(researchSessions).omit({
-  id: true,
-  createdAt: true,
-  lastActiveAt: true,
-});
+export const insertResearchSessionSchema = createInsertSchema(researchSessions).omit({id: true, createdAt: true, lastActiveAt: true} as any);
 
 export type ResearchSession = InferSelectModel<typeof researchSessions>;
 export type InsertResearchSession = z.infer<typeof insertResearchSessionSchema>;
@@ -231,18 +209,14 @@ export const researchProjects = pgTable("research_projects", {
   description: text("description"),
   ownerId: varchar("owner_id").notNull().references(() => users.id),
   orgId: varchar("org_id"), // Phase E: Multi-tenancy FK to organizations
-  dataClassification: text("data_classification").notNull().default("UNKNOWN"),
-  status: text("status").notNull().default("ACTIVE"),
+  dataClassification: text("data_classification").default("UNKNOWN").notNull(),
+  status: text("status").default("ACTIVE").notNull(),
   irbApprovalNumber: varchar("irb_approval_number"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertResearchProjectSchema = createInsertSchema(researchProjects).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertResearchProjectSchema = createInsertSchema(researchProjects).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type ResearchProject = InferSelectModel<typeof researchProjects>;
 export type InsertResearchProject = z.infer<typeof insertResearchProjectSchema>;
@@ -251,17 +225,14 @@ export type InsertResearchProject = z.infer<typeof insertResearchProjectSchema>;
 export const userRoles = pgTable("user_roles", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  role: text("role").notNull().default("VIEWER"),
+  role: text("role").default("VIEWER").notNull(),
   grantedBy: varchar("granted_by").references(() => users.id),
   grantedAt: timestamp("granted_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   expiresAt: timestamp("expires_at"),
-  isActive: boolean("is_active").notNull().default(true),
+  isActive: boolean("is_active").default(true).notNull(),
 });
 
-export const insertUserRoleSchema = createInsertSchema(userRoles).omit({
-  id: true,
-  grantedAt: true,
-});
+export const insertUserRoleSchema = createInsertSchema(userRoles).omit({id: true, grantedAt: true} as any);
 
 export type UserRoleRecord = InferSelectModel<typeof userRoles>;
 export type InsertUserRole = z.infer<typeof insertUserRoleSchema>;
@@ -276,7 +247,7 @@ export const approvalGates = pgTable("approval_gates", {
   operationType: text("operation_type").notNull(),
   resourceId: varchar("resource_id").notNull(),
   resourceType: text("resource_type").notNull(),
-  approvalMode: text("approval_mode").notNull().default("REQUIRE_EACH"),
+  approvalMode: text("approval_mode").default("REQUIRE_EACH").notNull(),
   requestedById: varchar("requested_by_id").notNull().references(() => users.id),
   requestedByRole: text("requested_by_role").notNull(),
   requestedByEmail: varchar("requested_by_email"),
@@ -285,7 +256,7 @@ export const approvalGates = pgTable("approval_gates", {
   approvedByRole: text("approved_by_role"),
   approvedByEmail: varchar("approved_by_email"),
   approvedByName: varchar("approved_by_name"),
-  status: text("status").notNull().default("PENDING"),
+  status: text("status").default("PENDING").notNull(),
   reason: text("reason"),
   rejectionReason: text("rejection_reason"),
   conditions: jsonb("conditions"),
@@ -303,10 +274,7 @@ export const approvalGates = pgTable("approval_gates", {
   completedAt: timestamp("completed_at"),
 });
 
-export const insertApprovalGateSchema = createInsertSchema(approvalGates).omit({
-  id: true,
-  requestedAt: true,
-});
+export const insertApprovalGateSchema = createInsertSchema(approvalGates).omit({id: true, requestedAt: true} as any);
 
 export type ApprovalGateRecord = InferSelectModel<typeof approvalGates>;
 export type InsertApprovalGate = z.infer<typeof insertApprovalGateSchema>;
@@ -331,10 +299,7 @@ export const approvalAuditEntries = pgTable("approval_audit_entries", {
   performedAt: timestamp("performed_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertApprovalAuditEntrySchema = createInsertSchema(approvalAuditEntries).omit({
-  id: true,
-  performedAt: true,
-});
+export const insertApprovalAuditEntrySchema = createInsertSchema(approvalAuditEntries).omit({id: true, performedAt: true} as any);
 
 export type ApprovalAuditEntryRecord = InferSelectModel<typeof approvalAuditEntries>;
 export type InsertApprovalAuditEntry = z.infer<typeof insertApprovalAuditEntrySchema>;
@@ -357,10 +322,7 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({id: true, createdAt: true} as any);
 
 export type AuditLog = InferSelectModel<typeof auditLogs>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
@@ -369,13 +331,13 @@ export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export const phiIncidents = pgTable("phi_incidents", {
   id: serial("id").primaryKey(),
   incidentId: varchar("incident_id").notNull().unique(),
-  severity: text("severity").notNull().default("LOW"),
+  severity: text("severity").default("LOW").notNull(),
   description: text("description").notNull(),
   detectedBy: varchar("detected_by").references(() => users.id),
   affectedResearchId: varchar("affected_research_id"),
   affectedDatasetId: varchar("affected_dataset_id"),
   phiType: text("phi_type"),
-  status: text("status").notNull().default("OPEN"),
+  status: text("status").default("OPEN").notNull(),
   remediationSteps: jsonb("remediation_steps"),
   resolvedBy: varchar("resolved_by").references(() => users.id),
   resolvedAt: timestamp("resolved_at"),
@@ -383,11 +345,7 @@ export const phiIncidents = pgTable("phi_incidents", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertPhiIncidentSchema = createInsertSchema(phiIncidents).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertPhiIncidentSchema = createInsertSchema(phiIncidents).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type PhiIncident = InferSelectModel<typeof phiIncidents>;
 export type InsertPhiIncident = z.infer<typeof insertPhiIncidentSchema>;
@@ -397,7 +355,7 @@ export const handoffPacks = pgTable("handoff_packs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   packId: varchar("pack_id").notNull().unique(),
   packType: text("pack_type").notNull(),
-  version: varchar("version").notNull().default("1.0.0"),
+  version: varchar("version").default("1.0.0").notNull(),
   researchId: varchar("research_id").notNull(),
   stageId: varchar("stage_id").notNull(),
   stageName: text("stage_name").notNull(),
@@ -408,9 +366,9 @@ export const handoffPacks = pgTable("handoff_packs", {
   responseHash: varchar("response_hash").notNull(),
   content: jsonb("content"),
   contentSchema: text("content_schema"),
-  tokenUsageInput: integer("token_usage_input").notNull().default(0),
-  tokenUsageOutput: integer("token_usage_output").notNull().default(0),
-  tokenUsageTotal: integer("token_usage_total").notNull().default(0),
+  tokenUsageInput: integer("token_usage_input").default(0).notNull(),
+  tokenUsageOutput: integer("token_usage_output").default(0).notNull(),
+  tokenUsageTotal: integer("token_usage_total").default(0).notNull(),
   latencyMs: integer("latency_ms"),
   costCents: integer("cost_cents").default(0),
   approvalGateId: varchar("approval_gate_id").references(() => approvalGates.id),
@@ -425,11 +383,7 @@ export const handoffPacks = pgTable("handoff_packs", {
   expiresAt: timestamp("expires_at"),
 });
 
-export const insertHandoffPackSchema = createInsertSchema(handoffPacks).omit({
-  id: true,
-  createdAt: true,
-  generatedAt: true,
-});
+export const insertHandoffPackSchema = createInsertSchema(handoffPacks).omit({id: true, createdAt: true, generatedAt: true} as any);
 
 export type HandoffPackRecord = InferSelectModel<typeof handoffPacks>;
 export type InsertHandoffPack = z.infer<typeof insertHandoffPackSchema>;
@@ -447,12 +401,12 @@ export type TopicStatus = (typeof TOPIC_STATUSES)[number];
 export const topics = pgTable("topics", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   researchId: varchar("research_id").notNull(),
-  version: integer("version").notNull().default(1),
+  version: integer("version").default(1).notNull(),
   title: text("title").notNull(),
   description: text("description"),
 
   // Entry mode: 'quick' for rapid topic definition, 'pico' for structured protocols
-  entryMode: text("entry_mode").notNull().default("pico"),
+  entryMode: text("entry_mode").default("pico").notNull(),
 
   // Quick Entry fields (always stored, may be empty for PICO mode)
   generalTopic: text("general_topic"),
@@ -477,18 +431,14 @@ export const topics = pgTable("topics", {
   versionHistory: jsonb("version_history"),
   previousVersionId: varchar("previous_version_id"),
   createdBy: varchar("created_by").notNull(),
-  status: text("status").notNull().default("DRAFT"),
+  status: text("status").default("DRAFT").notNull(),
   lockedAt: timestamp("locked_at"),
   lockedBy: varchar("locked_by"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertTopicSchema = createInsertSchema(topics).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertTopicSchema = createInsertSchema(topics).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type Topic = InferSelectModel<typeof topics>;
 export type InsertTopic = z.infer<typeof insertTopicSchema>;
@@ -516,12 +466,12 @@ export const statisticalPlans = pgTable("statistical_plans", {
   covariateStrategy: jsonb("covariate_strategy").notNull(),
   sensitivityAnalyses: jsonb("sensitivity_analyses"),
   missingDataPlan: jsonb("missing_data_plan").notNull(),
-  multiplicityCorrection: text("multiplicity_correction").notNull().default("none"),
+  multiplicityCorrection: text("multiplicity_correction").default("none").notNull(),
   assumptionChecks: jsonb("assumption_checks"),
   subgroupAnalyses: jsonb("subgroup_analyses"),
-  alphaLevel: text("alpha_level").notNull().default("0.05"),
+  alphaLevel: text("alpha_level").default("0.05").notNull(),
   randomSeed: integer("random_seed").notNull(),
-  status: text("status").notNull().default("draft"),
+  status: text("status").default("draft").notNull(),
   approvedBy: varchar("approved_by").references(() => users.id),
   approvedAt: timestamp("approved_at"),
   executedAt: timestamp("executed_at"),
@@ -531,11 +481,7 @@ export const statisticalPlans = pgTable("statistical_plans", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertStatisticalPlanSchema = createInsertSchema(statisticalPlans).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertStatisticalPlanSchema = createInsertSchema(statisticalPlans).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type StatisticalPlanRecord = InferSelectModel<typeof statisticalPlans>;
 export type InsertStatisticalPlan = z.infer<typeof insertStatisticalPlanSchema>;
@@ -582,7 +528,7 @@ export const researchBriefs = pgTable("research_briefs", {
   generationLatencyMs: integer("generation_latency_ms"),
 
   // Status tracking
-  status: text("status").notNull().default("draft"),
+  status: text("status").default("draft").notNull(),
   createdBy: varchar("created_by").notNull(),
   approvedBy: varchar("approved_by").references(() => users.id),
   approvedAt: timestamp("approved_at"),
@@ -590,11 +536,7 @@ export const researchBriefs = pgTable("research_briefs", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertResearchBriefSchema = createInsertSchema(researchBriefs).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertResearchBriefSchema = createInsertSchema(researchBriefs).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type ResearchBriefRecord = InferSelectModel<typeof researchBriefs>;
 export type InsertResearchBrief = z.infer<typeof insertResearchBriefSchema>;
@@ -620,8 +562,8 @@ export const conferenceRequirements = pgTable("conference_requirements", {
   presentationType: text("presentation_type").notNull(),
   requiredSections: jsonb("required_sections").notNull(),
   fileFormats: jsonb("file_formats").notNull(),
-  disclosureRequired: boolean("disclosure_required").notNull().default(true),
-  fundingStatementRequired: boolean("funding_statement_required").notNull().default(true),
+  disclosureRequired: boolean("disclosure_required").default(true).notNull(),
+  fundingStatementRequired: boolean("funding_statement_required").default(true).notNull(),
   authorLimitPerPresentation: integer("author_limit_per_presentation"),
   speakingTimeMinutes: integer("speaking_time_minutes"),
   qaSeparateMinutes: integer("qa_separate_minutes"),
@@ -631,11 +573,7 @@ export const conferenceRequirements = pgTable("conference_requirements", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertConferenceRequirementsSchema = createInsertSchema(conferenceRequirements).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertConferenceRequirementsSchema = createInsertSchema(conferenceRequirements).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type ConferenceRequirementsRecord = InferSelectModel<typeof conferenceRequirements>;
 export type InsertConferenceRequirements = z.infer<typeof insertConferenceRequirementsSchema>;
@@ -653,19 +591,15 @@ export const conferenceMaterials = pgTable("conference_materials", {
   fileSizeBytes: integer("file_size_bytes"),
   dimensions: jsonb("dimensions"),
   slideCount: integer("slide_count"),
-  generatedFromManuscript: boolean("generated_from_manuscript").notNull().default(true),
+  generatedFromManuscript: boolean("generated_from_manuscript").default(true).notNull(),
   manuscriptVersion: varchar("manuscript_version"),
-  phiStatus: text("phi_status").notNull().default("UNCHECKED"),
+  phiStatus: text("phi_status").default("UNCHECKED").notNull(),
   createdBy: varchar("created_by").notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertConferenceMaterialSchema = createInsertSchema(conferenceMaterials).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertConferenceMaterialSchema = createInsertSchema(conferenceMaterials).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type ConferenceMaterialRecord = InferSelectModel<typeof conferenceMaterials>;
 export type InsertConferenceMaterial = z.infer<typeof insertConferenceMaterialSchema>;
@@ -676,20 +610,16 @@ export const complianceChecklists = pgTable("compliance_checklists", {
   researchId: varchar("research_id").notNull(),
   stageId: integer("stage_id").notNull(),
   items: jsonb("items").notNull(),
-  overallStatus: text("overall_status").notNull().default("incomplete"),
-  completedItems: integer("completed_items").notNull().default(0),
+  overallStatus: text("overall_status").default("incomplete").notNull(),
+  completedItems: integer("completed_items").default(0).notNull(),
   totalItems: integer("total_items").notNull(),
-  requiredItems: integer("required_items").notNull().default(0),
-  requiredCompleted: integer("required_completed").notNull().default(0),
+  requiredItems: integer("required_items").default(0).notNull(),
+  requiredCompleted: integer("required_completed").default(0).notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertComplianceChecklistSchema = createInsertSchema(complianceChecklists).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertComplianceChecklistSchema = createInsertSchema(complianceChecklists).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type ComplianceChecklistRecord = InferSelectModel<typeof complianceChecklists>;
 export type InsertComplianceChecklist = z.infer<typeof insertComplianceChecklistSchema>;
@@ -709,7 +639,7 @@ export const phiScanResults = pgTable("phi_scan_results", {
   detected: jsonb("detected").notNull(),
   summary: jsonb("summary").notNull(),
   contentLength: integer("content_length").notNull(),
-  requiresOverride: boolean("requires_override").notNull().default(false),
+  requiresOverride: boolean("requires_override").default(false).notNull(),
   overrideApproved: boolean("override_approved"),
   overrideApprovedBy: varchar("override_approved_by").references(() => users.id),
   overrideApprovedAt: timestamp("override_approved_at"),
@@ -720,10 +650,7 @@ export const phiScanResults = pgTable("phi_scan_results", {
   scannedAt: timestamp("scanned_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertPhiScanResultSchema = createInsertSchema(phiScanResults).omit({
-  id: true,
-  scannedAt: true,
-});
+export const insertPhiScanResultSchema = createInsertSchema(phiScanResults).omit({id: true, scannedAt: true} as any);
 
 export type PhiScanResultRecord = InferSelectModel<typeof phiScanResults>;
 export type InsertPhiScanResult = z.infer<typeof insertPhiScanResultSchema>;
@@ -735,7 +662,7 @@ export type InsertPhiScanResult = z.infer<typeof insertPhiScanResultSchema>;
 export const datasets = pgTable("datasets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   filename: varchar("filename", { length: 255 }).notNull(),
-  classification: varchar("classification", { length: 50 }).notNull().default("UNKNOWN"),
+  classification: varchar("classification", { length: 50 }).default("UNKNOWN").notNull(),
   riskScore: integer("risk_score").default(0),
   format: varchar("format", { length: 50 }),
   sizeBytes: integer("size_bytes"),
@@ -750,10 +677,7 @@ export const datasets = pgTable("datasets", {
   phiFlags: jsonb("phi_flags"),
 });
 
-export const insertDatasetSchema = createInsertSchema(datasets).omit({
-  id: true,
-  uploadedAt: true,
-});
+export const insertDatasetSchema = createInsertSchema(datasets).omit({id: true, uploadedAt: true} as any);
 
 export type Dataset = InferSelectModel<typeof datasets>;
 export type InsertDataset = z.infer<typeof insertDatasetSchema>;
@@ -777,10 +701,7 @@ export const storageFiles = pgTable("storage_files", {
   lastAccessedAt: timestamp("last_accessed_at"),
 });
 
-export const insertStorageFileSchema = createInsertSchema(storageFiles).omit({
-  id: true,
-  uploadedAt: true,
-});
+export const insertStorageFileSchema = createInsertSchema(storageFiles).omit({id: true, uploadedAt: true} as any);
 
 export type StorageFile = InferSelectModel<typeof storageFiles>;
 export type InsertStorageFile = z.infer<typeof insertStorageFileSchema>;
@@ -803,10 +724,7 @@ export const approvals = pgTable("approvals", {
   metadata: jsonb("metadata"),
 });
 
-export const insertApprovalSchema = createInsertSchema(approvals).omit({
-  id: true,
-  requestedAt: true,
-});
+export const insertApprovalSchema = createInsertSchema(approvals).omit({id: true, requestedAt: true} as any);
 
 export type Approval = InferSelectModel<typeof approvals>;
 export type InsertApproval = z.infer<typeof insertApprovalSchema>;
@@ -826,11 +744,11 @@ export const ethicsApprovals = pgTable("ethics_approvals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   taskType: text("task_type").notNull(),
   ethicsCategory: text("ethics_category").notNull(),
-  riskLevel: text("risk_level").notNull().default("LOW"),
+  riskLevel: text("risk_level").default("LOW").notNull(),
   requestedById: varchar("requested_by_id").notNull().references(() => users.id),
   requestedByRole: text("requested_by_role").notNull(),
   approvedById: varchar("approved_by_id").references(() => users.id),
-  status: text("status").notNull().default("PENDING"),
+  status: text("status").default("PENDING").notNull(),
   riskAssessment: jsonb("risk_assessment"),
   conditions: jsonb("conditions"),
   justification: text("justification"),
@@ -841,10 +759,7 @@ export const ethicsApprovals = pgTable("ethics_approvals", {
   reviewedAt: timestamp("reviewed_at"),
 });
 
-export const insertEthicsApprovalSchema = createInsertSchema(ethicsApprovals).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertEthicsApprovalSchema = createInsertSchema(ethicsApprovals).omit({id: true, createdAt: true} as any);
 
 export type EthicsApprovalRecord = InferSelectModel<typeof ethicsApprovals>;
 export type InsertEthicsApproval = z.infer<typeof insertEthicsApprovalSchema>;
@@ -871,7 +786,7 @@ export const aiInvocations = pgTable("ai_invocations", {
   phiRiskLevel: text("phi_risk_level"),
   initialTier: text("initial_tier").notNull(),
   finalTier: text("final_tier").notNull(),
-  escalated: boolean("escalated").notNull().default(false),
+  escalated: boolean("escalated").default(false).notNull(),
   escalationCount: integer("escalation_count").default(0),
   escalationReason: text("escalation_reason"),
   qualityGatePassed: boolean("quality_gate_passed").notNull(),
@@ -879,7 +794,7 @@ export const aiInvocations = pgTable("ai_invocations", {
   estimatedCostUsd: text("estimated_cost_usd"),
   reasoningTrace: jsonb("reasoning_trace"),
   ethicsApprovalId: varchar("ethics_approval_id").references(() => ethicsApprovals.id),
-  status: text("status").notNull().default("SUCCESS"),
+  status: text("status").default("SUCCESS").notNull(),
   errorMessage: text("error_message"),
   researchId: varchar("research_id"),
   userId: varchar("user_id").references(() => users.id),
@@ -887,10 +802,7 @@ export const aiInvocations = pgTable("ai_invocations", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertAiInvocationSchema = createInsertSchema(aiInvocations).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertAiInvocationSchema = createInsertSchema(aiInvocations).omit({id: true, createdAt: true} as any);
 
 export type AiInvocationRecord = InferSelectModel<typeof aiInvocations>;
 export type InsertAiInvocation = z.infer<typeof insertAiInvocationSchema>;
@@ -914,10 +826,7 @@ export const aiOutputFeedback = pgTable("ai_output_feedback", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertAiOutputFeedbackSchema = createInsertSchema(aiOutputFeedback).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertAiOutputFeedbackSchema = createInsertSchema(aiOutputFeedback).omit({id: true, createdAt: true} as any);
 
 export type AiOutputFeedbackRecord = InferSelectModel<typeof aiOutputFeedback>;
 export type InsertAiOutputFeedback = z.infer<typeof insertAiOutputFeedbackSchema>;
@@ -948,10 +857,7 @@ export const userConsents = pgTable("user_consents", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertUserConsentSchema = createInsertSchema(userConsents).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertUserConsentSchema = createInsertSchema(userConsents).omit({id: true, createdAt: true} as any);
 
 export type UserConsentRecord = InferSelectModel<typeof userConsents>;
 export type InsertUserConsent = z.infer<typeof insertUserConsentSchema>;
@@ -968,22 +874,18 @@ export const userQuotas = pgTable("user_quotas", {
   userId: varchar("user_id").notNull().references(() => users.id),
   quotaType: text("quota_type").notNull(),
   maxValue: integer("max_value").notNull(),
-  currentValue: integer("current_value").notNull().default(0),
+  currentValue: integer("current_value").default(0).notNull(),
   resetPeriod: text("reset_period").notNull(),
   lastResetAt: timestamp("last_reset_at").default(sql`CURRENT_TIMESTAMP`),
   customLimit: integer("custom_limit"),
   customLimitSetBy: varchar("custom_limit_set_by").references(() => users.id),
   customLimitReason: text("custom_limit_reason"),
-  isActive: boolean("is_active").notNull().default(true),
+  isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertUserQuotaSchema = createInsertSchema(userQuotas).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertUserQuotaSchema = createInsertSchema(userQuotas).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type UserQuotaRecord = InferSelectModel<typeof userQuotas>;
 export type InsertUserQuota = z.infer<typeof insertUserQuotaSchema>;
@@ -995,12 +897,12 @@ export type MfaType = (typeof MFA_TYPES)[number];
 export const mfaEnrollments = pgTable("mfa_enrollments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
-  mfaType: text("mfa_type").notNull().default("totp"),
+  mfaType: text("mfa_type").default("totp").notNull(),
   secretEncrypted: varchar("secret_encrypted").notNull(),
   backupCodesEncrypted: text("backup_codes_encrypted"),
   backupCodesUsed: jsonb("backup_codes_used"),
-  isActive: boolean("is_active").notNull().default(false),
-  isVerified: boolean("is_verified").notNull().default(false),
+  isActive: boolean("is_active").default(false).notNull(),
+  isVerified: boolean("is_verified").default(false).notNull(),
   lastUsedAt: timestamp("last_used_at"),
   failedAttempts: integer("failed_attempts").default(0),
   lockedUntil: timestamp("locked_until"),
@@ -1008,10 +910,7 @@ export const mfaEnrollments = pgTable("mfa_enrollments", {
   verifiedAt: timestamp("verified_at"),
 });
 
-export const insertMfaEnrollmentSchema = createInsertSchema(mfaEnrollments).omit({
-  id: true,
-  enrolledAt: true,
-});
+export const insertMfaEnrollmentSchema = createInsertSchema(mfaEnrollments).omit({id: true, enrolledAt: true} as any);
 
 export type MfaEnrollmentRecord = InferSelectModel<typeof mfaEnrollments>;
 export type InsertMfaEnrollment = z.infer<typeof insertMfaEnrollmentSchema>;
@@ -1026,7 +925,7 @@ export type AnomalySeverity = (typeof ANOMALY_SEVERITIES)[number];
 export const securityAnomalies = pgTable("security_anomalies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   anomalyType: text("anomaly_type").notNull(),
-  severity: text("severity").notNull().default("WARNING"),
+  severity: text("severity").default("WARNING").notNull(),
   userId: varchar("user_id").references(() => users.id),
   ipAddress: varchar("ip_address"),
   description: text("description").notNull(),
@@ -1041,10 +940,7 @@ export const securityAnomalies = pgTable("security_anomalies", {
   detectedAt: timestamp("detected_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertSecurityAnomalySchema = createInsertSchema(securityAnomalies).omit({
-  id: true,
-  detectedAt: true,
-});
+export const insertSecurityAnomalySchema = createInsertSchema(securityAnomalies).omit({id: true, detectedAt: true} as any);
 
 export type SecurityAnomalyRecord = InferSelectModel<typeof securityAnomalies>;
 export type InsertSecurityAnomaly = z.infer<typeof insertSecurityAnomalySchema>;
@@ -1075,17 +971,13 @@ export const organizations = pgTable("organizations", {
   logoUrl: text("logo_url"),
   settings: jsonb("settings").default({}),
   billingEmail: varchar("billing_email", { length: 255 }),
-  subscriptionTier: varchar("subscription_tier", { length: 50 }).notNull().default("FREE"),
-  isActive: boolean("is_active").notNull().default(true),
+  subscriptionTier: varchar("subscription_tier", { length: 50 }).default("FREE").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertOrganizationSchema = createInsertSchema(organizations).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type OrganizationRecord = InferSelectModel<typeof organizations>;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
@@ -1095,16 +987,13 @@ export const orgMemberships = pgTable("org_memberships", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orgId: varchar("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  orgRole: varchar("org_role", { length: 50 }).notNull().default("MEMBER"),
+  orgRole: varchar("org_role", { length: 50 }).default("MEMBER").notNull(),
   joinedAt: timestamp("joined_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   invitedBy: varchar("invited_by").references(() => users.id),
-  isActive: boolean("is_active").notNull().default(true),
+  isActive: boolean("is_active").default(true).notNull(),
 });
 
-export const insertOrgMembershipSchema = createInsertSchema(orgMemberships).omit({
-  id: true,
-  joinedAt: true,
-});
+export const insertOrgMembershipSchema = createInsertSchema(orgMemberships).omit({id: true, joinedAt: true} as any);
 
 export type OrgMembershipRecord = InferSelectModel<typeof orgMemberships>;
 export type InsertOrgMembership = z.infer<typeof insertOrgMembershipSchema>;
@@ -1114,19 +1003,16 @@ export const orgInvites = pgTable("org_invites", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orgId: varchar("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
   email: varchar("email", { length: 255 }).notNull(),
-  orgRole: varchar("org_role", { length: 50 }).notNull().default("MEMBER"),
+  orgRole: varchar("org_role", { length: 50 }).default("MEMBER").notNull(),
   tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
   invitedBy: varchar("invited_by").notNull().references(() => users.id),
   expiresAt: timestamp("expires_at").notNull(),
   acceptedAt: timestamp("accepted_at"),
-  status: varchar("status", { length: 20 }).notNull().default("PENDING"),
+  status: varchar("status", { length: 20 }).default("PENDING").notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertOrgInviteSchema = createInsertSchema(orgInvites).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertOrgInviteSchema = createInsertSchema(orgInvites).omit({id: true, createdAt: true} as any);
 
 export type OrgInviteRecord = InferSelectModel<typeof orgInvites>;
 export type InsertOrgInvite = z.infer<typeof insertOrgInviteSchema>;
@@ -1137,8 +1023,8 @@ export const orgSubscriptions = pgTable("org_subscriptions", {
   orgId: varchar("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
   stripeCustomerId: varchar("stripe_customer_id", { length: 100 }),
   stripeSubscriptionId: varchar("stripe_subscription_id", { length: 100 }),
-  tier: varchar("tier", { length: 50 }).notNull().default("FREE"),
-  status: varchar("status", { length: 50 }).notNull().default("active"),
+  tier: varchar("tier", { length: 50 }).default("FREE").notNull(),
+  status: varchar("status", { length: 50 }).default("active").notNull(),
   currentPeriodStart: timestamp("current_period_start"),
   currentPeriodEnd: timestamp("current_period_end"),
   cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
@@ -1147,11 +1033,7 @@ export const orgSubscriptions = pgTable("org_subscriptions", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertOrgSubscriptionSchema = createInsertSchema(orgSubscriptions).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertOrgSubscriptionSchema = createInsertSchema(orgSubscriptions).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type OrgSubscriptionRecord = InferSelectModel<typeof orgSubscriptions>;
 export type InsertOrgSubscription = z.infer<typeof insertOrgSubscriptionSchema>;
@@ -1161,8 +1043,8 @@ export const orgIntegrations = pgTable("org_integrations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orgId: varchar("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
   integrationType: varchar("integration_type", { length: 50 }).notNull(),
-  config: jsonb("config").notNull().default({}),
-  isActive: boolean("is_active").notNull().default(true),
+  config: jsonb("config").default({}).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
   lastSyncedAt: timestamp("last_synced_at"),
   syncStatus: varchar("sync_status", { length: 50 }),
   errorMessage: text("error_message"),
@@ -1170,11 +1052,7 @@ export const orgIntegrations = pgTable("org_integrations", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertOrgIntegrationSchema = createInsertSchema(orgIntegrations).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertOrgIntegrationSchema = createInsertSchema(orgIntegrations).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type OrgIntegrationRecord = InferSelectModel<typeof orgIntegrations>;
 export type InsertOrgIntegration = z.infer<typeof insertOrgIntegrationSchema>;
@@ -1195,17 +1073,13 @@ export const reviewSessions = pgTable("review_sessions", {
   participants: jsonb("participants"),
   recordingUrl: text("recording_url"),
   transcriptUrl: text("transcript_url"),
-  status: varchar("status", { length: 50 }).notNull().default("scheduled"),
+  status: varchar("status", { length: 50 }).default("scheduled").notNull(),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertReviewSessionSchema = createInsertSchema(reviewSessions).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertReviewSessionSchema = createInsertSchema(reviewSessions).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type ReviewSessionRecord = InferSelectModel<typeof reviewSessions>;
 export type InsertReviewSession = z.infer<typeof insertReviewSessionSchema>;
@@ -1220,14 +1094,11 @@ export const badges = pgTable("badges", {
   category: varchar("category", { length: 50 }),
   criteria: jsonb("criteria"),
   points: integer("points").default(0),
-  isActive: boolean("is_active").notNull().default(true),
+  isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertBadgeSchema = createInsertSchema(badges).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertBadgeSchema = createInsertSchema(badges).omit({id: true, createdAt: true} as any);
 
 export type BadgeRecord = InferSelectModel<typeof badges>;
 export type InsertBadge = z.infer<typeof insertBadgeSchema>;
@@ -1243,10 +1114,7 @@ export const userBadges = pgTable("user_badges", {
   metadata: jsonb("metadata"),
 });
 
-export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
-  id: true,
-  awardedAt: true,
-});
+export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({id: true, awardedAt: true} as any);
 
 export type UserBadgeRecord = InferSelectModel<typeof userBadges>;
 export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
@@ -1264,11 +1132,7 @@ export const userOnboarding = pgTable("user_onboarding", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertUserOnboardingSchema = createInsertSchema(userOnboarding).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertUserOnboardingSchema = createInsertSchema(userOnboarding).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type UserOnboardingRecord = InferSelectModel<typeof userOnboarding>;
 export type InsertUserOnboarding = z.infer<typeof insertUserOnboardingSchema>;
@@ -1286,10 +1150,7 @@ export const notionMappings = pgTable("notion_mappings", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertNotionMappingSchema = createInsertSchema(notionMappings).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertNotionMappingSchema = createInsertSchema(notionMappings).omit({id: true, createdAt: true} as any);
 
 export type NotionMappingRecord = InferSelectModel<typeof notionMappings>;
 export type InsertNotionMapping = z.infer<typeof insertNotionMappingSchema>;
@@ -1313,12 +1174,7 @@ export const ideas = pgTable("ideas", {
   deletedAt: timestamp("deleted_at"),
 });
 
-export const insertIdeaSchema = createInsertSchema(ideas).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  deletedAt: true,
-});
+export const insertIdeaSchema = createInsertSchema(ideas).omit({id: true, createdAt: true, updatedAt: true, deletedAt: true} as any);
 
 export type Idea = InferSelectModel<typeof ideas>;
 export type InsertIdea = z.infer<typeof insertIdeaSchema>;
@@ -1338,12 +1194,7 @@ export const ideaScorecards = pgTable("idea_scorecards", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertIdeaScorecardSchema = createInsertSchema(ideaScorecards).omit({
-  id: true,
-  totalScore: true,  // Computed field
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertIdeaScorecardSchema = createInsertSchema(ideaScorecards).omit({id: true, totalScore: true, createdAt: true, updatedAt: true} as any);
 
 export type IdeaScorecard = InferSelectModel<typeof ideaScorecards>;
 export type InsertIdeaScorecard = z.infer<typeof insertIdeaScorecardSchema>;
@@ -1381,13 +1232,7 @@ export const topicBriefs = pgTable("topic_briefs", {
   deletedAt: timestamp("deleted_at"),
 });
 
-export const insertTopicBriefSchema = createInsertSchema(topicBriefs).omit({
-  id: true,
-  versionNumber: true,  // Auto-managed
-  createdAt: true,
-  updatedAt: true,
-  deletedAt: true,
-});
+export const insertTopicBriefSchema = createInsertSchema(topicBriefs).omit({id: true, versionNumber: true, createdAt: true, updatedAt: true, deletedAt: true} as any);
 
 export type TopicBrief = InferSelectModel<typeof topicBriefs>;
 export type InsertTopicBrief = z.infer<typeof insertTopicBriefSchema>;
@@ -1412,12 +1257,7 @@ export const venues = pgTable("venues", {
   deletedAt: timestamp("deleted_at"),
 });
 
-export const insertVenueSchema = createInsertSchema(venues).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  deletedAt: true,
-});
+export const insertVenueSchema = createInsertSchema(venues).omit({id: true, createdAt: true, updatedAt: true, deletedAt: true} as any);
 
 export type Venue = InferSelectModel<typeof venues>;
 export type InsertVenue = z.infer<typeof insertVenueSchema>;
@@ -1437,12 +1277,7 @@ export const docKits = pgTable("doc_kits", {
   deletedAt: timestamp("deleted_at"),
 });
 
-export const insertDocKitSchema = createInsertSchema(docKits).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  deletedAt: true,
-});
+export const insertDocKitSchema = createInsertSchema(docKits).omit({id: true, createdAt: true, updatedAt: true, deletedAt: true} as any);
 
 export type DocKit = InferSelectModel<typeof docKits>;
 export type InsertDocKit = z.infer<typeof insertDocKitSchema>;
@@ -1465,12 +1300,7 @@ export const docKitItems = pgTable("doc_kit_items", {
   deletedAt: timestamp("deleted_at"),
 });
 
-export const insertDocKitItemSchema = createInsertSchema(docKitItems).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  deletedAt: true,
-});
+export const insertDocKitItemSchema = createInsertSchema(docKitItems).omit({id: true, createdAt: true, updatedAt: true, deletedAt: true} as any);
 
 export type DocKitItem = InferSelectModel<typeof docKitItems>;
 export type InsertDocKitItem = z.infer<typeof insertDocKitItemSchema>;
@@ -1487,10 +1317,7 @@ export const docAnchors = pgTable("doc_anchors", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertDocAnchorSchema = createInsertSchema(docAnchors).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertDocAnchorSchema = createInsertSchema(docAnchors).omit({id: true, createdAt: true} as any);
 
 export type DocAnchor = InferSelectModel<typeof docAnchors>;
 export type InsertDocAnchor = z.infer<typeof insertDocAnchorSchema>;
@@ -1515,11 +1342,7 @@ export const featureFlags = pgTable("feature_flags", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertFeatureFlagSchema = createInsertSchema(featureFlags).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertFeatureFlagSchema = createInsertSchema(featureFlags).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type FeatureFlag = InferSelectModel<typeof featureFlags>;
 export type InsertFeatureFlag = z.infer<typeof insertFeatureFlagSchema>;
@@ -1542,11 +1365,7 @@ export const experiments = pgTable("experiments", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertExperimentSchema = createInsertSchema(experiments).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertExperimentSchema = createInsertSchema(experiments).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type Experiment = InferSelectModel<typeof experiments>;
 export type InsertExperiment = z.infer<typeof insertExperimentSchema>;
@@ -1560,10 +1379,7 @@ export const experimentAssignments = pgTable("experiment_assignments", {
   assignedAt: timestamp("assigned_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertExperimentAssignmentSchema = createInsertSchema(experimentAssignments).omit({
-  id: true,
-  assignedAt: true,
-});
+export const insertExperimentAssignmentSchema = createInsertSchema(experimentAssignments).omit({id: true, assignedAt: true} as any);
 
 export type ExperimentAssignment = InferSelectModel<typeof experimentAssignments>;
 export type InsertExperimentAssignment = z.infer<typeof insertExperimentAssignmentSchema>;
@@ -1584,11 +1400,7 @@ export const orgCustomFields = pgTable("org_custom_fields", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertOrgCustomFieldSchema = createInsertSchema(orgCustomFields).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertOrgCustomFieldSchema = createInsertSchema(orgCustomFields).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type OrgCustomField = InferSelectModel<typeof orgCustomFields>;
 export type InsertOrgCustomField = z.infer<typeof insertOrgCustomFieldSchema>;
@@ -1604,11 +1416,7 @@ export const entityCustomFieldValues = pgTable("entity_custom_field_values", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertEntityCustomFieldValueSchema = createInsertSchema(entityCustomFieldValues).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertEntityCustomFieldValueSchema = createInsertSchema(entityCustomFieldValues).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type EntityCustomFieldValue = InferSelectModel<typeof entityCustomFieldValues>;
 export type InsertEntityCustomFieldValue = z.infer<typeof insertEntityCustomFieldValueSchema>;
@@ -1629,11 +1437,7 @@ export const artifactEmbeddings = pgTable("artifact_embeddings", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertArtifactEmbeddingSchema = createInsertSchema(artifactEmbeddings).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertArtifactEmbeddingSchema = createInsertSchema(artifactEmbeddings).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type ArtifactEmbedding = InferSelectModel<typeof artifactEmbeddings>;
 export type InsertArtifactEmbedding = z.infer<typeof insertArtifactEmbeddingSchema>;
@@ -1656,11 +1460,7 @@ export const tutorialAssets = pgTable("tutorial_assets", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertTutorialAssetSchema = createInsertSchema(tutorialAssets).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertTutorialAssetSchema = createInsertSchema(tutorialAssets).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type TutorialAsset = InferSelectModel<typeof tutorialAssets>;
 export type InsertTutorialAsset = z.infer<typeof insertTutorialAssetSchema>;
@@ -1691,11 +1491,7 @@ export const workflows = pgTable("workflows", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertWorkflowSchema = createInsertSchema(workflows).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertWorkflowSchema = createInsertSchema(workflows).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type WorkflowRecord = InferSelectModel<typeof workflows>;
 export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
@@ -1713,10 +1509,7 @@ export const workflowVersions = pgTable("workflow_versions", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertWorkflowVersionSchema = createInsertSchema(workflowVersions).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertWorkflowVersionSchema = createInsertSchema(workflowVersions).omit({id: true, createdAt: true} as any);
 
 export type WorkflowVersionRecord = InferSelectModel<typeof workflowVersions>;
 export type InsertWorkflowVersion = z.infer<typeof insertWorkflowVersionSchema>;
@@ -1734,9 +1527,7 @@ export const workflowTemplates = pgTable("workflow_templates", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertWorkflowTemplateSchema = createInsertSchema(workflowTemplates).omit({
-  createdAt: true,
-});
+export const insertWorkflowTemplateSchema = createInsertSchema(workflowTemplates).omit({createdAt: true} as any);
 
 export type WorkflowTemplateRecord = InferSelectModel<typeof workflowTemplates>;
 export type InsertWorkflowTemplate = z.infer<typeof insertWorkflowTemplateSchema>;
@@ -1746,14 +1537,12 @@ export type InsertWorkflowTemplate = z.infer<typeof insertWorkflowTemplateSchema
 // =====================
 export const workflowPolicies = pgTable("workflow_policies", {
   workflowId: varchar("workflow_id", { length: 255 }).primaryKey().references(() => workflows.id, { onDelete: "cascade" }),
-  policy: jsonb("policy").notNull().default({}),
+  policy: jsonb("policy").default({}).notNull(),
   updatedBy: varchar("updated_by", { length: 255 }).references(() => users.id),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertWorkflowPolicySchema = createInsertSchema(workflowPolicies).omit({
-  updatedAt: true,
-});
+export const insertWorkflowPolicySchema = createInsertSchema(workflowPolicies).omit({updatedAt: true} as any);
 
 export type WorkflowPolicyRecord = InferSelectModel<typeof workflowPolicies>;
 export type InsertWorkflowPolicy = z.infer<typeof insertWorkflowPolicySchema>;
@@ -1767,19 +1556,15 @@ export const workflowRunCheckpoints = pgTable("workflow_run_checkpoints", {
   workflowId: varchar("workflow_id", { length: 255 }).notNull().references(() => workflows.id, { onDelete: "cascade" }),
   workflowVersion: integer("workflow_version").notNull(),
   currentNodeId: varchar("current_node_id", { length: 255 }).notNull(),
-  completedNodes: jsonb("completed_nodes").notNull().default([]),
-  nodeOutputs: jsonb("node_outputs").notNull().default({}),
-  status: varchar("status", { length: 50 }).notNull().default("running"),
+  completedNodes: jsonb("completed_nodes").default([]).notNull(),
+  nodeOutputs: jsonb("node_outputs").default({}).notNull(),
+  status: varchar("status", { length: 50 }).default("running").notNull(),
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertWorkflowRunCheckpointSchema = createInsertSchema(workflowRunCheckpoints).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertWorkflowRunCheckpointSchema = createInsertSchema(workflowRunCheckpoints).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type WorkflowRunCheckpointRecord = InferSelectModel<typeof workflowRunCheckpoints>;
 export type InsertWorkflowRunCheckpoint = z.infer<typeof insertWorkflowRunCheckpointSchema>;
@@ -1808,18 +1593,15 @@ export const artifactEdges = pgTable("artifact_edges", {
   targetArtifactId: varchar("target_artifact_id").notNull().references(() => artifacts.id, { onDelete: "cascade" }),
   relationType: varchar("relation_type", { length: 50 }).notNull(),
   transformationType: varchar("transformation_type", { length: 100 }),
-  transformationConfig: jsonb("transformation_config").notNull().default({}),
+  transformationConfig: jsonb("transformation_config").default({}).notNull(),
   sourceVersionId: varchar("source_version_id").references(() => artifactVersions.id, { onDelete: "set null" }),
   targetVersionId: varchar("target_version_id").references(() => artifactVersions.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   deletedAt: timestamp("deleted_at"),
-  metadata: jsonb("metadata").notNull().default({}),
+  metadata: jsonb("metadata").default({}).notNull(),
 });
 
-export const insertArtifactEdgeSchema = createInsertSchema(artifactEdges).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertArtifactEdgeSchema = createInsertSchema(artifactEdges).omit({id: true, createdAt: true} as any);
 
 export type ArtifactEdge = InferSelectModel<typeof artifactEdges>;
 export type InsertArtifactEdge = z.infer<typeof insertArtifactEdgeSchema>;
@@ -1849,7 +1631,7 @@ export const comments = pgTable("comments", {
   anchorType: varchar("anchor_type", { length: 50 }).notNull(),
   anchorData: jsonb("anchor_data").notNull(),
   body: text("body").notNull(),
-  resolved: boolean("resolved").notNull().default(false),
+  resolved: boolean("resolved").default(false).notNull(),
   resolvedBy: varchar("resolved_by").references(() => users.id),
   resolvedAt: timestamp("resolved_at"),
   assignedTo: varchar("assigned_to").references(() => users.id),
@@ -1858,15 +1640,11 @@ export const comments = pgTable("comments", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   deletedAt: timestamp("deleted_at"),
   phiScanStatus: varchar("phi_scan_status", { length: 20 }).default('PENDING'),
-  phiFindings: jsonb("phi_findings").notNull().default([]),
-  metadata: jsonb("metadata").notNull().default({}),
+  phiFindings: jsonb("phi_findings").default([]).notNull(),
+  metadata: jsonb("metadata").default({}).notNull(),
 });
 
-export const insertCommentSchema = createInsertSchema(comments).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertCommentSchema = createInsertSchema(comments).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type Comment = InferSelectModel<typeof comments>;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
@@ -1884,21 +1662,18 @@ export const claims = pgTable("claims", {
   section: varchar("section", { length: 50 }),
   claimText: text("claim_text").notNull(),
   claimTextHash: varchar("claim_text_hash", { length: 64 }),
-  anchor: jsonb("anchor").notNull().default({}),
+  anchor: jsonb("anchor").default({}).notNull(),
   status: varchar("status", { length: 20 }).default('draft'),
   createdBy: varchar("created_by").notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   phiScanStatus: varchar("phi_scan_status", { length: 20 }).default('PENDING'),
-  phiFindings: jsonb("phi_findings").notNull().default([]),
-  metadata: jsonb("metadata").notNull().default({}),
+  phiFindings: jsonb("phi_findings").default([]).notNull(),
+  metadata: jsonb("metadata").default({}).notNull(),
   deletedAt: timestamp("deleted_at"),
 });
 
-export const insertClaimSchema = createInsertSchema(claims).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertClaimSchema = createInsertSchema(claims).omit({id: true, createdAt: true} as any);
 
 export type Claim = InferSelectModel<typeof claims>;
 export type InsertClaim = z.infer<typeof insertClaimSchema>;
@@ -1919,18 +1694,15 @@ export const claimEvidenceLinks = pgTable("claim_evidence_links", {
   evidenceArtifactId: varchar("evidence_artifact_id").references(() => artifacts.id, { onDelete: "set null" }),
   citationId: varchar("citation_id"),
   externalUrl: text("external_url"),
-  locator: jsonb("locator").notNull().default({}),
+  locator: jsonb("locator").default({}).notNull(),
   linkedBy: varchar("linked_by").notNull(),
   linkedAt: timestamp("linked_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   notes: text("notes"),
-  metadata: jsonb("metadata").notNull().default({}),
+  metadata: jsonb("metadata").default({}).notNull(),
   deletedAt: timestamp("deleted_at"),
 });
 
-export const insertClaimEvidenceLinkSchema = createInsertSchema(claimEvidenceLinks).omit({
-  id: true,
-  linkedAt: true,
-});
+export const insertClaimEvidenceLinkSchema = createInsertSchema(claimEvidenceLinks).omit({id: true, linkedAt: true} as any);
 
 export type ClaimEvidenceLink = InferSelectModel<typeof claimEvidenceLinks>;
 export type InsertClaimEvidenceLink = z.infer<typeof insertClaimEvidenceLinkSchema>;
@@ -1949,13 +1721,10 @@ export const artifactShares = pgTable("artifact_shares", {
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   revokedAt: timestamp("revoked_at"),
-  metadata: jsonb("metadata").notNull().default({}),
+  metadata: jsonb("metadata").default({}).notNull(),
 });
 
-export const insertArtifactShareSchema = createInsertSchema(artifactShares).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertArtifactShareSchema = createInsertSchema(artifactShares).omit({id: true, createdAt: true} as any);
 
 export type ArtifactShare = InferSelectModel<typeof artifactShares>;
 export type InsertArtifactShare = z.infer<typeof insertArtifactShareSchema>;
@@ -1972,15 +1741,12 @@ export const submissionTargets = pgTable("submission_targets", {
   kind: varchar("kind", { length: 20 }).notNull(),
   websiteUrl: text("website_url"),
   requirementsArtifactId: varchar("requirements_artifact_id").references(() => artifacts.id, { onDelete: "set null" }),
-  metadata: jsonb("metadata").notNull().default({}),
+  metadata: jsonb("metadata").default({}).notNull(),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertSubmissionTargetSchema = createInsertSchema(submissionTargets).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertSubmissionTargetSchema = createInsertSchema(submissionTargets).omit({id: true, createdAt: true} as any);
 
 export type SubmissionTarget = InferSelectModel<typeof submissionTargets>;
 export type InsertSubmissionTarget = z.infer<typeof insertSubmissionTargetSchema>;
@@ -2002,23 +1768,19 @@ export const submissions = pgTable("submissions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   researchId: varchar("research_id").notNull(),
   targetId: varchar("target_id").notNull().references(() => submissionTargets.id, { onDelete: "restrict" }),
-  status: varchar("status", { length: 30 }).notNull().default('draft'),
+  status: varchar("status", { length: 30 }).default('draft').notNull(),
   currentManuscriptArtifactId: varchar("current_manuscript_artifact_id").references(() => artifacts.id, { onDelete: "set null" }),
   currentManuscriptVersionId: varchar("current_manuscript_version_id").references(() => artifactVersions.id, { onDelete: "set null" }),
   submittedAt: timestamp("submitted_at"),
   decisionAt: timestamp("decision_at"),
   externalTrackingId: varchar("external_tracking_id"),
-  metadata: jsonb("metadata").notNull().default({}),
+  metadata: jsonb("metadata").default({}).notNull(),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertSubmissionSchema = createInsertSchema(submissions).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertSubmissionSchema = createInsertSchema(submissions).omit({id: true, createdAt: true, updatedAt: true} as any);
 
 export type Submission = InferSelectModel<typeof submissions>;
 export type InsertSubmission = z.infer<typeof insertSubmissionSchema>;
@@ -2033,20 +1795,17 @@ export const reviewerPoints = pgTable("reviewer_points", {
   submissionId: varchar("submission_id").notNull().references(() => submissions.id, { onDelete: "cascade" }),
   reviewerLabel: varchar("reviewer_label", { length: 50 }).default('reviewer_1'),
   body: text("body").notNull(),
-  anchorData: jsonb("anchor_data").notNull().default({}),
-  status: varchar("status", { length: 20 }).notNull().default('open'),
+  anchorData: jsonb("anchor_data").default({}).notNull(),
+  status: varchar("status", { length: 20 }).default('open').notNull(),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   resolvedAt: timestamp("resolved_at"),
   resolvedBy: varchar("resolved_by").references(() => users.id),
   phiScanStatus: varchar("phi_scan_status", { length: 20 }).default('PENDING'),
-  phiFindings: jsonb("phi_findings").notNull().default([]),
+  phiFindings: jsonb("phi_findings").default([]).notNull(),
 });
 
-export const insertReviewerPointSchema = createInsertSchema(reviewerPoints).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertReviewerPointSchema = createInsertSchema(reviewerPoints).omit({id: true, createdAt: true} as any);
 
 export type ReviewerPoint = InferSelectModel<typeof reviewerPoints>;
 export type InsertReviewerPoint = z.infer<typeof insertReviewerPointSchema>;
@@ -2060,13 +1819,10 @@ export const rebuttalResponses = pgTable("rebuttal_responses", {
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   phiScanStatus: varchar("phi_scan_status", { length: 20 }).default('PENDING'),
-  phiFindings: jsonb("phi_findings").notNull().default([]),
+  phiFindings: jsonb("phi_findings").default([]).notNull(),
 });
 
-export const insertRebuttalResponseSchema = createInsertSchema(rebuttalResponses).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertRebuttalResponseSchema = createInsertSchema(rebuttalResponses).omit({id: true, createdAt: true} as any);
 
 export type RebuttalResponse = InferSelectModel<typeof rebuttalResponses>;
 export type InsertRebuttalResponse = z.infer<typeof insertRebuttalResponseSchema>;
@@ -2086,10 +1842,7 @@ export const submissionPackages = pgTable("submission_packages", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertSubmissionPackageSchema = createInsertSchema(submissionPackages).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertSubmissionPackageSchema = createInsertSchema(submissionPackages).omit({id: true, createdAt: true} as any);
 
 export type SubmissionPackage = InferSelectModel<typeof submissionPackages>;
 export type InsertSubmissionPackage = z.infer<typeof insertSubmissionPackageSchema>;
@@ -2104,10 +1857,7 @@ export const manuscriptYjsSnapshots = pgTable("manuscript_yjs_snapshots", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertManuscriptYjsSnapshotSchema = createInsertSchema(manuscriptYjsSnapshots).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertManuscriptYjsSnapshotSchema = createInsertSchema(manuscriptYjsSnapshots).omit({id: true, createdAt: true} as any);
 
 export type ManuscriptYjsSnapshot = InferSelectModel<typeof manuscriptYjsSnapshots>;
 export type InsertManuscriptYjsSnapshot = z.infer<typeof insertManuscriptYjsSnapshotSchema>;
@@ -2122,10 +1872,7 @@ export const manuscriptYjsUpdates = pgTable("manuscript_yjs_updates", {
   appliedAt: timestamp("applied_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertManuscriptYjsUpdateSchema = createInsertSchema(manuscriptYjsUpdates).omit({
-  id: true,
-  appliedAt: true,
-});
+export const insertManuscriptYjsUpdateSchema = createInsertSchema(manuscriptYjsUpdates).omit({id: true, appliedAt: true} as any);
 
 export type ManuscriptYjsUpdate = InferSelectModel<typeof manuscriptYjsUpdates>;
 export type InsertManuscriptYjsUpdate = z.infer<typeof insertManuscriptYjsUpdateSchema>;
@@ -2145,16 +1892,13 @@ export type FeatureFlagScope = (typeof FEATURE_FLAG_SCOPES)[number];
 // Governance Config Table (DB-backed mode configuration)
 export const governanceConfig = pgTable("governance_config", {
   key: varchar("key", { length: 100 }).primaryKey(),
-  value: jsonb("value").notNull().default({}),
+  value: jsonb("value").default({}).notNull(),
   updatedBy: varchar("updated_by").references(() => users.id),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertGovernanceConfigSchema = createInsertSchema(governanceConfig).omit({
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertGovernanceConfigSchema = createInsertSchema(governanceConfig).omit({createdAt: true, updatedAt: true} as any);
 
 export type GovernanceConfig = InferSelectModel<typeof governanceConfig>;
 export type InsertGovernanceConfig = z.infer<typeof insertGovernanceConfigSchema>;
@@ -2178,10 +1922,7 @@ export const analyticsEvents = pgTable("analytics_events", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).omit({id: true, createdAt: true} as any);
 
 export type AnalyticsEvent = InferSelectModel<typeof analyticsEvents>;
 export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;

@@ -345,7 +345,7 @@ interface GovernanceButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEle
   requireDemoMode?: boolean;
   requireExportAllowed?: boolean;
   children: React.ReactNode;
-  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost';
 }
 
 export function GovernanceButton({

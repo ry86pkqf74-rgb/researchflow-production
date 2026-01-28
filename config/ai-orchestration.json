@@ -1,0 +1,168 @@
+{
+  "$schema": "https://researchflow.dev/schemas/ai-orchestration.json",
+  "version": "1.0.0",
+  "name": "ResearchFlow AI Orchestration",
+  "description": "Unified coordination layer for all AI tools, services, and integrations",
+
+  "providers": {
+    "cloud": {
+      "anthropic": {
+        "enabled": true,
+        "models": ["claude-sonnet-4-20250514", "claude-3-opus-20240229"],
+        "capabilities": ["reasoning", "code-review", "analysis", "chat"],
+        "priority": 1,
+        "rateLimit": { "rpm": 1000, "tpm": 100000 }
+      },
+      "openai": {
+        "enabled": true,
+        "models": ["gpt-4-turbo", "gpt-4o", "text-embedding-3-large"],
+        "capabilities": ["code-generation", "embeddings", "analysis"],
+        "priority": 2,
+        "rateLimit": { "rpm": 500, "tpm": 90000 }
+      },
+      "xai": {
+        "enabled": true,
+        "models": ["grok-2-latest", "grok-2-mini"],
+        "capabilities": ["reasoning", "code", "chat"],
+        "priority": 3,
+        "rateLimit": { "rpm": 100, "tpm": 50000 }
+      },
+      "mercury": {
+        "enabled": true,
+        "models": ["mercury-coder-small-beta"],
+        "capabilities": ["autocomplete", "code-completion"],
+        "priority": 1,
+        "useFor": ["autocomplete"]
+      },
+      "sourcegraph": {
+        "enabled": true,
+        "capabilities": ["code-search", "context-retrieval", "codebase-analysis"],
+        "endpoint": "https://sourcegraph.com/.api"
+      }
+    },
+    "local": {
+      "lm-studio": {
+        "enabled": true,
+        "endpoint": "http://localhost:1234/v1",
+        "capabilities": ["chat", "code", "phi-safe"],
+        "useFor": ["phi-data", "offline", "cost-savings"],
+        "fallbackTo": "anthropic"
+      }
+    }
+  },
+
+  "tools": {
+    "ide": {
+      "cursor": {
+        "enabled": true,
+        "configPath": "~/Library/Application Support/Cursor/User/settings.json",
+        "providers": ["anthropic", "openai"],
+        "useFor": ["interactive-coding", "refactoring"]
+      },
+      "continue-dev": {
+        "enabled": true,
+        "configPath": "~/.continue/config.yaml",
+        "providers": ["anthropic", "openai", "xai", "mercury", "lm-studio"],
+        "useFor": ["terminal-ai", "code-review", "autocomplete"]
+      },
+      "codex-cli": {
+        "enabled": true,
+        "version": "0.92.0",
+        "providers": ["openai"],
+        "useFor": ["terminal-commands", "shell-automation"]
+      }
+    },
+    "design": {
+      "figma": {
+        "enabled": true,
+        "useFor": ["ui-components", "design-tokens", "prototypes"]
+      }
+    },
+    "infrastructure": {
+      "docker": {
+        "enabled": true,
+        "services": [
+          "orchestrator",
+          "worker",
+          "web",
+          "collab",
+          "guideline-engine",
+          "postgres",
+          "redis"
+        ],
+        "composeFile": "docker-compose.yml"
+      },
+      "github": {
+        "enabled": true,
+        "repo": "researchflow-production",
+        "workflows": ["ai-code-review.yml"],
+        "authenticated": true
+      }
+    },
+    "productivity": {
+      "notion": {
+        "enabled": true,
+        "databases": {
+          "tasks": "ResearchFlow Deployment Tasks",
+          "aiLogs": "AI Tool Usage Log"
+        },
+        "useFor": ["task-tracking", "documentation", "coordination"]
+      }
+    }
+  },
+
+  "routing": {
+    "default": "anthropic",
+    "rules": [
+      {
+        "condition": { "containsPHI": true },
+        "provider": "lm-studio",
+        "fallback": "anthropic"
+      },
+      {
+        "condition": { "taskType": "autocomplete" },
+        "provider": "mercury"
+      },
+      {
+        "condition": { "taskType": "embeddings" },
+        "provider": "openai"
+      },
+      {
+        "condition": { "taskType": "code-search" },
+        "provider": "sourcegraph"
+      },
+      {
+        "condition": { "requiresReasoning": true, "complexity": "high" },
+        "provider": "anthropic",
+        "model": "claude-3-opus-20240229"
+      }
+    ]
+  },
+
+  "coordination": {
+    "notion": {
+      "syncTasks": true,
+      "logUsage": true,
+      "updateOnCompletion": true
+    },
+    "github": {
+      "autoReview": true,
+      "createIssues": true,
+      "updatePRs": true
+    },
+    "docker": {
+      "healthCheck": true,
+      "autoRestart": false
+    }
+  },
+
+  "monitoring": {
+    "enabled": true,
+    "metrics": ["latency", "tokens", "cost", "errors"],
+    "alertThresholds": {
+      "errorRate": 0.05,
+      "latencyP99": 30000,
+      "dailyCostUsd": 50
+    }
+  }
+}

@@ -6,6 +6,7 @@ export {
   LoadingError,
   AsyncBoundary,
   useErrorHandler,
+  withErrorBoundary,
   type ErrorDetails,
   type ErrorSeverity,
   type ErrorBoundaryProps,

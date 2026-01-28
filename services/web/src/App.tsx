@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from "react";
+import React, { useEffect, lazy, Suspense } from "react";
 import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -8,10 +8,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { AIApprovalGateProvider } from "@/components/ui/ai-approval-gate";
 import { PhiGateProvider } from "@/components/ui/phi-gate";
 import { SafetyBanner } from "@/components/safety/safety-banner";
-import { ModeBanner } from "@/components/mode/ModeBanner";
+import { GovernanceModeControl } from "@/components/governance";
 import { DemoWatermark } from "@/components/governance/DemoWatermark";
 import { AuthGate } from "@/components/mode/AuthGate";
-import { Breadcrumbs } from "@/components/shell/Breadcrumbs";
 import { useModeStore } from "@/stores/mode-store";
 import { useOrgStore } from "@/stores/org-store";
 import { useAuth } from "@/hooks/use-auth";
@@ -52,8 +51,6 @@ import PaperViewerPage from "@/pages/paper-viewer";
 import StatisticalAnalysisPage from "@/pages/statistical-analysis";
 import HubPage from "@/pages/hub";
 import TimelinePage from "@/pages/timeline";
-import { OrgSelector } from "@/components/org";
-import { AdaptiveNavigation } from "@/components/nav";
 import { ErrorBoundary } from "@/components/errors/ErrorBoundary";
 
 // Lazy load components that depend on reactflow (which may fail to load)
@@ -87,6 +84,7 @@ function ModeInitializer() {
       effectiveMode = 'OFFLINE';
     }
 
+    // eslint-disable-next-line no-console
     console.log('[ModeInitializer] Setting mode:', effectiveMode, '(authenticated:', isAuthenticated, ', aiEnabled:', aiEnabled, ')');
     setMode(effectiveMode);
   }, [isAuthenticated, aiEnabled, authLoading, setMode]);
@@ -465,7 +463,11 @@ function App() {
           <PhiGateProvider>
             <TooltipProvider>
               <SafetyBanner />
-              <ModeBanner />
+              <GovernanceModeControl
+                variant="banner"
+                enableModeSwitching={true}
+                dismissible={true}
+              />
               <DemoWatermark />
               <div className="min-h-screen">
                 <Toaster />

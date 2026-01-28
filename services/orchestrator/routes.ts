@@ -6327,5 +6327,90 @@ Return ONLY valid JSON, no markdown.`;
     }
   });
 
+  // ============================================================================
+  // n8n CLOUD INTEGRATION ROUTES
+  // ============================================================================
+
+  // POST /api/n8n/webhook/:path - Receive webhook from n8n
+  app.post("/api/n8n/webhook/:path", async (req: Request, res: Response) => {
+    try {
+      const webhookPath = req.params.path;
+      const payload = req.body;
+
+      console.log(`n8n webhook received: ${webhookPath}`, payload);
+
+      // Handle different webhook types
+      switch (webhookPath) {
+        case 'github-sync':
+          // GitHub issue sync completed
+          console.log('GitHub sync webhook received');
+          break;
+        case 'notion-update':
+          // Notion task updated
+          console.log('Notion update webhook received');
+          break;
+        case 'ci-complete':
+          // CI/CD pipeline completed
+          console.log('CI complete webhook received');
+          break;
+        default:
+          console.log(`Unknown webhook path: ${webhookPath}`);
+      }
+
+      res.json({ success: true, received: webhookPath });
+    } catch (error) {
+      console.error("n8n webhook error:", error);
+      res.status(500).json({ error: "Failed to process n8n webhook" });
+    }
+  });
+
+  // POST /api/n8n/trigger/:workflow - Trigger n8n workflow
+  app.post("/api/n8n/trigger/:workflow", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const workflowName = req.params.workflow;
+      const payload = req.body;
+
+      const n8nBaseUrl = process.env.N8N_BASE_URL || 'https://logansglosser.app.n8n.cloud';
+
+      // Trigger n8n webhook
+      const response = await fetch(`${n8nBaseUrl}/webhook/${workflowName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          event: workflowName,
+          data: payload,
+          timestamp: new Date().toISOString(),
+          source: 'researchflow-orchestrator',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`n8n trigger failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      res.json({ success: true, workflow: workflowName, result });
+    } catch (error) {
+      console.error("n8n trigger error:", error);
+      res.status(500).json({ error: "Failed to trigger n8n workflow" });
+    }
+  });
+
+  // GET /api/n8n/status - Get n8n integration status
+  app.get("/api/n8n/status", (_req, res) => {
+    res.json({
+      configured: !!process.env.N8N_API_KEY,
+      baseUrl: process.env.N8N_BASE_URL || 'https://logansglosser.app.n8n.cloud',
+      workflows: {
+        'github-notion-sync': { status: 'configured', description: 'Sync GitHub issues to Notion tasks' },
+        'notion-ci-trigger': { status: 'configured', description: 'Trigger CI from Notion status changes' },
+        'deployment-notify': { status: 'configured', description: 'Notify on deployment completion' },
+        'stage-completion': { status: 'configured', description: 'Sync workflow stage completions' },
+      },
+    });
+  });
+
   return httpServer;
 }

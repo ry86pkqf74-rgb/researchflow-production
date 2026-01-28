@@ -223,7 +223,7 @@ async function updateWorkflowStatus(id: string, status: string): Promise<Workflo
 export default function WorkflowBuilderPage() {
   const [, params] = useRoute("/workflows/:id");
   const [, setLocation] = useLocation();
-  const workflowId = params?.id;
+  const workflowId = params?.id || "";
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);

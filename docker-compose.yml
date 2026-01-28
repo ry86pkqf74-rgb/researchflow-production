@@ -60,7 +60,7 @@ services:
       - NODE_ENV=development
       - PORT=3001
       - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis-dev-password}@redis:6379
       - WORKER_CALLBACK_URL=http://worker:8000
       - WORKER_URL=http://worker:8000
       - ROS_API_URL=http://worker:8000
@@ -82,6 +82,10 @@ services:
       # Sourcegraph code intelligence
       - SOURCEGRAPH_API_KEY=${SOURCEGRAPH_API_KEY}
       - SRC_ACCESS_TOKEN=${SOURCEGRAPH_API_KEY}
+      # Notion integration
+      - NOTION_API_KEY=${NOTION_API_KEY}
+      # Figma integration
+      - FIGMA_API_KEY=${FIGMA_API_KEY}
       # NLM/NCBI for MeSH term enrichment
       - NCBI_API_KEY=${NCBI_API_KEY}
       # Literature Integration
@@ -147,7 +151,7 @@ services:
       - .env
     environment:
       - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis-dev-password}@redis:6379
       # Support both naming conventions for backwards compatibility
       - ARTIFACT_PATH=/data/artifacts
       - ARTIFACTS_PATH=/data/artifacts
@@ -258,7 +262,8 @@ services:
     environment:
       - VITE_SENTRY_DSN=${VITE_SENTRY_DSN:-}
     depends_on:
-      - orchestrator
+      orchestrator:
+        condition: service_healthy
     networks:
       - researchflow
     restart: unless-stopped
@@ -291,7 +296,7 @@ services:
       - HEALTH_PORT=1235
       - HOST=0.0.0.0
       - APP_MODE=DEMO
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis-dev-password}@redis:6379
       - DATABASE_URL=postgresql://ros:ros@postgres:5432/ros
       - JWT_SECRET=${JWT_SECRET:-development-secret}
     depends_on:
@@ -347,7 +352,7 @@ services:
   # ===================
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis-dev-password}
     logging:
       driver: "json-file"
       options:
@@ -361,7 +366,7 @@ services:
       - researchflow
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5

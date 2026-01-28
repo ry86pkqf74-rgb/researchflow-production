@@ -24,11 +24,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useGovernanceMode, GovernanceMode } from '@/hooks/useGovernanceMode';
 import {
-  ModeIndicator,
+  GovernanceModeControl,
   ApprovalLog,
   AuditExport,
   AuditLogViewer,
-  DemoModeBanner,
   DemoWatermark
 } from '@/components/governance';
 import { useGovernanceStore, type FlagMeta, type ServerGovernanceState } from '@/stores/governance-store';
@@ -37,7 +36,7 @@ import { useGovernanceStore, type FlagMeta, type ServerGovernanceState } from '@
 type FeatureFlag = FlagMeta;
 
 const ALLOWED_OPERATIONS: Record<GovernanceMode, string[]> = {
-  STANDBY: [
+  OFFLINE: [
     'View documentation',
     'View governance console',
     'View audit logs (read-only)',
@@ -310,9 +309,9 @@ export function GovernanceConsole() {
 
   return (
     <div className="min-h-screen bg-background">
-      <DemoModeBanner />
+      <GovernanceModeControl variant="banner" dismissible={true} />
       <DemoWatermark />
-      
+
       <div className="p-6">
         <div className="max-w-7xl mx-auto space-y-6">
           <Card data-testid="governance-header">
@@ -345,7 +344,7 @@ export function GovernanceConsole() {
             </CardContent>
           </Card>
 
-          <ModeIndicator variant="full" showDetails={true} />
+          <GovernanceModeControl variant="indicator" showDetails={true} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-6">

@@ -4,6 +4,7 @@ import os
 
 from src.llm.providers.anthropic_provider import AnthropicProvider
 from src.llm.providers.base import LLMResult
+from src.llm.providers.mercury_provider import MercuryProvider
 from src.llm.providers.mock import MockProvider
 from src.llm.providers.openai_provider import OpenAIProvider
 from src.llm.providers.xai_provider import XAIProvider
@@ -18,6 +19,8 @@ def _select_provider(name: str):
         return AnthropicProvider()
     if n == "xai":
         return XAIProvider()
+    if n == "mercury":
+        return MercuryProvider()
     return MockProvider()
 
 

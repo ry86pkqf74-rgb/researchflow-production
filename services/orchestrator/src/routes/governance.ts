@@ -128,12 +128,14 @@ router.get(
 /**
  * POST /api/governance/mode
  * Change governance mode (DEMO, LIVE)
- * Requires: Authentication (all authenticated users can switch modes)
+ * Requires: ADMIN role (elevated security - mode changes affect all users)
  *
  * Phase F: Now persists to database and publishes realtime event
+ * SECURITY: Only ADMIN users can change governance mode to ensure consistency
  */
 router.post(
   '/mode',
+  requireRole('ADMIN'),
   asyncHandler(async (req, res) => {
     const { mode } = req.body;
     const user = req.user;
@@ -156,6 +158,17 @@ router.post(
     }
 
     try {
+      // Validate mode change is enabled via feature flag
+      const modeChangeEnabled = await featureFlagsService.isEnabled('allow_mode_changes');
+      if (!modeChangeEnabled) {
+        res.status(403).json({
+          error: 'Feature disabled',
+          code: 'MODE_CHANGE_DISABLED',
+          message: 'Governance mode changes are currently disabled'
+        });
+        return;
+      }
+
       // Use DB-backed service to set mode (handles audit + event publishing)
       await governanceConfigService.setMode(mode, user.id);
 
@@ -187,8 +200,9 @@ router.post(
  * Update a feature flag
  * Requires: ADMIN role
  *
- * Phase F: Now supports full flag configuration
+ * Phase F: Now supports full flag configuration with input validation
  * Body: { enabled: boolean, description?: string, scope?: string, rolloutPercent?: number, requiredModes?: string[] }
+ * SECURITY: Input validation prevents injection attacks and malformed configurations
  */
 router.post(
   '/flags/:flagKey',
@@ -206,12 +220,60 @@ router.post(
       return;
     }
 
+    // Validate flagKey format
+    if (!flagKey || typeof flagKey !== 'string' || !/^[a-z_][a-z0-9_]*$/.test(flagKey)) {
+      res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'flagKey must be a valid identifier (lowercase alphanumeric and underscores)',
+      });
+      return;
+    }
+
     if (typeof enabled !== 'boolean') {
       res.status(400).json({
         error: 'VALIDATION_ERROR',
         message: 'enabled (boolean) is required',
       });
       return;
+    }
+
+    // Validate optional string fields
+    if (description !== undefined && (typeof description !== 'string' || description.length > 500)) {
+      res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'description must be a string with max 500 characters',
+      });
+      return;
+    }
+
+    if (scope !== undefined && (typeof scope !== 'string' || !['GLOBAL', 'ORGANIZATION', 'USER'].includes(scope))) {
+      res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'scope must be one of: GLOBAL, ORGANIZATION, USER',
+      });
+      return;
+    }
+
+    // Validate rolloutPercent
+    if (rolloutPercent !== undefined) {
+      if (typeof rolloutPercent !== 'number' || rolloutPercent < 0 || rolloutPercent > 100) {
+        res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: 'rolloutPercent must be a number between 0 and 100',
+        });
+        return;
+      }
+    }
+
+    // Validate requiredModes array
+    if (requiredModes !== undefined) {
+      if (!Array.isArray(requiredModes) || !requiredModes.every(m => typeof m === 'string' && ['DEMO', 'LIVE'].includes(m))) {
+        res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: 'requiredModes must be an array of valid modes: DEMO, LIVE',
+        });
+        return;
+      }
     }
 
     try {
@@ -352,16 +414,74 @@ router.get(
 /**
  * POST /api/governance/audit/export
  * Export audit log with hash chain verification
- * Requires: ADMIN role (or STEWARD for read-only)
+ * Requires: ADMIN role (elevated for sensitive audit exports)
+ * SECURITY: Escalated from STEWARD to ADMIN to prevent unauthorized audit data exfiltration
  */
 router.post(
   '/audit/export',
-  requireRole('STEWARD'),
+  requireRole('ADMIN'),
   asyncHandler(async (req, res) => {
     const startDate = req.query.startDate as string || req.body.startDate;
     const endDate = req.query.endDate as string || req.body.endDate;
     const format = (req.query.format as string || req.body.format || 'json').toLowerCase();
     const includeVerification = req.query.includeVerification === 'true' || req.body.includeVerification;
+
+    // Validate format to prevent injection attacks
+    if (!['json', 'csv', 'xml'].includes(format)) {
+      res.status(400).json({
+        error: 'Invalid export format',
+        code: 'INVALID_FORMAT',
+        allowedFormats: ['json', 'csv', 'xml']
+      });
+      return;
+    }
+
+    // Validate and sanitize date inputs
+    let validStartDate: Date | undefined;
+    let validEndDate: Date | undefined;
+
+    if (startDate) {
+      try {
+        validStartDate = new Date(startDate);
+        if (isNaN(validStartDate.getTime())) {
+          throw new Error('Invalid date format');
+        }
+      } catch {
+        res.status(400).json({
+          error: 'Invalid startDate format',
+          code: 'INVALID_DATE',
+          message: 'startDate must be a valid ISO 8601 date string'
+        });
+        return;
+      }
+    }
+
+    if (endDate) {
+      try {
+        validEndDate = new Date(endDate);
+        if (isNaN(validEndDate.getTime())) {
+          throw new Error('Invalid date format');
+        }
+      } catch {
+        res.status(400).json({
+          error: 'Invalid endDate format',
+          code: 'INVALID_DATE',
+          message: 'endDate must be a valid ISO 8601 date string'
+        });
+        return;
+      }
+    }
+
+    // Check if audit export is enabled via feature flag
+    const auditExportEnabled = await featureFlagsService.isEnabled('allow_audit_export');
+    if (!auditExportEnabled) {
+      res.status(403).json({
+        error: 'Feature disabled',
+        code: 'AUDIT_EXPORT_DISABLED',
+        message: 'Audit export functionality is currently disabled'
+      });
+      return;
+    }
 
     const mockAuditEntries = [
       { id: 'AUD-001', timestamp: new Date().toISOString(), action: 'PHI_SCAN', user: 'system', resource: 'stage-9', status: 'PASS', hash: 'a1b2c3d4e5f6' },
@@ -385,8 +505,8 @@ router.post(
       format: format,
       recordCount: mockAuditEntries.length,
       dateRange: {
-        start: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        end: endDate || new Date().toISOString()
+        start: validStartDate?.toISOString() || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        end: validEndDate?.toISOString() || new Date().toISOString()
       },
       hashVerification: includeVerification ? hashVerification : undefined,
       entries: mockAuditEntries
@@ -420,13 +540,44 @@ router.get(
 /**
  * POST /api/governance/approvals/:approvalId/approve
  * Approve a pending request
- * Requires: STEWARD role or higher
+ * Requires: ADMIN role (elevated security for approval authority)
+ * SECURITY: Escalated to ADMIN to ensure only authorized personnel grant approvals
  */
 router.post(
   '/approvals/:approvalId/approve',
-  requireRole('STEWARD'),
+  requireRole('ADMIN'),
   asyncHandler(async (req, res) => {
     const { approvalId } = req.params;
+    const user = req.user;
+
+    if (!user) {
+      res.status(401).json({
+        error: 'AUTHENTICATION_REQUIRED',
+        message: 'Authentication required',
+      });
+      return;
+    }
+
+    // Validate approvalId format
+    if (!approvalId || typeof approvalId !== 'string' || approvalId.length === 0) {
+      res.status(400).json({
+        error: 'Invalid request',
+        code: 'INVALID_APPROVAL_ID',
+        message: 'approvalId must be a non-empty string'
+      });
+      return;
+    }
+
+    // Check if approval workflow is enabled via feature flag
+    const approvalsEnabled = await featureFlagsService.isEnabled('allow_approvals');
+    if (!approvalsEnabled) {
+      res.status(403).json({
+        error: 'Feature disabled',
+        code: 'APPROVALS_DISABLED',
+        message: 'Approval workflow is currently disabled'
+      });
+      return;
+    }
 
     const approval = mockApprovals.find(a => a.id === approvalId);
 
@@ -449,7 +600,8 @@ router.post(
     }
 
     approval.status = 'APPROVED';
-    approval.resolvedBy = req.user?.email || 'unknown';
+    approval.resolvedBy = user.email || 'unknown';
+    approval.resolvedAt = new Date().toISOString();
 
     res.json({
       message: 'Approval granted',
@@ -461,14 +613,55 @@ router.post(
 /**
  * POST /api/governance/approvals/:approvalId/deny
  * Deny a pending request
- * Requires: STEWARD role or higher
+ * Requires: ADMIN role (elevated security for approval authority)
+ * SECURITY: Escalated to ADMIN to ensure only authorized personnel process approvals
  */
 router.post(
   '/approvals/:approvalId/deny',
-  requireRole('STEWARD'),
+  requireRole('ADMIN'),
   asyncHandler(async (req, res) => {
     const { approvalId } = req.params;
     const { reason } = req.body;
+    const user = req.user;
+
+    if (!user) {
+      res.status(401).json({
+        error: 'AUTHENTICATION_REQUIRED',
+        message: 'Authentication required',
+      });
+      return;
+    }
+
+    // Validate approvalId format
+    if (!approvalId || typeof approvalId !== 'string' || approvalId.length === 0) {
+      res.status(400).json({
+        error: 'Invalid request',
+        code: 'INVALID_APPROVAL_ID',
+        message: 'approvalId must be a non-empty string'
+      });
+      return;
+    }
+
+    // Validate deny reason
+    if (!reason || typeof reason !== 'string' || reason.length < 5) {
+      res.status(400).json({
+        error: 'Invalid request',
+        code: 'INVALID_REASON',
+        message: 'reason must be a string with at least 5 characters'
+      });
+      return;
+    }
+
+    // Check if approval workflow is enabled via feature flag
+    const approvalsEnabled = await featureFlagsService.isEnabled('allow_approvals');
+    if (!approvalsEnabled) {
+      res.status(403).json({
+        error: 'Feature disabled',
+        code: 'APPROVALS_DISABLED',
+        message: 'Approval workflow is currently disabled'
+      });
+      return;
+    }
 
     const approval = mockApprovals.find(a => a.id === approvalId);
 
@@ -491,7 +684,8 @@ router.post(
     }
 
     approval.status = 'DENIED';
-    approval.resolvedBy = req.user?.email || 'unknown';
+    approval.resolvedBy = user.email || 'unknown';
+    approval.resolvedAt = new Date().toISOString();
 
     res.json({
       message: 'Approval denied',

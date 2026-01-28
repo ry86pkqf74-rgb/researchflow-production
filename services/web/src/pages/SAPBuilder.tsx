@@ -837,11 +837,11 @@ export default function SAPBuilder() {
             <ChatAgentPanel
               agentType="irb"
               artifactType="sap"
-              artifactId={sapId || "default"}
+              artifactId={sap?.id || "default"}
               getClientContext={() => ({
                 artifactContent: JSON.stringify(sap, null, 2),
                 artifactMetadata: {
-                  sapId,
+                  sapId: sap?.id,
                   isLocked,
                   status: sap?.status,
                 },
@@ -851,7 +851,7 @@ export default function SAPBuilder() {
                   title: "Action Applied",
                   description: `${action.actionType} has been executed successfully.`,
                 });
-                queryClient.invalidateQueries({ queryKey: ['sap', sapId] });
+                queryClient.invalidateQueries({ queryKey: ['sap', sap?.id] });
               }}
               defaultOpen={false}
             />

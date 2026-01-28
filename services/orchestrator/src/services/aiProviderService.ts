@@ -319,6 +319,147 @@ const BUILTIN_PROVIDERS: Omit<AiProvider, 'createdAt' | 'updatedAt'>[] = [
       },
     },
   },
+  {
+    id: 'lm-studio',
+    displayName: 'LM Studio (Local)',
+    description: 'Local LLM inference via LM Studio - PHI-safe, offline, no API costs',
+    capabilities: ['CHAT', 'CODE'],
+    models: [
+      {
+        id: 'local-model',
+        name: 'Local Model (Active)',
+        capabilities: ['CHAT', 'CODE'],
+        contextWindow: 8192, // Varies by model loaded
+        maxOutputTokens: 4096,
+        inputCostPer1k: 0, // Free - local inference
+        outputCostPer1k: 0,
+      },
+      {
+        id: 'llama-3.2-3b',
+        name: 'Llama 3.2 3B',
+        capabilities: ['CHAT', 'CODE'],
+        contextWindow: 8192,
+        maxOutputTokens: 4096,
+        inputCostPer1k: 0,
+        outputCostPer1k: 0,
+      },
+      {
+        id: 'mistral-7b',
+        name: 'Mistral 7B',
+        capabilities: ['CHAT', 'CODE'],
+        contextWindow: 8192,
+        maxOutputTokens: 4096,
+        inputCostPer1k: 0,
+        outputCostPer1k: 0,
+      },
+      {
+        id: 'codellama-7b',
+        name: 'Code Llama 7B',
+        capabilities: ['CODE'],
+        contextWindow: 16384,
+        maxOutputTokens: 4096,
+        inputCostPer1k: 0,
+        outputCostPer1k: 0,
+      },
+      {
+        id: 'phi-2',
+        name: 'Phi-2 (Microsoft)',
+        capabilities: ['CHAT', 'CODE'],
+        contextWindow: 2048,
+        maxOutputTokens: 1024,
+        inputCostPer1k: 0,
+        outputCostPer1k: 0,
+      },
+    ],
+    authType: 'NONE', // Local server, no auth needed
+    baseUrl: 'http://localhost:1234/v1',
+    status: 'INACTIVE', // Activate when LM Studio is running
+    isBuiltIn: true,
+    isCustom: false,
+    configSchema: {
+      type: 'object',
+      required: [],
+      properties: {
+        baseUrl: {
+          type: 'string',
+          description: 'LM Studio server URL (default: http://localhost:1234/v1)',
+          default: 'http://localhost:1234/v1'
+        },
+        apiKey: {
+          type: 'string',
+          description: 'Optional API key if LM Studio auth is enabled',
+          default: 'lm-studio'
+        },
+      },
+    },
+  },
+  {
+    id: 'xai',
+    displayName: 'xAI (Grok)',
+    description: 'Grok models from xAI',
+    capabilities: ['CHAT', 'CODE'],
+    models: [
+      {
+        id: 'grok-2-latest',
+        name: 'Grok 2',
+        capabilities: ['CHAT', 'CODE'],
+        contextWindow: 131072,
+        maxOutputTokens: 8192,
+        inputCostPer1k: 0.002,
+        outputCostPer1k: 0.010,
+      },
+      {
+        id: 'grok-2-mini',
+        name: 'Grok 2 Mini',
+        capabilities: ['CHAT', 'CODE'],
+        contextWindow: 131072,
+        maxOutputTokens: 8192,
+        inputCostPer1k: 0.0002,
+        outputCostPer1k: 0.001,
+      },
+    ],
+    authType: 'API_KEY',
+    baseUrl: 'https://api.x.ai/v1',
+    status: 'ACTIVE',
+    isBuiltIn: true,
+    isCustom: false,
+    configSchema: {
+      type: 'object',
+      required: ['apiKey'],
+      properties: {
+        apiKey: { type: 'string', description: 'xAI API key' },
+      },
+    },
+  },
+  {
+    id: 'mercury',
+    displayName: 'Mercury (Inception Labs)',
+    description: 'Mercury Coder for fast code completion',
+    capabilities: ['CODE'],
+    models: [
+      {
+        id: 'mercury-coder-small-beta',
+        name: 'Mercury Coder Small',
+        capabilities: ['CODE'],
+        contextWindow: 8192,
+        maxOutputTokens: 2048,
+        inputCostPer1k: 0.0001,
+        outputCostPer1k: 0.0001,
+      },
+    ],
+    authType: 'API_KEY',
+    baseUrl: 'https://api.inceptionlabs.ai/v1',
+    status: 'ACTIVE',
+    isBuiltIn: true,
+    isCustom: false,
+    configSchema: {
+      type: 'object',
+      required: ['apiKey'],
+      properties: {
+        apiKey: { type: 'string', description: 'Mercury API key' },
+      },
+    },
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────

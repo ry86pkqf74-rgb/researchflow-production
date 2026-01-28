@@ -245,7 +245,6 @@ export const workflowsApi = {
 
     return workflowsApi.startRun(createResult.data.run.id);
   },
-};
 
   // === Workflow State Resume ===
 

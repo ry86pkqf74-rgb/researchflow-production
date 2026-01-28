@@ -1,3 +1,22 @@
+/**
+ * @deprecated Use GovernanceModeControl component instead
+ *
+ * This component has been superseded by GovernanceModeControl which provides
+ * a unified API for all mode banner/indicator variants. ModeIndicator functionality
+ * is now available via:
+ *
+ * <GovernanceModeControl
+ *   variant="indicator"
+ *   showDetails={true}
+ * />
+ *
+ * Or for compact variant:
+ *
+ * <GovernanceModeControl variant="compact" />
+ *
+ * This file will be removed in a future release.
+ */
+
 import { useState } from "react";
 import { Lock, Unlock, Activity, ChevronDown, ChevronUp } from "lucide-react";
 import { useGovernanceMode, GovernanceMode } from "@/hooks/useGovernanceMode";
@@ -49,6 +68,21 @@ const MODE_CONFIGS: Record<GovernanceMode, ModeConfig> = {
       "Export results (with approval)",
       "LLM calls (tracked)",
       "Full feature access",
+    ],
+  },
+  OFFLINE: {
+    color: "text-slate-600 dark:text-slate-400",
+    bgColor: "bg-slate-500/10",
+    borderColor: "border-slate-500/30",
+    icon: Lock,
+    label: "OFFLINE",
+    description: "Offline mode - AI disabled",
+    allowedOperations: [
+      "View data",
+      "Run analyses (no AI)",
+      "Generate drafts (no AI enhancement)",
+      "No LLM calls",
+      "Limited feature access",
     ],
   },
 };

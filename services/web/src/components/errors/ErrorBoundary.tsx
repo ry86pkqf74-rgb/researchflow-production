@@ -440,3 +440,18 @@ function DefaultLoadingFallback() {
     </div>
   );
 }
+
+// HOC for wrapping components with error boundary
+export function withErrorBoundary<P extends object>(
+  WrappedComponent: React.ComponentType<P>,
+  fallback?: ReactNode | ((error: ErrorDetails, reset: () => void) => ReactNode),
+  props?: Omit<ErrorBoundaryProps, 'children' | 'fallback'>
+) {
+  return function WithErrorBoundaryWrapper(componentProps: P) {
+    return (
+      <ErrorBoundary fallback={fallback} {...props}>
+        <WrappedComponent {...componentProps} />
+      </ErrorBoundary>
+    );
+  };
+}

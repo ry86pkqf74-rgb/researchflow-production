@@ -40,9 +40,11 @@ export default defineConfig({
     // Minification settings
     minify: 'esbuild',
     rollupOptions: {
-      // Mark optional dependencies as external to prevent build failures
-      // when they're not installed (Sentry is optional - only needed if VITE_SENTRY_DSN is set)
-      external: ['@sentry/react'],
+      // Mark optional/backend-only dependencies as external to prevent build failures
+      // - @sentry/react: Optional, only needed if VITE_SENTRY_DSN is set
+      // - drizzle-orm: Backend ORM, should not be in frontend bundle
+      // - pg, postgres: Database drivers, backend only
+      external: ['@sentry/react', 'drizzle-orm', 'drizzle-orm/pg-core', 'pg', 'postgres'],
       output: {
         // Handle external modules gracefully at runtime
         globals: {

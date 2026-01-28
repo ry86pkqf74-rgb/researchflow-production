@@ -287,7 +287,8 @@ function AnnotationSidebar({
 // =============================================================================
 
 export default function PaperViewerPage() {
-  const { id } = useParams();
+  const params = useParams<{ id: string }>();
+  const id = params?.id;
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -312,14 +313,20 @@ export default function PaperViewerPage() {
   // Fetch paper
   const { data: paper, isLoading: paperLoading } = useQuery({
     queryKey: ['paper', id],
-    queryFn: () => apiRequest<Paper>(`/api/papers/${id}`),
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/papers/${id}`);
+      return res.json() as Promise<Paper>;
+    },
     enabled: !!id,
   });
 
   // Fetch annotations
   const { data: annotationsData } = useQuery({
     queryKey: ['paper-annotations', id],
-    queryFn: () => apiRequest<AnnotationListResponse>(`/api/papers/${id}/annotations`),
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/papers/${id}/annotations`);
+      return res.json() as Promise<AnnotationListResponse>;
+    },
     enabled: !!id,
   });
 
@@ -328,10 +335,7 @@ export default function PaperViewerPage() {
   // Create annotation mutation
   const createAnnotationMutation = useMutation({
     mutationFn: (data: Omit<Annotation, 'id' | 'created_at'>) =>
-      apiRequest(`/api/papers/${id}/annotations`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
+      apiRequest('POST', `/api/papers/${id}/annotations`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['paper-annotations', id] });
       setPendingHighlight(null);
@@ -346,7 +350,7 @@ export default function PaperViewerPage() {
   // Delete annotation mutation
   const deleteAnnotationMutation = useMutation({
     mutationFn: (annotationId: string) =>
-      apiRequest(`/api/papers/${id}/annotations/${annotationId}`, { method: 'DELETE' }),
+      apiRequest('DELETE', `/api/papers/${id}/annotations/${annotationId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['paper-annotations', id] });
       setSelectedAnnotationId(null);

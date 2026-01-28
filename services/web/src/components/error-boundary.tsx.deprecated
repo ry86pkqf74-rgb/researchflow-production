@@ -1,8 +1,22 @@
 /**
- * Error Boundary Component
+ * DEPRECATED: This component has been consolidated into the enhanced ErrorBoundary.
  *
- * Catches and displays errors gracefully in the UI.
- * Part of Audit Section 4: Improve error handling and loading states.
+ * Please use the new implementation from @/components/errors/ErrorBoundary instead.
+ * This file is kept for reference only and will be removed in a future release.
+ *
+ * The new ErrorBoundary at /components/errors/ErrorBoundary.tsx provides:
+ * - Error severity levels (warning, error, fatal)
+ * - Structured error details with timestamps and context
+ * - Stage-specific error boundaries (StageErrorBoundary)
+ * - Async boundaries for suspense integration
+ * - Network error alerts and loading error components
+ * - useErrorHandler hook for functional components
+ *
+ * Migration Guide:
+ * Replace: import { ErrorBoundary } from '@/components/error-boundary'
+ * With:    import { ErrorBoundary } from '@/components/errors'
+ *
+ * The new API is backward compatible with fallback prop, but offers more features.
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';

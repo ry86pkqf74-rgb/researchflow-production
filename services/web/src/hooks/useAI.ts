@@ -27,7 +27,7 @@ interface AIResponse<T = any> {
   approvedBy?: string;
 }
 
-interface AIGenerateOptions {
+export interface AIGenerateOptions {
   skipApproval?: boolean; // Only for non-AI endpoints (phi/scan, governance)
   stageId?: number;
   stageName?: string;

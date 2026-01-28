@@ -1,4 +1,19 @@
 /**
+ * @deprecated Use GovernanceModeControl component instead
+ *
+ * This component has been superseded by GovernanceModeControl which provides
+ * a unified API for all mode banner/indicator variants. ModeBanner functionality
+ * is now available via:
+ *
+ * <GovernanceModeControl
+ *   variant="banner"
+ *   enableModeSwitching={true}
+ *   hideOnLandingPages={true}
+ * />
+ *
+ * This file will be removed in a future release.
+ *
+ * Original documentation:
  * ModeBanner Component
  *
  * Prominent banner showing DEMO mode warning.

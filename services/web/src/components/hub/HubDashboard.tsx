@@ -322,7 +322,7 @@ export function HubDashboard({ projectId: propProjectId, className = '' }: HubDa
           </CardHeader>
           <CardContent>
             <Link href={`/project/${projectId}/timeline`}>
-              <Button variant="link" className="p-0 h-auto text-sm">
+              <Button variant="ghost" className="p-0 h-auto text-sm">
                 View Projections <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
@@ -370,7 +370,7 @@ export function HubDashboard({ projectId: propProjectId, className = '' }: HubDa
                   <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p>No pages yet</p>
                   <Button
-                    variant="link"
+                    variant="ghost"
                     size="sm"
                     onClick={handleCreatePage}
                     className="mt-2"
@@ -410,7 +410,7 @@ export function HubDashboard({ projectId: propProjectId, className = '' }: HubDa
                   <CheckSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p>No tasks yet</p>
                   <Button
-                    variant="link"
+                    variant="ghost"
                     size="sm"
                     onClick={() => setActiveView('tasks')}
                     className="mt-2"
@@ -468,7 +468,7 @@ export function HubDashboard({ projectId: propProjectId, className = '' }: HubDa
                   <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p>No goals yet</p>
                   <Button
-                    variant="link"
+                    variant="ghost"
                     size="sm"
                     onClick={() => setActiveView('goals')}
                     className="mt-2"

@@ -60,25 +60,14 @@ export default function SpreadsheetCellParse() {
   
   // Configuration state
   const [config, setConfig] = useState({
-    blockText: {
-      minChars: 120,
-      minNewlines: 2,
-      minClinicalMarkers: 1,
-      denyColumns: ['mrn', 'patient_id', 'dob', 'ssn', 'id'],
-      allowColumns: ['clinical_notes', 'ros', 'op_note', 'discharge_summary'],
-    },
-    largeSheet: {
-      chunkRows: 50000,
-      llmConcurrency: 24,
-      llmBatchSize: 20,
-      joinBackToSheet: false,
-      enableDask: false,
-    },
-    promptPack: {
-      cellExtract: 'cell_extract_v1',
-      rosExtract: 'ros_extract_v1',
-      outcomeExtract: 'outcome_extract_v1',
-    },
+    tier: 'MINI' as const,
+    columns: [],
+    enablePhiScanning: true,
+    blockOnPhi: true,
+    enableNlmEnrichment: false,
+    minTextLength: 120,
+    maxConcurrent: 24,
+    outputFormat: 'json' as const,
   });
   
   // Use the spreadsheet parse hook
@@ -137,14 +126,12 @@ export default function SpreadsheetCellParse() {
   // Start processing
   const handleStartProcessing = useCallback(async () => {
     if (!artifactPath) return;
-    
+
     try {
       await startParsing({
         artifactPath,
         fileType: uploadedFile?.name.endsWith('.csv') ? 'csv' : 'xlsx',
-        blockTextConfig: config.blockText,
-        largeSheetConfig: config.largeSheet,
-        promptPack: config.promptPack,
+        config,
       });
       setCurrentStage('process');
     } catch (err) {
@@ -347,13 +334,11 @@ export default function SpreadsheetCellParse() {
                 )}
                 
                 <ExtractionConfigPanel
+                  columns={[]}
                   config={config}
                   onConfigChange={setConfig}
-                  fileInfo={{
-                    name: uploadedFile?.name || '',
-                    size: uploadedFile?.size || 0,
-                    type: uploadedFile?.type || '',
-                  }}
+                  onStartExtraction={handleStartProcessing}
+                  isLoading={isLoading}
                 />
               </CardContent>
             </Card>

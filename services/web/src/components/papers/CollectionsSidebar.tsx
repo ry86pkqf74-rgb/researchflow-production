@@ -232,14 +232,14 @@ function CollectionChildren({
   const { data, isLoading } = useQuery<{ collections: Collection[] }>({
     queryKey: ['collections', parentId],
     queryFn: async () => {
-      const res = await apiRequest(`/api/collections?parent_id=${parentId}`);
+      const res = await apiRequest('GET', `/api/collections?parent_id=${parentId}`);
       return res.json();
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiRequest(`/api/collections/${id}`, { method: 'DELETE' });
+      const res = await apiRequest('DELETE', `/api/collections/${id}`);
       return res.json();
     },
     onSuccess: () => {
@@ -250,10 +250,7 @@ function CollectionChildren({
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Collection> }) => {
-      const res = await apiRequest(`/api/collections/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      });
+      const res = await apiRequest('PATCH', `/api/collections/${id}`, data);
       return res.json();
     },
     onSuccess: () => {
@@ -310,10 +307,7 @@ function CreateCollectionDialog({
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest('/api/collections', {
-        method: 'POST',
-        body: JSON.stringify({ name, color, parent_id: parentId }),
-      });
+      const res = await apiRequest('POST', '/api/collections', { name, color, parent_id: parentId });
       return res.json();
     },
     onSuccess: () => {
@@ -394,14 +388,14 @@ export function CollectionsSidebar({
   const { data, isLoading } = useQuery<{ collections: Collection[] }>({
     queryKey: ['collections', 'root'],
     queryFn: async () => {
-      const res = await apiRequest('/api/collections?parent_id=null');
+      const res = await apiRequest('GET', '/api/collections?parent_id=null');
       return res.json();
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiRequest(`/api/collections/${id}`, { method: 'DELETE' });
+      const res = await apiRequest('DELETE', `/api/collections/${id}`);
       return res.json();
     },
     onSuccess: () => {
@@ -413,10 +407,7 @@ export function CollectionsSidebar({
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Collection> }) => {
-      const res = await apiRequest(`/api/collections/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      });
+      const res = await apiRequest('PATCH', `/api/collections/${id}`, data);
       return res.json();
     },
     onSuccess: () => {
@@ -489,7 +480,7 @@ export function CollectionsSidebar({
               <Folder className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">No collections yet</p>
               <Button
-                variant="link"
+                variant="ghost"
                 size="sm"
                 onClick={() => setCreateDialogOpen(true)}
               >

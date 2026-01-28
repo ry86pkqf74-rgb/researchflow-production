@@ -1,3 +1,18 @@
+/**
+ * @deprecated Use GovernanceModeControl component instead
+ *
+ * This component has been superseded by GovernanceModeControl which provides
+ * a unified API for all mode banner/indicator variants. DemoModeBanner functionality
+ * is now available via:
+ *
+ * <GovernanceModeControl
+ *   variant="banner"
+ *   dismissible={true}
+ * />
+ *
+ * This file will be removed in a future release.
+ */
+
 import { useState, useEffect } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";

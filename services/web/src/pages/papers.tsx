@@ -336,12 +336,13 @@ export default function PapersPage() {
   // Fetch papers (optionally filtered by collection)
   const { data, isLoading, error } = useQuery({
     queryKey: ['papers', filterStatus, selectedCollectionId],
-    queryFn: () => {
+    queryFn: async () => {
       const params = new URLSearchParams();
       if (filterStatus !== 'all') params.set('read_status', filterStatus);
       if (selectedCollectionId) params.set('collection_id', selectedCollectionId);
       const queryStr = params.toString();
-      return apiRequest<PaperListResponse>('/api/papers' + (queryStr ? `?${queryStr}` : ''));
+      const res = await apiRequest('GET', '/api/papers' + (queryStr ? `?${queryStr}` : ''));
+      return res.json() as Promise<PaperListResponse>;
     },
   });
 
@@ -354,14 +355,15 @@ export default function PapersPage() {
       const response = await fetch('/api/papers/upload', {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json() as { message?: string };
         throw new Error(error.message || 'Upload failed');
       }
 
-      return response.json();
+      return response.json() as Promise<Paper>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['papers'] });
@@ -379,10 +381,7 @@ export default function PapersPage() {
   // Update status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: Paper['read_status'] }) => {
-      return apiRequest(`/api/papers/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ read_status: status }),
-      });
+      return apiRequest('PATCH', `/api/papers/${id}`, { read_status: status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['papers'] });
@@ -392,7 +391,7 @@ export default function PapersPage() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/papers/${id}`, { method: 'DELETE' });
+      return apiRequest('DELETE', `/api/papers/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['papers'] });

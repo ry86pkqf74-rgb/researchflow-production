@@ -8,7 +8,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ModeIndicator } from "./ModeIndicator";
+import { GovernanceModeControl } from "./GovernanceModeControl";
 import { BLOCKED_MESSAGES, getBlockedMessage } from "@/lib/blocked-messages";
 
 export interface BlockedActionModalProps {
@@ -66,7 +66,7 @@ export function BlockedActionModal({
 
           <div className="flex items-center gap-2">
             <span className="text-sm text-amber-700 dark:text-amber-300">Current mode:</span>
-            <ModeIndicator variant="compact" />
+            <GovernanceModeControl variant="compact" />
           </div>
 
           <div className="bg-amber-100/50 dark:bg-amber-900/20 rounded-md p-3 border border-amber-200 dark:border-amber-800">

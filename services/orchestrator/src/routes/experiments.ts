@@ -4,6 +4,7 @@ import { db } from '../lib/db';
 import { featureFlags, experiments } from '@researchflow/core/types/schema';
 import { eq } from 'drizzle-orm';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { requireRole } from '../middleware/rbac';
 import { z } from 'zod';
 
 const router = express.Router();
@@ -70,7 +71,7 @@ router.get('/:key',
  * Body: { experimentKey, name, description, variants: [{ key, weight }], startDate?, endDate? }
  */
 router.post('/',
-  // TODO: Add requireRole('ADMIN') middleware
+  requireRole('ADMIN'),
   asyncHandler(async (req, res) => {
     const createExperimentSchema = z.object({
       experimentKey: z.string().min(1).max(100),
@@ -130,7 +131,7 @@ router.post('/',
  * Body: { status: 'DRAFT' | 'RUNNING' | 'PAUSED' | 'COMPLETE' }
  */
 router.patch('/:key/status',
-  // TODO: Add requireRole('ADMIN') middleware
+  requireRole('ADMIN'),
   asyncHandler(async (req, res) => {
     const { key } = req.params;
 
@@ -203,7 +204,7 @@ router.get('/flags/:key',
  * Body: { flagKey, enabled, description?, tierRequired? }
  */
 router.post('/flags',
-  // TODO: Add requireRole('ADMIN') middleware
+  requireRole('ADMIN'),
   asyncHandler(async (req, res) => {
     const createFlagSchema = z.object({
       flagKey: z.string().min(1).max(100),
@@ -247,7 +248,7 @@ router.post('/flags',
  * Useful after manual database updates
  */
 router.delete('/flags/:key/cache',
-  // TODO: Add requireRole('ADMIN') middleware
+  requireRole('ADMIN'),
   asyncHandler(async (req, res) => {
     featureFlagsService.clearCache();
 

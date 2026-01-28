@@ -58,7 +58,7 @@ import {
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { AIApprovalGate, useAIApprovalGate } from "@/components/ui/ai-approval-gate";
+import { useAIApprovalGate } from "@/components/ui/ai-approval-gate";
 import { ChatAgentPanel } from "@/components/chat";
 
 // ============================================================================
@@ -516,12 +516,9 @@ export default function ManuscriptEditorPage() {
 
   const handleGenerate = async (sectionId: string) => {
     // Request AI approval
-    const approved = await requestApproval({
-      toolName: "Manuscript Section Generator",
-      toolDescription: `Generate ${sectionId} section using AI`,
-    });
+    const result = await requestApproval(0, `Manuscript Section Generator - ${sectionId}`);
 
-    if (!approved) {
+    if (!result.approved) {
       toast({
         title: "Generation Cancelled",
         description: "AI generation was not approved.",
@@ -687,7 +684,7 @@ export default function ManuscriptEditorPage() {
                 title,
                 targetJournal,
                 activeSection,
-                totalWordCount,
+                totalWordCount: sections.reduce((sum, s) => sum + s.wordCount, 0),
               },
             })}
             onActionExecuted={(action, result) => {
