@@ -104,6 +104,15 @@ except ImportError as e:
     IRB_ENHANCED_AVAILABLE = False
     print(f"[ROS] IRB Enhanced module not available: {e}")
 
+# Import manuscript proposals router for LLM-based proposal generation
+try:
+    from src.api.manuscript_proposals import router as manuscript_proposals_router
+    MANUSCRIPT_PROPOSALS_AVAILABLE = True
+    print("[ROS] Manuscript proposals module loaded")
+except ImportError as e:
+    MANUSCRIPT_PROPOSALS_AVAILABLE = False
+    print(f"[ROS] Manuscript proposals module not available: {e}")
+
 # Import version control service for Git-based versioning
 try:
     from version_control import (
@@ -183,6 +192,11 @@ if INGEST_AVAILABLE:
 if IRB_ENHANCED_AVAILABLE:
     app.include_router(irb_enhanced_router, prefix="/api", tags=["irb-enhanced"])
     print("[ROS] IRB Enhanced router registered at /api/irb/*")
+
+# Register manuscript proposals router for LLM-based proposal generation
+if MANUSCRIPT_PROPOSALS_AVAILABLE:
+    app.include_router(manuscript_proposals_router, tags=["manuscript-proposals"])
+    print("[ROS] Manuscript proposals router registered at /api/manuscript/generate/*")
 
 
 # ============ Data Models ============
