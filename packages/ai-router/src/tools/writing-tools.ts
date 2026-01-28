@@ -12,8 +12,8 @@
  * - citation_context: Generate context for citations
  */
 
-import { PhiGateService } from '../phi-gate.service';
-import { logAction } from '../../../orchestrator/src/services/audit-service';
+import { getPhiGate } from '../phi-gate.service';
+import { logAction } from '@apps/api-node/src/services/audit-service';
 
 export interface WritingToolInput {
   text: string;
@@ -40,7 +40,7 @@ async function withPhiGuard(
   input: WritingToolInput,
   processor: (text: string, context?: string) => Promise<string>
 ): Promise<WritingToolOutput> {
-  const phiGate = PhiGateService.getInstance();
+  const phiGate = getPhiGate();
   
   // Scan input for PHI
   const scanResult = await phiGate.scan(input.text);

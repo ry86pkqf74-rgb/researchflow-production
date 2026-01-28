@@ -1,0 +1,1997 @@
+openapi: 3.0.3
+info:
+  title: ResearchFlow API
+  description: |
+    ResearchFlow API - Orchestrator Service
+
+    A comprehensive research workflow management platform with:
+    - User authentication and authorization
+    - Paper library and annotation management
+    - Organization and project management
+    - AI-powered research insights and analysis
+    - Data extraction and processing
+    - Version control and collaboration features
+
+    All requests should include the Authorization header with a JWT Bearer token,
+    except for public endpoints like registration, login, and authentication status.
+  version: 1.0.0
+  contact:
+    name: ResearchFlow Team
+    url: https://researchflow.io
+  license:
+    name: Proprietary
+    url: https://researchflow.io/license
+
+servers:
+  - url: https://api.researchflow.io/api
+    description: Production environment
+  - url: http://localhost:5000/api
+    description: Local development environment
+  - url: http://orchestrator:5000/api
+    description: Docker internal environment
+
+security:
+  - BearerAuth: []
+  - cookieAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token in Bearer format
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: refreshToken
+      description: HTTP-only cookie containing refresh token
+
+  schemas:
+    # ===========================================================================
+    # Common Response Schemas
+    # ===========================================================================
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          oneOf:
+            - type: object
+              description: Additional error details
+            - type: array
+              description: Array of validation errors
+        code:
+          type: string
+          description: Error code for programmatic handling
+        request_id:
+          type: string
+          description: Request identifier for tracking
+      example:
+        error: "Validation failed"
+        details:
+          - field: "email"
+            message: "Invalid email format"
+        code: "VALIDATION_ERROR"
+
+    SuccessResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Success message
+        data:
+          type: object
+          description: Response data
+
+    PaginatedResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          description: Array of items
+        pagination:
+          type: object
+          required:
+            - total
+            - limit
+            - offset
+          properties:
+            total:
+              type: integer
+              description: Total number of items
+            limit:
+              type: integer
+              description: Number of items per page
+            offset:
+              type: integer
+              description: Current offset
+            hasMore:
+              type: boolean
+              description: Whether more items are available
+
+    # ===========================================================================
+    # User Schemas
+    # ===========================================================================
+
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - displayName
+        - role
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User unique identifier
+        email:
+          type: string
+          format: email
+          description: User email address
+        firstName:
+          type: string
+          description: First name
+        lastName:
+          type: string
+          description: Last name
+        displayName:
+          type: string
+          description: Display name for profile
+        profileImageUrl:
+          type: string
+          format: uri
+          description: URL to profile image
+        role:
+          type: string
+          enum: [ADMIN, RESEARCHER, VIEWER]
+          description: User role in system
+        orgId:
+          type: string
+          format: uuid
+          description: Organization ID
+        createdAt:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - displayName
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Password (minimum 8 characters)
+        displayName:
+          type: string
+          description: Display name
+        firstName:
+          type: string
+          description: First name (optional)
+        lastName:
+          type: string
+          description: Last name (optional)
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+        password:
+          type: string
+          format: password
+          description: User password
+
+    AuthResponse:
+      type: object
+      required:
+        - user
+        - accessToken
+      properties:
+        message:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+        accessToken:
+          type: string
+          format: jwt
+          description: JWT access token (valid for 1 hour)
+
+    PasswordResetRequest:
+      type: object
+      required:
+        - token
+        - newPassword
+      properties:
+        token:
+          type: string
+          description: Password reset token from email
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          description: New password
+
+    # ===========================================================================
+    # Organization Schemas
+    # ===========================================================================
+
+    Organization:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - subscriptionTier
+        - isActive
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Organization unique identifier
+        name:
+          type: string
+          description: Organization name
+        slug:
+          type: string
+          description: URL-friendly organization slug
+        description:
+          type: string
+          description: Organization description
+        billingEmail:
+          type: string
+          format: email
+          description: Billing contact email
+        subscriptionTier:
+          type: string
+          enum: [FREE, STARTER, PROFESSIONAL, ENTERPRISE]
+          description: Current subscription tier
+        isActive:
+          type: boolean
+          description: Whether organization is active
+        settings:
+          type: object
+          description: Organization-level settings
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateOrganizationRequest:
+      type: object
+      required:
+        - name
+        - slug
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Organization name
+        slug:
+          type: string
+          pattern: ^[a-z0-9-]+$
+          description: URL-friendly slug (lowercase, hyphens only)
+        description:
+          type: string
+          description: Organization description
+        billingEmail:
+          type: string
+          format: email
+          description: Billing contact email
+
+    UpdateOrganizationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Organization name
+        description:
+          type: string
+          description: Organization description
+        billingEmail:
+          type: string
+          format: email
+          description: Billing contact email
+        settings:
+          type: object
+          description: Organization settings
+
+    OrgMember:
+      type: object
+      required:
+        - id
+        - userId
+        - orgId
+        - role
+        - joinedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          description: User identifier
+        orgId:
+          type: string
+          format: uuid
+          description: Organization identifier
+        role:
+          type: string
+          enum: [OWNER, ADMIN, MEMBER]
+          description: Role within organization
+        joinedAt:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/User'
+
+    # ===========================================================================
+    # Paper Schemas
+    # ===========================================================================
+
+    Paper:
+      type: object
+      required:
+        - id
+        - title
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Paper unique identifier
+        title:
+          type: string
+          description: Paper title
+        abstract:
+          type: string
+          description: Paper abstract
+        authors:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              affiliation:
+                type: string
+              orcid:
+                type: string
+          description: List of authors
+        year:
+          type: integer
+          minimum: 1900
+          maximum: 2100
+          description: Publication year
+        journal:
+          type: string
+          description: Journal or publication name
+        doi:
+          type: string
+          description: Digital Object Identifier
+        pmid:
+          type: string
+          description: PubMed identifier
+        arxivId:
+          type: string
+          description: arXiv identifier
+        readStatus:
+          type: string
+          enum: [unread, reading, read]
+          description: Reading status
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+          description: User rating
+        notes:
+          type: string
+          description: User notes
+        tags:
+          type: array
+          items:
+            type: string
+          description: Paper tags
+        fileUrl:
+          type: string
+          format: uri
+          description: URL to uploaded PDF
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreatePaperRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        abstract:
+          type: string
+        authors:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              affiliation:
+                type: string
+              orcid:
+                type: string
+        year:
+          type: integer
+        journal:
+          type: string
+        doi:
+          type: string
+        pmid:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        notes:
+          type: string
+
+    UpdatePaperRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        abstract:
+          type: string
+        authors:
+          type: array
+          items:
+            type: object
+        year:
+          type: integer
+        journal:
+          type: string
+        doi:
+          type: string
+        pmid:
+          type: string
+        readStatus:
+          type: string
+          enum: [unread, reading, read]
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        notes:
+          type: string
+
+    ImportPaperRequest:
+      type: object
+      description: At least one identifier required
+      properties:
+        doi:
+          type: string
+          description: Digital Object Identifier
+        pmid:
+          type: string
+          description: PubMed identifier
+        arxivId:
+          type: string
+          description: arXiv identifier
+
+    PaperSearchRequest:
+      type: object
+      properties:
+        q:
+          type: string
+          description: Search query
+        tags:
+          type: array
+          items:
+            type: string
+          description: Filter by tags
+        yearFrom:
+          type: integer
+          description: Filter by minimum year
+        yearTo:
+          type: integer
+          description: Filter by maximum year
+        readStatus:
+          type: string
+          enum: [unread, reading, read]
+          description: Filter by reading status
+        collectionId:
+          type: string
+          format: uuid
+          description: Filter by collection
+        sort:
+          type: string
+          enum: [created_at, title, year, rating]
+          default: created_at
+          description: Sort field
+        order:
+          type: string
+          enum: [asc, desc]
+          default: desc
+          description: Sort order
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+
+    # ===========================================================================
+    # Analysis Schemas
+    # ===========================================================================
+
+    ExtractionRequest:
+      type: object
+      required:
+        - cells
+      properties:
+        cells:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required:
+              - text
+            properties:
+              text:
+                type: string
+              metadata:
+                type: object
+          description: Array of cells to extract from
+        parameters:
+          type: object
+          properties:
+            extractDiagnoses:
+              type: boolean
+              default: true
+            extractProcedures:
+              type: boolean
+              default: true
+            extractMedications:
+              type: boolean
+              default: true
+            extractLabs:
+              type: boolean
+              default: true
+            enrichWithMesh:
+              type: boolean
+              default: true
+            batchConcurrency:
+              type: integer
+              minimum: 1
+              maximum: 20
+              default: 5
+            forceTier:
+              type: string
+              enum: [NANO, MINI, FRONTIER]
+              nullable: true
+        researchId:
+          type: string
+          description: Research project identifier
+        jobId:
+          type: string
+          description: Job identifier for tracking
+
+    ExtractionResponse:
+      type: object
+      properties:
+        requestId:
+          type: string
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+              extractions:
+                type: object
+                properties:
+                  diagnoses:
+                    type: array
+                    items:
+                      type: object
+                  procedures:
+                    type: array
+                    items:
+                      type: object
+                  medications:
+                    type: array
+                    items:
+                      type: object
+                  labs:
+                    type: array
+                    items:
+                      type: object
+        processingTime:
+          type: number
+          description: Processing time in milliseconds
+
+    AnalysisRequest:
+      type: object
+      required:
+        - analysisType
+      properties:
+        analysisType:
+          type: string
+          enum:
+            - exploratory
+            - statistical
+            - correlation
+            - distribution
+            - regression
+            - clustering
+            - clinical_extraction
+          description: Type of analysis to perform
+        data:
+          type: object
+          description: Analysis data
+        parameters:
+          type: object
+          description: Analysis-specific parameters
+        researchId:
+          type: string
+          description: Research project identifier
+
+    # ===========================================================================
+    # AI Insights Schemas
+    # ===========================================================================
+
+    ResearchBriefRequest:
+      type: object
+      required:
+        - topic
+      properties:
+        topic:
+          type: string
+          minLength: 10
+          description: Research topic
+        population:
+          type: string
+          description: Target population
+        outcomes:
+          type: array
+          items:
+            type: string
+          description: Desired outcomes
+
+    ResearchBrief:
+      type: object
+      properties:
+        population:
+          type: string
+        exposure:
+          type: string
+        comparator:
+          type: string
+        outcomes:
+          type: array
+          items:
+            type: string
+        timeframe:
+          type: string
+        studyObjectives:
+          type: array
+          items:
+            type: string
+        clarifyingPrompts:
+          type: array
+          items:
+            type: string
+
+    EvidenceGapMapRequest:
+      type: object
+      required:
+        - topic
+      properties:
+        topic:
+          type: string
+          minLength: 10
+        population:
+          type: string
+        outcomes:
+          type: array
+          items:
+            type: string
+
+    EvidenceGapMap:
+      type: object
+      properties:
+        knowns:
+          type: array
+          items:
+            type: object
+            properties:
+              finding:
+                type: string
+              evidence:
+                type: string
+        unknowns:
+          type: array
+          items:
+            type: object
+            properties:
+              gap:
+                type: string
+              importance:
+                type: string
+        methods:
+          type: array
+          items:
+            type: object
+            properties:
+              approach:
+                type: string
+              appropriateness:
+                type: string
+        pitfalls:
+          type: array
+          items:
+            type: object
+            properties:
+              risk:
+                type: string
+              mitigation:
+                type: string
+
+    StudyCard:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        researchQuestion:
+          type: string
+        hypothesis:
+          type: string
+        plannedMethod:
+          type: string
+        exposures:
+          type: array
+          items:
+            type: string
+        cohortDefinition:
+          type: string
+        indexDate:
+          type: string
+        feasibilityScore:
+          type: number
+        threatsToValidity:
+          type: array
+          items:
+            type: object
+        targetJournals:
+          type: array
+          items:
+            type: object
+
+    StudyCardsRequest:
+      type: object
+      required:
+        - topic
+      properties:
+        topic:
+          type: string
+          minLength: 10
+        researchBrief:
+          type: object
+        count:
+          type: integer
+          minimum: 3
+          maximum: 10
+          default: 7
+
+    DecisionMatrix:
+      type: object
+      properties:
+        recommendedPick:
+          type: integer
+        reasons:
+          type: array
+          items:
+            type: string
+        proposals:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              novelty:
+                type: number
+              feasibility:
+                type: number
+              clinicalImportance:
+                type: number
+              timeToExecute:
+                type: string
+              overallScore:
+                type: number
+
+  responses:
+    UnauthorizedError:
+      description: Authentication failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Unauthorized"
+            code: "UNAUTHORIZED"
+
+    ForbiddenError:
+      description: Access denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Forbidden"
+            code: "FORBIDDEN"
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Not found"
+            code: "NOT_FOUND"
+
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Internal server error"
+            code: "INTERNAL_ERROR"
+
+# ===========================================================================
+# Paths / Endpoints
+# ===========================================================================
+
+paths:
+  # ===========================================================================
+  # Authentication Endpoints (/api/auth/*)
+  # ===========================================================================
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user account
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                message: "Registration successful"
+                user:
+                  id: "550e8400-e29b-41d4-a716-446655440000"
+                  email: "user@example.com"
+                  displayName: "John Doe"
+                  role: "RESEARCHER"
+                accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login with email and password
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token using refresh token
+      operationId: refreshToken
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  description: Refresh token (can also use cookie)
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  accessToken:
+                    type: string
+                    format: jwt
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout and revoke tokens
+      operationId: logoutUser
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/logout-all:
+    post:
+      tags:
+        - Authentication
+      summary: Logout from all devices
+      operationId: logoutAllDevices
+      responses:
+        '200':
+          description: Logged out from all devices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out from all devices"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/user:
+    get:
+      tags:
+        - Authentication
+      summary: Get current authenticated user
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/status:
+    get:
+      tags:
+        - Authentication
+      summary: Check authentication status (public)
+      operationId: checkAuthStatus
+      security: []
+      responses:
+        '200':
+          description: Authentication status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated:
+                    type: boolean
+                  user:
+                    $ref: '#/components/schemas/User'
+                    nullable: true
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Authentication
+      summary: Request a password reset link
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Password reset link sent (if user exists)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Authentication
+      summary: Reset password with reset token
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '200':
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/change-password:
+    post:
+      tags:
+        - Authentication
+      summary: Change password (requires authentication)
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currentPassword
+                - newPassword
+              properties:
+                currentPassword:
+                  type: string
+                  format: password
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 8
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # Organizations Endpoints (/api/org/*)
+  # ===========================================================================
+
+  /org:
+    post:
+      tags:
+        - Organizations
+      summary: Create a new organization
+      operationId: createOrganization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '201':
+          description: Organization created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          description: Slug already taken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags:
+        - Organizations
+      summary: List user's organizations
+      operationId: listOrganizations
+      responses:
+        '200':
+          description: List of user's organizations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  organizations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Organization'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /org/{orgId}:
+    get:
+      tags:
+        - Organizations
+      summary: Get organization details
+      operationId: getOrganization
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Organization details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags:
+        - Organizations
+      summary: Update organization (admin only)
+      operationId: updateOrganization
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationRequest'
+      responses:
+        '200':
+          description: Organization updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Organizations
+      summary: Delete organization (owner only)
+      operationId: deleteOrganization
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Organization deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /org/{orgId}/members:
+    get:
+      tags:
+        - Organizations
+      summary: List organization members
+      operationId: listOrgMembers
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of organization members
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  members:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrgMember'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # Papers Endpoints (/api/papers/*)
+  # ===========================================================================
+
+  /papers/ping:
+    get:
+      tags:
+        - Papers
+      summary: Health check
+      operationId: papersPing
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+
+  /papers:
+    get:
+      tags:
+        - Papers
+      summary: List user's papers
+      operationId: listPapers
+      parameters:
+        - name: collectionId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: List of papers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Paper'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /papers/search:
+    get:
+      tags:
+        - Papers
+      summary: Search papers
+      operationId: searchPapers
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search query
+        - name: tags
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter by tags
+        - name: yearFrom
+          in: query
+          schema:
+            type: integer
+        - name: yearTo
+          in: query
+          schema:
+            type: integer
+        - name: readStatus
+          in: query
+          schema:
+            type: string
+            enum: [unread, reading, read]
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [created_at, title, year, rating]
+            default: created_at
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Paper'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /papers/upload:
+    post:
+      tags:
+        - Papers
+      summary: Upload a PDF paper
+      operationId: uploadPaper
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF file (max 50MB)
+                title:
+                  type: string
+                  description: Paper title
+                metadata:
+                  type: string
+                  description: JSON metadata
+      responses:
+        '201':
+          description: Paper uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paper'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '413':
+          description: File too large (max 50MB)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /papers/import:
+    post:
+      tags:
+        - Papers
+      summary: Import paper from external identifier
+      operationId: importPaper
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportPaperRequest'
+      responses:
+        '201':
+          description: Paper imported successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paper'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Paper not found with given identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /papers/{paperId}:
+    get:
+      tags:
+        - Papers
+      summary: Get paper details
+      operationId: getPaper
+      parameters:
+        - name: paperId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Paper details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paper'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags:
+        - Papers
+      summary: Update paper metadata
+      operationId: updatePaper
+      parameters:
+        - name: paperId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePaperRequest'
+      responses:
+        '200':
+          description: Paper updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paper'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Papers
+      summary: Delete paper
+      operationId: deletePaper
+      parameters:
+        - name: paperId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Paper deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /papers/{paperId}/tags:
+    post:
+      tags:
+        - Papers
+      summary: Add tag to paper
+      operationId: addPaperTag
+      parameters:
+        - name: paperId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tag
+              properties:
+                tag:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                color:
+                  type: string
+                  maxLength: 20
+      responses:
+        '200':
+          description: Tag added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paper'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /papers/{paperId}/tags/{tag}:
+    delete:
+      tags:
+        - Papers
+      summary: Remove tag from paper
+      operationId: removePaperTag
+      parameters:
+        - name: paperId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: tag
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tag removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paper'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /papers/{paperId}/text:
+    get:
+      tags:
+        - Papers
+      summary: Get extracted text from paper
+      operationId: getPaperText
+      parameters:
+        - name: paperId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Extracted paper text
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  paperId:
+                    type: string
+                    format: uuid
+                  text:
+                    type: string
+                  pageCount:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # Analysis Endpoints (/api/analysis/*)
+  # ===========================================================================
+
+  /analysis/extract:
+    post:
+      tags:
+        - Analysis
+      summary: Extract clinical data from cells
+      operationId: extractData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtractionRequest'
+      responses:
+        '200':
+          description: Extraction completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /analysis/analyze:
+    post:
+      tags:
+        - Analysis
+      summary: Run analysis on data
+      operationId: analyzeData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequest'
+      responses:
+        '200':
+          description: Analysis completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  analysisType:
+                    type: string
+                  results:
+                    type: object
+                  processingTime:
+                    type: number
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # AI Insights Endpoints (/api/ai/*)
+  # ===========================================================================
+
+  /ai/research-brief:
+    post:
+      tags:
+        - AI Insights
+      summary: Generate PICO-structured research brief
+      operationId: generateResearchBrief
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResearchBriefRequest'
+      responses:
+        '200':
+          description: Research brief generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchBrief'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ai/evidence-gap-map:
+    post:
+      tags:
+        - AI Insights
+      summary: Analyze research landscape and identify evidence gaps
+      operationId: generateEvidenceGapMap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvidenceGapMapRequest'
+      responses:
+        '200':
+          description: Evidence gap map generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvidenceGapMap'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ai/study-cards:
+    post:
+      tags:
+        - AI Insights
+      summary: Generate study proposals
+      operationId: generateStudyCards
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudyCardsRequest'
+      responses:
+        '200':
+          description: Study cards generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  studyCards:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StudyCard'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ai/decision-matrix:
+    post:
+      tags:
+        - AI Insights
+      summary: Rank study proposals with decision matrix
+      operationId: generateDecisionMatrix
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - studyCards
+              properties:
+                studyCards:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/StudyCard'
+      responses:
+        '200':
+          description: Decision matrix generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionMatrix'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Organizations
+    description: Organization management and team collaboration
+  - name: Papers
+    description: Research paper library and management
+  - name: Analysis
+    description: Data extraction and analysis operations
+  - name: AI Insights
+    description: AI-powered research insights and recommendations

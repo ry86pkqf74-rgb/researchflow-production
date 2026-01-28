@@ -130,9 +130,12 @@ import { mockAuthMiddleware } from './middleware/auth.js';
 import { optionalAuth } from './services/authService';
 import { errorHandler } from './middleware/errorHandler.js';
 import { CollaborationWebSocketServer } from './collaboration/websocket-server';
+import { createLogger } from './utils/logger';
 
 // Load environment variables
 dotenv.config();
+
+const logger = createLogger('orchestrator-server');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -157,7 +160,7 @@ function isOriginValid(origin: string | undefined, whitelist: string[], isDevelo
 
     // In production, enforce HTTPS
     if (!isDevelopment && url.protocol !== 'https:') {
-      console.warn(`[CORS] Rejected non-HTTPS origin in production: ${origin}`);
+      logger.warn('Rejected non-HTTPS origin in production', { origin });
       return false;
     }
 
@@ -177,7 +180,7 @@ function isOriginValid(origin: string | undefined, whitelist: string[], isDevelo
       return false;
     });
   } catch (error) {
-    console.warn(`[CORS] Invalid origin URL: ${origin}`);
+    logger.warn('Invalid origin URL', { origin, error });
     return false;
   }
 }
@@ -214,7 +217,7 @@ if (NODE_ENV === 'development') {
   }
 }
 
-console.log(`[CORS] Configured whitelist (${NODE_ENV}):`, corsWhitelist);
+logger.info('CORS whitelist configured', { environment: NODE_ENV, whitelist: corsWhitelist });
 
 // CORS middleware with origin validation
 app.use(cors({
@@ -229,7 +232,7 @@ app.use(cors({
     if (isOriginValid(origin, corsWhitelist, isDev)) {
       callback(null, true);
     } else {
-      console.warn(`[CORS] Rejected origin: ${origin} (NODE_ENV: ${NODE_ENV})`);
+      logger.warn('Rejected origin by CORS policy', { origin, environment: NODE_ENV });
       callback(new Error(`CORS policy: Origin not allowed`), false);
     }
   },
@@ -245,7 +248,7 @@ app.use(express.urlencoded({ extended: true }));
 // Request logging (development only)
 if (NODE_ENV === 'development') {
   app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    logger.debug('Incoming request', { method: req.method, path: req.path });
     next();
   });
 }
@@ -418,8 +421,8 @@ let wsServer: CollaborationWebSocketServer | null = null;
 try {
   wsServer = new CollaborationWebSocketServer(httpServer);
 } catch (error) {
-  console.error('Failed to initialize WebSocket server:', error);
-  console.log('Continuing without collaboration features...');
+  logger.logError('Failed to initialize WebSocket server', error as Error);
+  logger.info('Continuing without collaboration features...');
 }
 
 // Initialize Planning Queues (BullMQ)
@@ -438,10 +441,10 @@ async function initializeServer() {
     // Initialize Planning Queues
     try {
       await initPlanningQueues();
-      console.log('[Agentic] Planning queues initialized');
+      logger.info('Planning queues initialized', { module: 'agentic' });
     } catch (error) {
-      console.error('[Agentic] Failed to initialize planning queues:', error);
-      console.log('[Agentic] Continuing without queue support - jobs will run inline');
+      logger.logError('Failed to initialize planning queues', error as Error, { module: 'agentic' });
+      logger.info('Continuing without queue support - jobs will run inline', { module: 'agentic' });
     }
 
     // SEC-004: Validate PHI Scanner (before accepting requests)
@@ -452,154 +455,50 @@ async function initializeServer() {
     // Start server
     startServer();
   } catch (error) {
-    console.error('[Server Init] Fatal error during initialization:', error);
+    logger.logError('Fatal error during initialization', error as Error);
     process.exit(1);
   }
 }
 
 function startServer() {
   httpServer.listen(PORT, () => {
-  console.log('='.repeat(60));
-  console.log('ResearchFlow Canvas Server');
-  console.log('='.repeat(60));
-  console.log(`Environment:      ${NODE_ENV}`);
-  console.log(`Port:             ${PORT}`);
-  console.log(`Governance Mode:  ${process.env.GOVERNANCE_MODE || 'DEMO'}`);
-  console.log(`Health Check:     http://localhost:${PORT}/health`);
-  console.log(`API Base:         http://localhost:${PORT}/api`);
-  console.log(`WebSocket:        ws://localhost:${PORT}/collaboration`);
-  console.log('='.repeat(60));
-  console.log('Phase 1-2 Features: ACTIVE');
-  console.log('  ✓ RBAC Middleware');
-  console.log('  ✓ Data Classification');
-  console.log('  ✓ Approval Gates');
-  console.log('  ✓ Claim Linter');
-  console.log('  ✓ PHI Scanning');
-  console.log('  ✓ ORCID Integration');
-  console.log('='.repeat(60));
-  console.log('Phase 3 Features: NEW');
-  console.log('  ✓ Artifact Provenance Graph');
-  console.log('  ✓ Real-time Collaboration (Yjs CRDT)');
-  console.log('  ✓ Version Control & Diff');
-  console.log('  ✓ Comment System');
-  console.log('='.repeat(60));
-  console.log('Phase F Features: FOUNDATION');
-  console.log('  ✓ Feature Flags & A/B Experiments');
-  console.log('  ✓ Custom Fields (Org-level schemas)');
-  console.log('  ✓ Frontend Hooks (useFeatureFlag, useExperiment)');
-  console.log('='.repeat(60));
-  console.log('Phase G Features: SCALABILITY & MONITORING');
-  console.log('  ✓ Real-Time Cluster Monitoring');
-  console.log('  ✓ Predictive Scaling');
-  console.log('  ✓ Resource Heatmaps & Metrics');
-  console.log('  ✓ Data Sharding');
-  console.log('  ✓ Edge Computing Toggles');
-  console.log('  ✓ Vertical Scaling Controls');
-  console.log('  ✓ High-Availability Mode');
-  console.log('  ✓ Performance Analyzer');
-  console.log('  ✓ Optimization Suggestions');
-  console.log('  ✓ Chaos Engineering Tools');
-  console.log('  ✓ Scheduler Simulator');
-  console.log('  ✓ Multi-Cloud Deployment');
-  console.log('  ✓ Serverless Triggers');
-  console.log('  ✓ Cost Monitoring');
-  console.log('='.repeat(60));
-  console.log('Phase H Features: ECOSYSTEM');
-  console.log('  ✓ Interactive API Documentation (Swagger/OpenAPI)');
-  console.log('  ✓ Plugin Marketplace');
-  console.log('  ✓ Custom AI Model Hooks');
-  console.log('  ✓ Overleaf Integration');
-  console.log('  ✓ Git Sync Integration');
-  console.log('  ✓ Data Import Wizards');
-  console.log('  ✓ Tutorial Code Sandboxes');
-  console.log('  ✓ API Key Rotation');
-  console.log('  ✓ Scientific Notation Localization');
-  console.log('  ✓ Future-Proofing Checklists');
-  console.log('  ✓ AI Watermark Verification');
-  console.log('  ✓ User Preferences API');
-  console.log('  ✓ Organization Invites');
-  console.log('  ✓ Gamification Badges');
-  console.log('  ✓ Sustainability CO2 Tracking');
-  console.log('  ✓ Peer Review System');
-  console.log('  ✓ Task Boards (Kanban)');
-  console.log('  ✓ GDPR Consent Management');
-  console.log('='.repeat(60));
-  console.log('Audit Improvements: CODE QUALITY');
-  console.log('  ✓ JWT-Based Authentication (Production Ready)');
-  console.log('  ✓ Modular Route Architecture');
-  console.log('  ✓ Lifecycle State Service');
-  console.log('  ✓ Static Data Extraction');
-  console.log('  ✓ Workflow Stage Management');
-  console.log('='.repeat(60));
-  console.log('Integration Plan: ALL ROUTES REGISTERED');
-  console.log('  ✓ AI Extraction Pipeline');
-  console.log('  ✓ AI Router & Streaming');
-  console.log('  ✓ PHI Scanner API');
-  console.log('  ✓ Artifact Graph & Versions');
-  console.log('  ✓ Export Bundles');
-  console.log('  ✓ Worker Proxy');
-  console.log('  ✓ Literature & MeSH Lookup');
-  console.log('  ✓ Spreadsheet Cell Parsing');
-  console.log('  ✓ Claims & Analysis Execution');
-  console.log('  ✓ Git Version Control (Phase 5.5)');
-  console.log('  ✓ Governance Simulation');
-  console.log('  ✓ Quality Dashboard');
-  console.log('  ✓ Notifications & Billing');
-  console.log('  ✓ Collaboration Export');
-  console.log('  ✓ SAP & Research Briefs');
-  console.log('  ✓ Document Sharing');
-  console.log('  ✓ Topics & Analytics');
-  console.log('='.repeat(60));
-  console.log('Route Audit Fix (2026-01-28): REGISTERED');
-  console.log('  ✓ Projects CRUD');
-  console.log('  ✓ Citations Management');
-  console.log('  ✓ Document Export (PDF/DOCX/LaTeX)');
-  console.log('  ✓ Ecosystem Integrations');
-  console.log('  ✓ Data Integrity Checks');
-  console.log('  ✓ Papers Management');
-  console.log('  ✓ Collections');
-  console.log('  ✓ Guidelines Engine (Full)');
-  console.log('  ✓ Paper Annotations');
-  console.log('  ✓ Paper Copilot');
-  console.log('  ✓ Literature Notes');
-  console.log('  ✓ Branch Management');
-  console.log('='.repeat(60));
-  console.log('AI Insights & Manuscript: ACTIVE');
-  console.log('  ✓ AI Research Brief Generation');
-  console.log('  ✓ Evidence Gap Map Analysis');
-  console.log('  ✓ Study Card Generation');
-  console.log('  ✓ Decision Matrix Ranking');
-  console.log('  ✓ Manuscript IMRaD Generation');
-  console.log('  ✓ Section Validation & Budgets');
-  console.log('='.repeat(60));
-  console.log('Agentic Planning: ACTIVE');
-  console.log('  ✓ AI-Assisted Analysis Planning');
-  console.log('  ✓ PHI Governance (Metadata-only to AI)');
-  console.log('  ✓ SELECT-only Query Enforcement');
-  console.log('  ✓ Governance Approval Workflow');
-  console.log('  ✓ BullMQ Job Queue');
-  console.log('  ✓ SSE Job Status Streaming');
-  console.log('  ✓ Statistical Method Suggestion');
-  console.log('='.repeat(60));
+  logger.info('ResearchFlow Canvas Server Started', {
+    environment: NODE_ENV,
+    port: PORT,
+    governanceMode: process.env.GOVERNANCE_MODE || 'DEMO',
+    health_check: `http://localhost:${PORT}/health`,
+    api_base: `http://localhost:${PORT}/api`,
+    websocket: `ws://localhost:${PORT}/collaboration`
+  });
+
+  // Log active features
+  logger.info('Features Configuration', {
+    phase_1_2: ['RBAC Middleware', 'Data Classification', 'Approval Gates', 'Claim Linter', 'PHI Scanning', 'ORCID Integration'],
+    phase_3: ['Artifact Provenance Graph', 'Real-time Collaboration', 'Version Control', 'Comment System'],
+    phase_f: ['Feature Flags', 'A/B Experiments', 'Custom Fields', 'Frontend Hooks'],
+    phase_g: ['Cluster Monitoring', 'Predictive Scaling', 'Data Sharding', 'Edge Computing', 'Cost Monitoring'],
+    phase_h: ['API Documentation', 'Plugin Marketplace', 'AI Model Hooks', 'Overleaf Integration', 'GDPR Consent'],
+    agentic: ['AI-Assisted Planning', 'PHI Governance', 'BullMQ Queue', 'Job Status Streaming']
+  });
   });
 }
 
 // Start initialization sequence
 initializeServer().catch((error) => {
-  console.error('[Server Init] Failed to initialize server:', error);
+  logger.logError('Failed to initialize server', error as Error);
   process.exit(1);
 });
 
 // Graceful shutdown
 const shutdown = async () => {
-  console.log('Shutdown signal received: cleaning up...');
+  logger.info('Shutdown signal received: cleaning up...');
 
   // Shutdown Planning Queues
   try {
     await shutdownPlanningQueues();
-    console.log('Planning queues shut down');
+    logger.info('Planning queues shut down');
   } catch (error) {
-    console.error('Error shutting down planning queues:', error);
+    logger.logError('Error shutting down planning queues', error as Error);
   }
 
   // Shutdown WebSocket server
@@ -609,13 +508,13 @@ const shutdown = async () => {
 
   // Close HTTP server
   httpServer.close(() => {
-    console.log('HTTP server closed');
+    logger.info('HTTP server closed');
     process.exit(0);
   });
 
   // Force exit after 10 seconds
   setTimeout(() => {
-    console.error('Forced shutdown after timeout');
+    logger.error('Forced shutdown after timeout');
     process.exit(1);
   }, 10000);
 };

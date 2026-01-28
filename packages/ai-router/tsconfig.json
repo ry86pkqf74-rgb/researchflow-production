@@ -4,7 +4,14 @@
     "outDir": "./dist",
     "rootDir": ".",
     "composite": true,
-    "noEmit": false
+    "noEmit": false,
+    "baseUrl": "../../",
+    "paths": {
+      "@apps/api-node": ["services/orchestrator"],
+      "@apps/api-node/*": ["services/orchestrator/*"],
+      "@apps/api-node/src": ["services/orchestrator/src"],
+      "@apps/api-node/src/*": ["services/orchestrator/src/*"]
+    }
   },
   "include": ["./**/*.ts"],
   "exclude": ["node_modules", "dist"]

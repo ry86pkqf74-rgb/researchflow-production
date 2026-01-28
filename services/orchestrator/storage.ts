@@ -154,15 +154,22 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const sha256Hash = calculateSha256(insertArtifact.content);
-    const sizeBytes = Buffer.byteLength(insertArtifact.content, 'utf8');
-    
+    const data = insertArtifact as any;
+    const sha256Hash = calculateSha256(data.content);
+    const sizeBytes = Buffer.byteLength(data.content, 'utf8');
+
     const [artifact] = await db.insert(artifacts).values({
-      ...insertArtifact,
+      content: data.content,
+      researchId: data.researchId,
+      stageId: data.stageId,
+      artifactType: data.artifactType,
+      filename: data.filename,
+      mimeType: data.mimeType,
+      createdBy: data.createdBy,
       sha256Hash,
       sizeBytes,
     }).returning();
-    
+
     return artifact;
   }
 
@@ -195,10 +202,10 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Database not initialized');
     }
     const updateData: any = { ...updates };
-    
-    if (updates.content !== undefined) {
-      updateData.sha256Hash = calculateSha256(updates.content);
-      updateData.sizeBytes = Buffer.byteLength(updates.content, 'utf8');
+
+    if (updateData.content !== undefined && typeof updateData.content === 'string') {
+      updateData.sha256Hash = calculateSha256(updateData.content);
+      updateData.sizeBytes = Buffer.byteLength(updateData.content, 'utf8');
     }
 
     const [artifact] = await db.update(artifacts).set(updateData).where(eq(artifacts.id, id)).returning();
@@ -217,18 +224,26 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const sha256Hash = calculateSha256(insertVersion.content);
-    const sizeBytes = Buffer.byteLength(insertVersion.content, 'utf8');
-    
+    const data = insertVersion as any;
+    const sha256Hash = calculateSha256(data.content);
+    const sizeBytes = Buffer.byteLength(data.content, 'utf8');
+
     const [version] = await db.insert(artifactVersions).values({
-      ...insertVersion,
+      content: data.content,
+      artifactId: data.artifactId,
+      versionNumber: data.versionNumber,
+      changeDescription: data.changeDescription,
+      createdBy: data.createdBy,
       sha256Hash,
       sizeBytes,
-    }).returning();
+      branch: data.branch,
+      parentVersionId: data.parentVersionId,
+      metadata: data.metadata,
+    } as any).returning();
 
     await db.update(artifacts)
-      .set({ currentVersionId: version.id })
-      .where(eq(artifacts.id, insertVersion.artifactId));
+      .set({ currentVersionId: version.id } as any)
+      .where(eq(artifacts.id, data.artifactId));
 
     return version;
   }
@@ -254,7 +269,16 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [comparison] = await db.insert(artifactComparisons).values(insertComparison).returning();
+    const data = insertComparison as any;
+    const [comparison] = await db.insert(artifactComparisons).values({
+      artifactId: data.artifactId,
+      fromVersionId: data.fromVersionId,
+      toVersionId: data.toVersionId,
+      diffSummary: data.diffSummary,
+      addedLines: data.addedLines,
+      removedLines: data.removedLines,
+      comparedBy: data.comparedBy,
+    }).returning();
     return comparison;
   }
 
@@ -270,7 +294,18 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [result] = await db.insert(researchProjects).values(project).returning();
+    const data = project as any;
+    const [result] = await db.insert(researchProjects).values({
+      title: data.title,
+      researchId: data.researchId,
+      ownerId: data.ownerId,
+      description: data.description,
+      sessionId: data.sessionId,
+      dataClassification: data.dataClassification,
+      status: data.status,
+      irbApprovalNumber: data.irbApprovalNumber,
+      orgId: data.orgId,
+    } as any).returning();
     return result;
   }
 
@@ -304,7 +339,7 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [project] = await db.update(researchProjects).set(updates).where(eq(researchProjects.id, id)).returning();
+    const [project] = await db.update(researchProjects).set(updates as any).where(eq(researchProjects.id, id)).returning();
     return project;
   }
 
@@ -312,7 +347,14 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [result] = await db.insert(userRoles).values(role).returning();
+    const data = role as any;
+    const [result] = await db.insert(userRoles).values({
+      userId: data.userId,
+      role: data.role,
+      grantedBy: data.grantedBy,
+      expiresAt: data.expiresAt,
+      isActive: data.isActive,
+    } as any).returning();
     return result;
   }
 
@@ -335,7 +377,36 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [result] = await db.insert(approvalGates).values(gate).returning();
+    const data = gate as any;
+    const [result] = await db.insert(approvalGates).values({
+      operationType: data.operationType,
+      resourceId: data.resourceId,
+      resourceType: data.resourceType,
+      approvalMode: data.approvalMode,
+      requestedById: data.requestedById,
+      requestedByRole: data.requestedByRole,
+      requestedByEmail: data.requestedByEmail,
+      requestedByName: data.requestedByName,
+      approvedById: data.approvedById,
+      approvedByRole: data.approvedByRole,
+      approvedByEmail: data.approvedByEmail,
+      approvedByName: data.approvedByName,
+      status: data.status,
+      reason: data.reason,
+      rejectionReason: data.rejectionReason,
+      conditions: data.conditions,
+      metadata: data.metadata,
+      sessionId: data.sessionId,
+      ipAddress: data.ipAddress,
+      escalatedAt: data.escalatedAt,
+      escalatedTo: data.escalatedTo,
+      isOverride: data.isOverride,
+      overrideJustification: data.overrideJustification,
+      overrideConfirmedBy: data.overrideConfirmedBy,
+      expiresAt: data.expiresAt,
+      reviewedAt: data.reviewedAt,
+      completedAt: data.completedAt,
+    } as any).returning();
     return result;
   }
 
@@ -367,7 +438,7 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [gate] = await db.update(approvalGates).set(updates).where(eq(approvalGates.id, id)).returning();
+    const [gate] = await db.update(approvalGates).set(updates as any).where(eq(approvalGates.id, id)).returning();
     return gate;
   }
 
@@ -375,7 +446,20 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [result] = await db.insert(approvalAuditEntries).values(entry).returning();
+    const data = entry as any;
+    const [result] = await db.insert(approvalAuditEntries).values({
+      gateId: data.gateId,
+      action: data.action,
+      performedById: data.performedById,
+      performedByRole: data.performedByRole,
+      performedByEmail: data.performedByEmail,
+      performedByName: data.performedByName,
+      reason: data.reason,
+      details: data.details,
+      ipAddress: data.ipAddress,
+      userAgent: data.userAgent,
+      sessionId: data.sessionId,
+    } as any).returning();
     return result;
   }
 
@@ -390,7 +474,21 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [result] = await db.insert(auditLogs).values(log).returning();
+    const data = log as any;
+    const [result] = await db.insert(auditLogs).values({
+      eventType: data.eventType,
+      action: data.action,
+      userId: data.userId,
+      resourceType: data.resourceType,
+      resourceId: data.resourceId,
+      details: data.details,
+      ipAddress: data.ipAddress,
+      userAgent: data.userAgent,
+      sessionId: data.sessionId,
+      researchId: data.researchId,
+      previousHash: data.previousHash,
+      entryHash: data.entryHash,
+    } as any).returning();
     return result;
   }
 
@@ -415,7 +513,20 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [result] = await db.insert(phiIncidents).values(incident).returning();
+    const data = incident as any;
+    const [result] = await db.insert(phiIncidents).values({
+      incidentId: data.incidentId,
+      severity: data.severity,
+      description: data.description,
+      detectedBy: data.detectedBy,
+      affectedResearchId: data.affectedResearchId,
+      affectedDatasetId: data.affectedDatasetId,
+      phiType: data.phiType,
+      status: data.status,
+      remediationSteps: data.remediationSteps,
+      resolvedBy: data.resolvedBy,
+      resolvedAt: data.resolvedAt,
+    } as any).returning();
     return result;
   }
 
@@ -438,7 +549,7 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [incident] = await db.update(phiIncidents).set(updates).where(eq(phiIncidents.id, id)).returning();
+    const [incident] = await db.update(phiIncidents).set(updates as any).where(eq(phiIncidents.id, id)).returning();
     return incident;
   }
 
@@ -446,7 +557,35 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [result] = await db.insert(handoffPacks).values(pack).returning();
+    const data = pack as any;
+    const [result] = await db.insert(handoffPacks).values({
+      packId: data.packId,
+      packType: data.packType,
+      version: data.version,
+      researchId: data.researchId,
+      stageId: data.stageId,
+      stageName: data.stageName,
+      sessionId: data.sessionId,
+      modelId: data.modelId,
+      modelVersion: data.modelVersion,
+      promptHash: data.promptHash,
+      responseHash: data.responseHash,
+      content: data.content,
+      contentSchema: data.contentSchema,
+      tokenUsageInput: data.tokenUsageInput,
+      tokenUsageOutput: data.tokenUsageOutput,
+      tokenUsageTotal: data.tokenUsageTotal,
+      latencyMs: data.latencyMs,
+      costCents: data.costCents,
+      approvalGateId: data.approvalGateId,
+      parentPackId: data.parentPackId,
+      tags: data.tags,
+      isValid: data.isValid,
+      validationErrors: data.validationErrors,
+      validationWarnings: data.validationWarnings,
+      signature: data.signature,
+      expiresAt: data.expiresAt,
+    } as any).returning();
     return result;
   }
 
@@ -477,7 +616,10 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [result] = await db.insert(conversations).values(conversation).returning();
+    const data = conversation as any;
+    const [result] = await db.insert(conversations).values({
+      title: data.title,
+    }).returning();
     return result;
   }
 
@@ -500,7 +642,7 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [conv] = await db.update(conversations).set(updates).where(eq(conversations.id, id)).returning();
+    const [conv] = await db.update(conversations).set(updates as any).where(eq(conversations.id, id)).returning();
     return conv;
   }
 
@@ -508,7 +650,12 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [result] = await db.insert(messages).values(message).returning();
+    const data = message as any;
+    const [result] = await db.insert(messages).values({
+      conversationId: data.conversationId,
+      role: data.role,
+      content: data.content,
+    }).returning();
     return result;
   }
 
@@ -523,7 +670,20 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [result] = await db.insert(fileUploads).values(upload).returning();
+    const data = upload as any;
+    const [result] = await db.insert(fileUploads).values({
+      researchId: data.researchId,
+      originalFilename: data.originalFilename,
+      storedFilename: data.storedFilename,
+      mimeType: data.mimeType,
+      sizeBytes: data.sizeBytes,
+      sha256Hash: data.sha256Hash,
+      uploadedBy: data.uploadedBy,
+      status: data.status,
+      phiScanStatus: data.phiScanStatus,
+      phiScanResult: data.phiScanResult,
+      metadata: data.metadata,
+    } as any).returning();
     return result;
   }
 
@@ -549,7 +709,7 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [upload] = await db.update(fileUploads).set(updates).where(eq(fileUploads.id, id)).returning();
+    const [upload] = await db.update(fileUploads).set(updates as any).where(eq(fileUploads.id, id)).returning();
     return upload;
   }
 
@@ -557,7 +717,14 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
-    const [result] = await db.insert(researchSessions).values(session).returning();
+    const data = session as any;
+    const [result] = await db.insert(researchSessions).values({
+      researchId: data.researchId,
+      userId: data.userId,
+      currentStageId: data.currentStageId,
+      stageProgress: data.stageProgress,
+      workflowState: data.workflowState,
+    } as any).returning();
     return result;
   }
 
@@ -581,8 +748,9 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       throw new Error('Database not initialized');
     }
+    const data = updates as any;
     const [session] = await db.update(researchSessions)
-      .set({ ...updates, lastActiveAt: new Date() })
+      .set({ ...data, lastActiveAt: new Date() } as any)
       .where(eq(researchSessions.id, id))
       .returning();
     return session;

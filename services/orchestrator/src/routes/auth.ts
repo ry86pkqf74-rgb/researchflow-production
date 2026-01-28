@@ -18,8 +18,10 @@ import {
 } from '../services/authService';
 import { logAuthEvent } from '../services/audit-service';
 import { getRequestMetadata } from '../utils/request-metadata';
+import { createLogger } from '../utils/logger';
 
 const router = Router();
+const logger = createLogger('auth-routes');
 
 /**
  * POST /api/auth/register
@@ -43,7 +45,7 @@ router.post('/register', async (req: Request, res: Response) => {
           email: req.body.email,
           errors: parseResult.error.errors
         }
-      }).catch(err => console.error('Failed to log registration validation error:', err));
+      }).catch(err => logger.error('Failed to log registration validation error', { error: err }));
 
       return res.status(400).json({
         error: 'Validation failed',
@@ -64,7 +66,7 @@ router.post('/register', async (req: Request, res: Response) => {
         details: {
           email: parseResult.data.email
         }
-      }).catch(err => console.error('Failed to log registration error:', err));
+      }).catch(err => logger.error('Failed to log registration error', { error: err }));
 
       return res.status(400).json({ error: result.error });
     }
@@ -80,7 +82,7 @@ router.post('/register', async (req: Request, res: Response) => {
         email: result.user!.email,
         role: result.user!.role
       }
-    }).catch(err => console.error('Failed to log registration success:', err));
+    }).catch(err => logger.error('Failed to log registration success', { error: err }));
 
     // Set refresh token in HTTP-only cookie
     res.cookie('refreshToken', result.refreshToken, {
@@ -101,7 +103,7 @@ router.post('/register', async (req: Request, res: Response) => {
       accessToken: result.accessToken
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    logger.logError('Registration error', error as Error);
     const metadata = getRequestMetadata(req);
     await logAuthEvent({
       eventType: 'REGISTRATION',
@@ -110,7 +112,7 @@ router.post('/register', async (req: Request, res: Response) => {
       success: false,
       failureReason: 'Internal server error',
       details: { error: String(error) }
-    }).catch(err => console.error('Failed to log registration exception:', err));
+    }).catch(err => logger.error('Failed to log registration exception', { error: err }));
 
     res.status(500).json({ error: 'Registration failed' });
   }
@@ -138,7 +140,7 @@ router.post('/login', async (req: Request, res: Response) => {
           email: req.body.email,
           errors: parseResult.error.errors
         }
-      }).catch(err => console.error('Failed to log login validation error:', err));
+      }).catch(err => logger.error('Failed to log login validation error', { error: err }));
 
       return res.status(400).json({
         error: 'Validation failed',
@@ -159,7 +161,7 @@ router.post('/login', async (req: Request, res: Response) => {
         details: {
           email: parseResult.data.email
         }
-      }).catch(err => console.error('Failed to log login failure:', err));
+      }).catch(err => logger.error('Failed to log login failure', { error: err }));
 
       return res.status(401).json({ error: result.error });
     }
@@ -175,7 +177,7 @@ router.post('/login', async (req: Request, res: Response) => {
         email: result.user!.email,
         role: result.user!.role
       }
-    }).catch(err => console.error('Failed to log login success:', err));
+    }).catch(err => logger.error('Failed to log login success', { error: err }));
 
     // Set refresh token in HTTP-only cookie
     res.cookie('refreshToken', result.refreshToken, {
@@ -197,7 +199,7 @@ router.post('/login', async (req: Request, res: Response) => {
       accessToken: result.accessToken
     });
   } catch (error) {
-    console.error('Login error:', error);
+    logger.logError('Login error', error as Error);
     const metadata = getRequestMetadata(req);
     await logAuthEvent({
       eventType: 'LOGIN_FAILURE',
@@ -206,7 +208,7 @@ router.post('/login', async (req: Request, res: Response) => {
       success: false,
       failureReason: 'Internal server error',
       details: { error: String(error) }
-    }).catch(err => console.error('Failed to log login exception:', err));
+    }).catch(err => logger.error('Failed to log login exception', { error: err }));
 
     res.status(500).json({ error: 'Login failed' });
   }
@@ -231,7 +233,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
         userAgent: metadata.userAgent,
         success: false,
         failureReason: 'No refresh token provided'
-      }).catch(err => console.error('Failed to log token refresh error:', err));
+      }).catch(err => logger.error('Failed to log token refresh error', { error: err }));
 
       return res.status(401).json({ error: 'No refresh token provided' });
     }
@@ -246,7 +248,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
         userAgent: metadata.userAgent,
         success: false,
         failureReason: result.error
-      }).catch(err => console.error('Failed to log token refresh failure:', err));
+      }).catch(err => logger.error('Failed to log token refresh failure', { error: err }));
 
       // Clear invalid refresh token cookie
       res.clearCookie('refreshToken');
@@ -259,7 +261,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
       ipAddress: metadata.ipAddress,
       userAgent: metadata.userAgent,
       success: true
-    }).catch(err => console.error('Failed to log token refresh success:', err));
+    }).catch(err => logger.error('Failed to log token refresh success', { error: err }));
 
     // Set new refresh token in HTTP-only cookie
     res.cookie('refreshToken', result.newRefreshToken, {
@@ -274,7 +276,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
       accessToken: result.accessToken
     });
   } catch (error) {
-    console.error('Token refresh error:', error);
+    logger.logError('Token refresh error', error as Error);
     const metadata = getRequestMetadata(req);
     await logAuthEvent({
       eventType: 'TOKEN_REFRESH_FAILURE',
@@ -283,7 +285,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
       success: false,
       failureReason: 'Internal server error',
       details: { error: String(error) }
-    }).catch(err => console.error('Failed to log token refresh exception:', err));
+    }).catch(err => logger.error('Failed to log token refresh exception', { error: err }));
 
     res.status(500).json({ error: 'Token refresh failed' });
   }
@@ -311,14 +313,14 @@ router.post('/logout', optionalAuth, async (req: Request, res: Response) => {
       userAgent: metadata.userAgent,
       success: true,
       details: user ? { email: user.email } : undefined
-    }).catch(err => console.error('Failed to log logout:', err));
+    }).catch(err => logger.error('Failed to log logout', { error: err }));
 
     // Clear refresh token cookie
     res.clearCookie('refreshToken');
 
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
-    console.error('Logout error:', error);
+    logger.logError('Logout error', error as Error);
     const metadata = getRequestMetadata(req);
     await logAuthEvent({
       eventType: 'LOGOUT',
@@ -327,7 +329,7 @@ router.post('/logout', optionalAuth, async (req: Request, res: Response) => {
       success: false,
       failureReason: 'Internal server error',
       details: { error: String(error) }
-    }).catch(err => console.error('Failed to log logout error:', err));
+    }).catch(err => logger.error('Failed to log logout error', { error: err }));
 
     res.status(500).json({ error: 'Logout failed' });
   }
@@ -359,7 +361,7 @@ router.get('/user', requireAuth, (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('Get user error:', error);
+    logger.logError('Get user error', error as Error);
     res.status(500).json({ error: 'Failed to get user' });
   }
 });
@@ -407,14 +409,14 @@ router.post('/logout-all', requireAuth, async (req: Request, res: Response) => {
         email: user.email,
         action: 'logout_all_devices'
       }
-    }).catch(err => console.error('Failed to log logout-all:', err));
+    }).catch(err => logger.error('Failed to log logout-all', { error: err }));
 
     // Clear refresh token cookie
     res.clearCookie('refreshToken');
 
     res.json({ message: 'Logged out from all devices' });
   } catch (error) {
-    console.error('Logout all error:', error);
+    logger.logError('Logout all error', error as Error);
     const metadata = getRequestMetadata(req);
     const user = authService.getUserFromRequest(req);
     await logAuthEvent({
@@ -425,7 +427,7 @@ router.post('/logout-all', requireAuth, async (req: Request, res: Response) => {
       success: false,
       failureReason: 'Internal server error',
       details: { error: String(error) }
-    }).catch(err => console.error('Failed to log logout-all error:', err));
+    }).catch(err => logger.error('Failed to log logout-all error', { error: err }));
 
     res.status(500).json({ error: 'Logout all failed' });
   }
@@ -448,7 +450,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
         userAgent: metadata.userAgent,
         success: false,
         failureReason: 'Email is required'
-      }).catch(err => console.error('Failed to log password reset validation error:', err));
+      }).catch(err => logger.error('Failed to log password reset validation error', { error: err }));
 
       return res.status(400).json({
         error: 'Email is required'
@@ -466,7 +468,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
         success: false,
         failureReason: 'Invalid email format',
         details: { email }
-      }).catch(err => console.error('Failed to log password reset validation error:', err));
+      }).catch(err => logger.error('Failed to log password reset validation error', { error: err }));
 
       return res.status(400).json({
         error: 'Invalid email format'
@@ -488,13 +490,12 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
         userAgent: metadata.userAgent,
         success: true,
         details: { email }
-      }).catch(err => console.error('Failed to log password reset request:', err));
+      }).catch(err => logger.error('Failed to log password reset request', { error: err }));
 
       // In production, send email with reset link
-      // For now, log to console (in dev mode) or return token (for testing)
+      // For now, log to structured logger (in dev mode) or return token (for testing)
       if (process.env.NODE_ENV === 'development') {
-        console.log('[Password Reset] Token for', email, ':', resetToken);
-        console.log('[Password Reset] Link: http://localhost:5173/reset-password?token=' + resetToken);
+        logger.info('Password reset token generated', { email, token: resetToken, link: `http://localhost:5173/reset-password?token=${resetToken}` });
       }
 
       // TODO: Send email via email service (SendGrid, AWS SES, etc.)
@@ -507,7 +508,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
         userAgent: metadata.userAgent,
         success: true,
         details: { email, userExists: false }
-      }).catch(err => console.error('Failed to log password reset request:', err));
+      }).catch(err => logger.error('Failed to log password reset request', { error: err }));
     }
 
     // Always return success to prevent email enumeration
@@ -516,7 +517,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       note: process.env.NODE_ENV === 'development' ? 'Check console for reset link' : undefined
     });
   } catch (error) {
-    console.error('Forgot password error:', error);
+    logger.logError('Forgot password error', error as Error);
     const metadata = getRequestMetadata(req);
     await logAuthEvent({
       eventType: 'PASSWORD_RESET_REQUEST',
@@ -525,7 +526,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       success: false,
       failureReason: 'Internal server error',
       details: { error: String(error) }
-    }).catch(err => console.error('Failed to log password reset error:', err));
+    }).catch(err => logger.error('Failed to log password reset error', { error: err }));
 
     res.status(500).json({ error: 'Password reset request failed' });
   }
@@ -548,7 +549,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
         userAgent: metadata.userAgent,
         success: false,
         failureReason: 'Token and new password are required'
-      }).catch(err => console.error('Failed to log password reset error:', err));
+      }).catch(err => logger.error('Failed to log password reset error', { error: err }));
 
       return res.status(400).json({
         error: 'Token and new password are required'
@@ -563,7 +564,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
         userAgent: metadata.userAgent,
         success: false,
         failureReason: 'Password must be at least 8 characters'
-      }).catch(err => console.error('Failed to log password reset error:', err));
+      }).catch(err => logger.error('Failed to log password reset error', { error: err }));
 
       return res.status(400).json({
         error: 'New password must be at least 8 characters'
@@ -581,7 +582,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
         userAgent: metadata.userAgent,
         success: false,
         failureReason: 'Invalid or expired reset token'
-      }).catch(err => console.error('Failed to log password reset error:', err));
+      }).catch(err => logger.error('Failed to log password reset error', { error: err }));
 
       return res.status(400).json({
         error: 'Invalid or expired reset token'
@@ -598,7 +599,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       ipAddress: metadata.ipAddress,
       userAgent: metadata.userAgent,
       success: true
-    }).catch(err => console.error('Failed to log password reset success:', err));
+    }).catch(err => logger.error('Failed to log password reset success', { error: err }));
 
     // Invalidate all existing sessions for security
     await authService.invalidateUserSessions(userId);
@@ -607,7 +608,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       message: 'Password reset successfully. Please login with your new password.'
     });
   } catch (error) {
-    console.error('Reset password error:', error);
+    logger.logError('Reset password error', error as Error);
     const metadata = getRequestMetadata(req);
     await logAuthEvent({
       eventType: 'PASSWORD_RESET_REQUEST',
@@ -616,7 +617,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       success: false,
       failureReason: 'Internal server error',
       details: { error: String(error) }
-    }).catch(err => console.error('Failed to log password reset error:', err));
+    }).catch(err => logger.error('Failed to log password reset error', { error: err }));
 
     res.status(500).json({ error: 'Password reset failed' });
   }
@@ -654,7 +655,7 @@ router.post('/change-password', requireAuth, async (req: Request, res: Response)
       note: 'Full implementation requires database integration'
     });
   } catch (error) {
-    console.error('Change password error:', error);
+    logger.logError('Change password error', error as Error);
     res.status(500).json({ error: 'Password change failed' });
   }
 });

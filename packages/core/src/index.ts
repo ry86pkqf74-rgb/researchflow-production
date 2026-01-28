@@ -4,6 +4,9 @@
  * Shared utilities, security, API clients, and components for ResearchFlow applications.
  */
 
+// Configuration and environment validation
+export * from './config';
+
 // Security utilities
 export * from './security';
 

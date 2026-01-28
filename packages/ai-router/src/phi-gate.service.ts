@@ -111,6 +111,18 @@ export class PhiGateService {
   }
 
   /**
+   * Scan content and return compatible result format
+   * Returns a simplified scan result with hasPhi boolean and stats
+   */
+  scan(content: string): ScanResult {
+    const result = this.scanContent(content);
+    return {
+      hasPhi: !result.passed,
+      stats: this.getStats(content)
+    };
+  }
+
+  /**
    * Remove overlapping findings (keep the more specific one)
    */
   private deduplicateOverlapping(findings: PhiFindingLocation[]): PhiFindingLocation[] {
@@ -211,6 +223,14 @@ export class PhiGateService {
 
     return result;
   }
+}
+
+/**
+ * Scan result interface compatible with writing-tools expectations
+ */
+export interface ScanResult {
+  hasPhi: boolean;
+  stats: Record<string, number>;
 }
 
 /**
