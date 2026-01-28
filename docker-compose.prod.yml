@@ -108,7 +108,21 @@ services:
       # Chat Agents
       - CHAT_AGENT_MODEL=${CHAT_AGENT_MODEL:-gpt-4}
       - CHAT_AGENT_PROVIDER=${CHAT_AGENT_PROVIDER:-openai}
+      - CHAT_AGENT_ENABLED=${CHAT_AGENT_ENABLED:-true}
       - PHI_SCAN_ENABLED=${PHI_SCAN_ENABLED:-true}
+      - PHI_FAIL_CLOSED=${PHI_FAIL_CLOSED:-true}
+      # Literature Integration
+      - NCBI_API_KEY=${NCBI_API_KEY}
+      - SEMANTIC_SCHOLAR_API_KEY=${SEMANTIC_SCHOLAR_API_KEY}
+      - LITERATURE_CACHE_TTL=${LITERATURE_CACHE_TTL:-3600}
+      # Dashboard
+      - DASHBOARD_ENABLED=${DASHBOARD_ENABLED:-true}
+      - DASHBOARD_CALENDAR_INTEGRATION=${DASHBOARD_CALENDAR_INTEGRATION:-true}
+      - DASHBOARD_REFRESH_INTERVAL=${DASHBOARD_REFRESH_INTERVAL:-5000}
+      # Guideline Engine Proxy
+      - GUIDELINE_ENGINE_URL=http://guideline-engine:8001
+      # Worker URL
+      - WORKER_URL=http://worker:8000
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -166,6 +180,24 @@ services:
       # API Keys
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      # LLM Extraction System
+      - AI_ROUTER_URL=http://orchestrator:3001/api/ai/extraction/generate
+      - ORCHESTRATOR_URL=http://orchestrator:3001
+      - EXTRACTION_TIMEOUT_SECONDS=60
+      - ENRICHMENT_TIMEOUT_SECONDS=30
+      # PHI Governance
+      - PHI_SCAN_ENABLED=${PHI_SCAN_ENABLED:-true}
+      - PHI_FAIL_CLOSED=${PHI_FAIL_CLOSED:-true}
+      # Chat Agent
+      - CHAT_AGENT_MODEL=${CHAT_AGENT_MODEL:-gpt-4}
+      - CHAT_AGENT_ENABLED=${CHAT_AGENT_ENABLED:-true}
+      # Version Control (Phase 5.5)
+      - PROJECTS_PATH=/data/projects
+      # Support both naming conventions for backwards compatibility
+      - ARTIFACTS_PATH=/data/artifacts
+      # Conference Preparation (Stage 20)
+      - CONFERENCE_CACHE_TTL=${CONFERENCE_CACHE_TTL:-86400}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -173,8 +205,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      orchestrator:
+        condition: service_healthy
     volumes:
       - shared-data:/data
+      - projects-data:/data/projects
     networks:
       - researchflow
     restart: unless-stopped
@@ -297,6 +332,47 @@ services:
       start_period: 10s
 
   # ===================
+  # Guideline Engine - Python FastAPI (Clinical Scoring/Staging)
+  # ===================
+  guideline-engine:
+    build:
+      context: ./packages/guideline-engine
+      dockerfile: Dockerfile
+    expose:
+      - "8001"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - AI_ROUTER_URL=http://orchestrator:3001/api/ai
+      - LOG_LEVEL=INFO
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    networks:
+      - researchflow
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ===================
   # PostgreSQL Database
   # ===================
   postgres:
@@ -359,6 +435,9 @@ services:
 volumes:
   shared-data:
     driver: local
+  projects-data:
+    driver: local
+    # Persistent storage for Git-based version control (Phase 5.5)
   postgres-data:
     driver: local
   redis-data:

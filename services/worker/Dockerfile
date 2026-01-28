@@ -27,6 +27,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     && rm -rf /var/lib/apt/lists/*
 
+# Export toolchain for PDF/DOCX generation (manuscript exports, reports)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pandoc \
+    texlive-latex-base \
+    texlive-fonts-recommended \
+    texlive-latex-extra \
+    wkhtmltopdf \
+    fonts-liberation \
+    fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set default Git config (will be overridden per-user in version control service)
 RUN git config --global user.name "ResearchFlow System" && \
     git config --global user.email "system@researchflow.local" && \
@@ -39,6 +50,9 @@ FROM base AS deps
 COPY requirements.txt pyproject.toml ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
+
+# Download spaCy model for PHI detection (presidio dependency)
+RUN python -m spacy download en_core_web_sm
 
 # Development stage
 FROM base AS development
@@ -64,6 +78,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     libgit2-1.1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Export toolchain for PDF/DOCX generation (manuscript exports, reports)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pandoc \
+    texlive-latex-base \
+    texlive-fonts-recommended \
+    texlive-latex-extra \
+    wkhtmltopdf \
+    fonts-liberation \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
