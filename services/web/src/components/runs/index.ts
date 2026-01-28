@@ -5,3 +5,4 @@ export { LogConsole, type LogEntry, type LogLevel } from './LogConsole';
 export { LiveArtifacts, type Artifact } from './LiveArtifacts';
 export { RunControls, type RunStatus } from './RunControls';
 export { NewRunWizard, type RunConfiguration } from './NewRunWizard';
+export { AIActivity } from './AIActivity';

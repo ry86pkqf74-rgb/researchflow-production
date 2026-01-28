@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { useGovernanceMode } from "@/hooks/useGovernanceMode";
+import { ApprovalQueue } from "@/components/governance/ApprovalQueue";
 
 interface IncidentStep {
   id: string;
@@ -195,6 +196,10 @@ export default function GovernancePage() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6 flex-wrap gap-1 sm:gap-2">
+            <TabsTrigger value="approvals" data-testid="tab-approvals">
+              <Clock className="h-4 w-4 mr-2" />
+              Approval Queue
+            </TabsTrigger>
             <TabsTrigger value="status" data-testid="tab-status">
               <Activity className="h-4 w-4 mr-2" />
               System Status
@@ -212,6 +217,10 @@ export default function GovernancePage() {
               Audit Log
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="approvals" className="space-y-6">
+            <ApprovalQueue />
+          </TabsContent>
 
           <TabsContent value="status" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

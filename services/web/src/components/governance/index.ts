@@ -5,6 +5,7 @@ export { ModeIndicator } from "./ModeIndicator";
 export { DemoModeBanner } from "./DemoModeBanner";
 
 export { ApprovalLog } from "./ApprovalLog";
+export { ApprovalQueue } from "./ApprovalQueue";
 export { AuditExport } from "./AuditExport";
 export { AuditLogViewer } from "./AuditLogViewer";
 export { DemoWatermark } from "./DemoWatermark";
