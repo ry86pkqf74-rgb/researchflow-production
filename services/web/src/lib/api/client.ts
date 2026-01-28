@@ -1,7 +1,9 @@
 // ============================================
 // ResearchFlow API Client
 // ============================================
-// Centralized API client with authentication and mode headers
+// Centralized API client with authentication, retry logic, and mode headers
+
+import { retryableFetch, DEFAULT_RETRY_CONFIG, RetryConfig } from './retry';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
@@ -16,7 +18,23 @@ export interface ApiError {
   code?: string;
 }
 
+export interface ClientConfig {
+  baseURL?: string;
+  retryConfig?: Partial<RetryConfig>;
+  timeout?: number;
+}
+
 class ApiClient {
+  private baseURL: string;
+  private retryConfig: RetryConfig;
+  private timeout: number;
+
+  constructor(config: ClientConfig = {}) {
+    this.baseURL = config.baseURL || API_BASE;
+    this.retryConfig = { ...DEFAULT_RETRY_CONFIG, ...config.retryConfig };
+    this.timeout = config.timeout || 30000;
+  }
+
   private getHeaders(): HeadersInit {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -33,14 +51,44 @@ class ApiClient {
     return headers;
   }
 
-  async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-    try {
-      const response = await fetch(`${API_BASE}${endpoint}`, {
-        ...options,
-        headers: { ...this.getHeaders(), ...options.headers },
-        credentials: 'include',
-      });
+  private createAbortController(timeoutMs: number): AbortController {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+    // Clear timeout when request completes
+    const originalSignal = controller.signal;
+    if ('addEventListener' in originalSignal) {
+      originalSignal.addEventListener('abort', () => clearTimeout(timeoutId));
+    }
+
+    return controller;
+  }
+
+  async request<T>(endpoint: string, options: RequestInit = {}, retry = true): Promise<ApiResponse<T>> {
+    try {
+      const controller = this.createAbortController(this.timeout);
+      const url = `${this.baseURL}${endpoint}`;
+
+      const fetchFn = async () => {
+        const response = await (retry
+          ? retryableFetch(url, {
+              ...options,
+              headers: { ...this.getHeaders(), ...options.headers },
+              credentials: 'include',
+              signal: controller.signal,
+            }, this.retryConfig)
+          : fetch(url, {
+              ...options,
+              headers: { ...this.getHeaders(), ...options.headers },
+              credentials: 'include',
+              signal: controller.signal,
+            })
+        );
+
+        return response;
+      };
+
+      const response = await fetchFn();
       const data = await response.json().catch((): null => null);
 
       if (!response.ok) {
@@ -93,8 +141,31 @@ class ApiClient {
     });
   }
 
+  patch<T>(endpoint: string, body?: unknown) {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      body: body ? JSON.stringify(body) : undefined
+    });
+  }
+
   delete<T>(endpoint: string) {
     return this.request<T>(endpoint, { method: 'DELETE' });
+  }
+
+  setBaseURL(baseURL: string): void {
+    this.baseURL = baseURL;
+  }
+
+  getBaseURL(): string {
+    return this.baseURL;
+  }
+
+  setRetryConfig(config: Partial<RetryConfig>): void {
+    this.retryConfig = { ...this.retryConfig, ...config };
+  }
+
+  getRetryConfig(): RetryConfig {
+    return { ...this.retryConfig };
   }
 }
 

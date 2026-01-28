@@ -130,6 +130,7 @@ import { mockAuthMiddleware } from './middleware/auth.js';
 import { optionalAuth } from './services/authService';
 import { errorHandler } from './middleware/errorHandler.js';
 import { CollaborationWebSocketServer } from './collaboration/websocket-server';
+import { webSocketManager } from './websocket/manager';
 import { createLogger } from './utils/logger';
 
 // Load environment variables
@@ -425,6 +426,15 @@ try {
   logger.info('Continuing without collaboration features...');
 }
 
+// Initialize WebSocket manager for real-time run events (Phase 4B)
+try {
+  webSocketManager.initialize(httpServer);
+  logger.info('WebSocket event system initialized', { path: '/ws' });
+} catch (error) {
+  logger.logError('Failed to initialize WebSocket event manager', error as Error);
+  logger.info('Continuing without WebSocket event system...');
+}
+
 // Initialize Planning Queues (BullMQ)
 import { initPlanningQueues, shutdownPlanningQueues } from './services/planning';
 
@@ -468,7 +478,8 @@ function startServer() {
     governanceMode: process.env.GOVERNANCE_MODE || 'DEMO',
     health_check: `http://localhost:${PORT}/health`,
     api_base: `http://localhost:${PORT}/api`,
-    websocket: `ws://localhost:${PORT}/collaboration`
+    websocket_collaboration: `ws://localhost:${PORT}/collaboration`,
+    websocket_events: `ws://localhost:${PORT}/ws`
   });
 
   // Log active features
@@ -501,10 +512,13 @@ const shutdown = async () => {
     logger.logError('Error shutting down planning queues', error as Error);
   }
 
-  // Shutdown WebSocket server
+  // Shutdown WebSocket servers
   if (wsServer) {
     await wsServer.shutdown();
   }
+
+  // Shutdown WebSocket event manager
+  webSocketManager.shutdown();
 
   // Close HTTP server
   httpServer.close(() => {
