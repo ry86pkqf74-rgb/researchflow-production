@@ -1,0 +1,566 @@
+# ResearchFlow AI Assistant Configuration
+# ==========================================
+# This file configures AI coding assistants (Cursor, Continue.dev, Copilot, Cody, etc.)
+# Place this file in the root of researchflow-production repository
+#
+# Last Updated: 2026-01-28
+# Repository: https://github.com/ry86pkqf74-rgb/researchflow-production
+# Maintainer: Logan Glosser <logan.glosser@gmail.com>
+
+# ============================================================================
+# PROJECT OVERVIEW
+# ============================================================================
+
+ResearchFlow (ROS - Research Operating System) is a comprehensive clinical 
+research platform for healthcare data analysis and manuscript generation.
+
+## Mission
+Transform clinical research workflows by providing a unified platform that 
+handles data ingestion, PHI protection, analysis, and publication preparation.
+
+## Key Differentiators
+- HIPAA-compliant by design with PHI scanning and governance
+- 20-stage workflow pipeline for research projects
+- Real-time collaboration with WebSocket updates
+- AI-powered manuscript generation and literature review
+- Dual-mode operation: DEMO (synthetic data) and LIVE (real PHI)
+
+# ============================================================================
+# AI TOOL ECOSYSTEM (12 TOOLS)
+# ============================================================================
+
+## Complete Tool Inventory
+
+You have access to these 12 AI tools. USE ALL OF THEM appropriately:
+
+### MCP Integrations (Claude Native)
+| # | Tool | Command Prefix | Primary Use |
+|---|------|----------------|-------------|
+| 1 | Figma MCP | `Figma:` | Design specs, screenshots, design tokens |
+| 2 | Linear MCP | `Linear:` | Issue tracking, sprint management |
+| 3 | Notion MCP | `Notion:` | Documentation, databases, knowledge base |
+| 4 | Vercel MCP | `Vercel:` | Deployments, preview URLs |
+| 5 | Context7 | - | Library documentation lookup |
+
+### IDE Extensions
+| # | Tool | Integration | Best For |
+|---|------|-------------|----------|
+| 6 | Continue.dev | VS Code/JetBrains | Inline completions, chat, /edit |
+| 7 | Sourcegraph Cody | VS Code | Code search, find references, explain code |
+| 8 | Cursor | Standalone IDE | Multi-file editing, Composer (⌘+I) |
+
+### AI Assistants
+| # | Tool | Strengths | Use When |
+|---|------|-----------|----------|
+| 9 | Claude (Anthropic) | Complex reasoning, architecture | System design, security review |
+| 10 | GPT-4 / ChatGPT Pro | Structured outputs, JSON mode | Type generation, schemas |
+| 11 | Mercury Coder | Fast UI iteration | Quick component drafts |
+| 12 | Grok (xAI) | Code review, debugging | Testing, bug hunting |
+
+### Platforms & Infrastructure
+| # | Tool | Purpose | Best For |
+|---|------|---------|----------|
+| 13 | Replit Agent | Cloud IDE + AI | Rapid prototyping, shareable demos |
+| 14 | n8n | Workflow automation | Connecting services, webhooks |
+| 15 | LM Studio | Local LLM inference | Sensitive code, offline, cost savings |
+
+## Tool Selection Decision Tree
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    TASK TYPE DETECTION                          │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        ▼                     ▼                     ▼
+   UI COMPONENT          BUSINESS LOGIC        CODE SEARCH
+        │                     │                     │
+        ▼                     ▼                     ▼
+   1. Figma MCP          1. Claude            1. Sourcegraph Cody
+   2. v0.dev/Replit      2. GPT-4             2. Context7
+   3. Cursor             3. Continue.dev      3. grep/ripgrep
+   4. Continue.dev       4. Grok (review)
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              │
+                              ▼
+                    AUTOMATION NEEDED?
+                              │
+                ┌─────────────┼─────────────┐
+                ▼             ▼             ▼
+            n8n          GitHub Actions   Custom Script
+       (multi-service)      (CI/CD)       (one-off)
+```
+
+## Mandatory Tool Usage Rules
+
+### Rule 1: UI Components - ALWAYS Check Figma First
+```
+Before creating ANY UI component:
+1. Figma:get_design_context fileKey="..." nodeId="..."
+2. Figma:get_variable_defs fileKey="..." nodeId="..."
+3. THEN proceed with implementation
+```
+
+### Rule 2: Complex Logic - Use Claude
+```
+For architecture, security, or complex business logic:
+1. Plan with Claude
+2. Generate types with GPT-4 (JSON mode)
+3. Implement with Continue.dev
+4. Review with Grok
+```
+
+### Rule 3: Code Search - Use Cody + Context7
+```
+For finding code or documentation:
+1. Sourcegraph Cody for codebase search
+2. Context7 for library/framework docs
+3. Web search as fallback
+```
+
+### Rule 4: Automation - Use n8n
+```
+For workflow automation:
+1. Check if n8n workflow exists
+2. Create/update workflow in n8n
+3. Add webhook to orchestrator
+4. Test end-to-end
+```
+
+### Rule 5: Sensitive Code - Use LM Studio
+```
+For PHI-adjacent or sensitive code:
+1. Consider running locally with LM Studio
+2. Use synthetic/mock data for cloud AI
+3. Never send actual PHI to cloud APIs
+```
+
+## Tool-Specific Commands
+
+### Figma MCP
+```
+Figma:whoami                 # Check auth
+Figma:get_design_context     # Get component specs
+Figma:get_screenshot         # Capture node image  
+Figma:get_variable_defs      # Get design tokens
+Figma:get_code_connect_map   # Check code mappings
+```
+
+### Linear MCP
+```
+Linear:get_user query="me"   # Get current user
+Linear:list_teams            # List available teams
+Linear:create_issue          # Create new issue
+Linear:update_issue          # Update existing issue
+Linear:list_issues           # Query issues
+```
+
+### Notion MCP
+```
+Notion:notion-search         # Search pages/databases
+Notion:notion-fetch          # Get page content
+Notion:notion-create-pages   # Create new pages
+Notion:notion-update-page    # Update existing pages
+```
+
+### Continue.dev
+```
+Tab                          # Accept completion
+Cmd+L                        # Open chat
+Cmd+I                        # Inline edit
+/edit                        # Edit selection
+@codebase                    # Search codebase
+/researchflow                # Custom command (if configured)
+```
+
+### Sourcegraph Cody
+```
+Cody: Explain Code           # Understand functions
+Cody: Find References        # Find all usages
+Cody: Generate Tests         # Create test scaffolds
+Cody: Document Code          # Add JSDoc comments
+```
+
+### Cursor
+```
+⌘+I                          # Composer (generate files)
+⌘+L                          # Chat
+⌘+K                          # Inline edit
+@file                        # Reference specific file
+@codebase                    # Search full codebase
+```
+
+# ============================================================================
+# ARCHITECTURE
+# ============================================================================
+
+## Monorepo Structure
+```
+researchflow-production/
+├── services/
+│   ├── web/                 # React frontend (Vite + TypeScript)
+│   ├── orchestrator/        # Node.js API server (Express + TypeScript)
+│   ├── worker/              # Python FastAPI worker (analysis tasks)
+│   ├── collab/              # Real-time collaboration server
+│   └── guideline-engine/    # Clinical guideline processing
+├── packages/
+│   ├── shared/              # Shared TypeScript types and utilities
+│   ├── ai-router/           # AI model routing and fallback
+│   ├── phi-detector/        # PHI scanning and redaction
+│   └── manuscript-gen/      # Manuscript generation utilities
+├── infrastructure/
+│   ├── docker/              # Dockerfiles and compose configs
+│   ├── k8s/                 # Kubernetes manifests
+│   └── monitoring/          # Prometheus/Grafana configs
+├── docs/                    # Documentation
+├── tests/                   # E2E and integration tests
+└── scripts/                 # Utility scripts
+```
+
+## Service Ports
+| Service | Port | Purpose |
+|---------|------|---------|
+| web | 5173 | React frontend (dev) |
+| orchestrator | 3001 | Main API server |
+| worker | 8000 | Python analysis worker |
+| collab | 1235 | WebSocket collaboration |
+| guideline-engine | 8001 | Guideline processing |
+| postgres | 5432 | Database |
+| redis | 6379 | Cache and queues |
+
+## Docker Commands
+```bash
+docker compose up -d              # Start all services
+docker compose logs -f [service]  # View logs
+docker compose build --no-cache   # Rebuild
+docker compose down && up -d      # Full restart
+```
+
+# ============================================================================
+# TECH STACK
+# ============================================================================
+
+## Frontend (services/web/)
+- **Framework**: React 18 with TypeScript
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS
+- **Components**: shadcn/ui (Radix primitives)
+- **State**: TanStack Query (server), Zustand (client)
+- **Forms**: React Hook Form + Zod
+- **Routing**: React Router v6
+- **Icons**: Lucide React
+
+## Backend (services/orchestrator/)
+- **Runtime**: Node.js 20 LTS
+- **Framework**: Express.js with TypeScript
+- **ORM**: Prisma
+- **Validation**: Zod
+- **Auth**: JWT with refresh tokens
+- **Queue**: BullMQ with Redis
+- **WebSocket**: ws library
+
+## Worker (services/worker/)
+- **Runtime**: Python 3.11
+- **Framework**: FastAPI
+- **Analysis**: Pandas, NumPy, SciPy
+
+## Database
+- **Primary**: PostgreSQL 15
+- **Cache**: Redis 7
+
+# ============================================================================
+# CODE CONVENTIONS
+# ============================================================================
+
+## TypeScript Guidelines
+
+### Naming
+```typescript
+// Components: PascalCase
+export function RunTimeline() {}
+
+// Hooks: camelCase with "use" prefix
+export function useRunEvents() {}
+
+// Utilities: camelCase
+export function formatDuration() {}
+
+// Constants: SCREAMING_SNAKE_CASE
+export const MAX_RETRY_ATTEMPTS = 3;
+
+// Types/Interfaces: PascalCase
+interface RunStage {}
+type RunStatus = 'pending' | 'running' | 'completed' | 'failed';
+```
+
+### File Organization
+```typescript
+// 1. External imports
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+
+// 2. Internal imports (absolute)
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
+
+// 3. Relative imports
+import { RunStage } from './RunTimeline.types';
+
+// 4. Types (if not separate file)
+interface Props {}
+
+// 5. Constants
+const COLORS = {};
+
+// 6. Component
+export function Component() {}
+```
+
+## React Patterns
+
+### Functional Components Only
+```typescript
+// ✅ Correct
+export function RunTimeline({ stages }: Props) {
+  return <div>...</div>;
+}
+
+// ❌ Never use class components
+```
+
+### Custom Hooks
+```typescript
+export function useRunEvents(runId: string) {
+  const [connected, setConnected] = useState(false);
+  // ... logic
+  return { connected, events };
+}
+```
+
+### TanStack Query
+```typescript
+// Query
+export function useRun(runId: string) {
+  return useQuery({
+    queryKey: ['run', runId],
+    queryFn: () => apiClient.getRun(runId),
+  });
+}
+
+// Mutation
+export function useCreateRun() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createRun,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['runs'] });
+    },
+  });
+}
+```
+
+## UI/UX Patterns
+
+### Always Use shadcn/ui
+```typescript
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+```
+
+### Tailwind Class Order
+```typescript
+// layout → sizing → spacing → typography → colors → effects
+<div className="flex flex-col w-full p-4 text-sm text-gray-700 bg-white rounded-lg shadow">
+```
+
+### ResearchFlow Colors
+```css
+/* Mode indicators */
+--mode-demo: #6366F1;      /* Indigo */
+--mode-live: #10B981;      /* Green */
+
+/* PHI states */
+--phi-safe: #22C55E;       /* Green */
+--phi-sensitive: #EAB308;  /* Yellow */
+--phi-redacted: #3B82F6;   /* Blue */
+
+/* Status */
+--status-pending: #9CA3AF;  /* Gray */
+--status-running: #6366F1;  /* Indigo + pulse */
+--status-completed: #22C55E;/* Green */
+--status-failed: #EF4444;   /* Red */
+```
+
+### Loading States - Use Skeletons
+```typescript
+{isLoading ? (
+  <Skeleton className="h-4 w-3/4" />
+) : (
+  <Content />
+)}
+```
+
+### Empty States - Always Provide
+```typescript
+{items.length === 0 ? (
+  <EmptyState
+    icon={<Folder />}
+    title="No items yet"
+    description="Create your first item"
+    action={<Button>Create</Button>}
+  />
+) : (
+  <ItemList items={items} />
+)}
+```
+
+# ============================================================================
+# GIT WORKFLOW
+# ============================================================================
+
+## Commit After EVERY Task
+```bash
+git add -A
+git commit -m "[TASK-ID] Brief description"
+git push origin main
+```
+
+## Commit Message Format
+```
+[TASK-ID] Brief description
+
+- Detail 1
+- Detail 2
+
+Closes #issue
+```
+
+## Branch Naming
+```
+feature/ROS-XX-description
+bugfix/ROS-XX-description
+hotfix/critical-fix
+```
+
+# ============================================================================
+# n8n WORKFLOW INTEGRATION
+# ============================================================================
+
+## Existing Workflows
+| Workflow | Trigger | Actions |
+|----------|---------|---------|
+| github-linear-sync | PR merged | Update Linear issue |
+| run-completed | Webhook | Notify stakeholders |
+| phi-alert | PHI detected | Alert governance team |
+| daily-status | 9am cron | Slack summary |
+
+## Adding Webhook Triggers
+```typescript
+// In orchestrator, trigger n8n:
+await fetch(process.env.N8N_WEBHOOK_URL, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    event: 'run.completed',
+    runId: run.id,
+    timestamp: new Date().toISOString(),
+  }),
+});
+```
+
+# ============================================================================
+# SECURITY
+# ============================================================================
+
+## PHI Handling
+- NEVER log PHI
+- Always use PHI scanner before display
+- Require approval for PHI reveal in LIVE mode
+- Use LM Studio for PHI-adjacent code
+
+## Authentication
+- JWT tokens (15 min expiry)
+- Refresh token rotation
+- RBAC for all endpoints
+
+## Input Validation
+- Validate ALL inputs with Zod
+- Sanitize before database ops
+
+# ============================================================================
+# COMMON TASKS
+# ============================================================================
+
+## Creating New Component
+1. Check Figma: `Figma:get_design_context`
+2. Generate scaffold: v0.dev or Replit
+3. Create file: `services/web/src/components/...`
+4. Add types if complex
+5. Write tests
+6. Commit: `git add -A && git commit -m "[ID] Add Component"`
+
+## Adding API Endpoint
+1. Define Zod schema
+2. Add route handler
+3. Implement service logic
+4. Update OpenAPI spec
+5. Write tests
+6. Commit
+
+## Fixing Bug
+1. Write failing test
+2. Fix bug
+3. Verify test passes
+4. Check for similar issues
+5. Commit
+
+# ============================================================================
+# QUICK COMMANDS
+# ============================================================================
+
+```bash
+# Development
+npm run dev              # Frontend
+npm run dev:api          # API
+docker compose up -d     # All services
+
+# Quality
+npm run lint
+npm run typecheck
+npm run test
+npm run test:e2e
+
+# Database
+npm run db:migrate
+npm run db:seed
+npm run db:studio
+```
+
+# ============================================================================
+# AI ASSISTANT INSTRUCTIONS
+# ============================================================================
+
+When working on this codebase:
+
+1. **Always verify tools first** - Check which AI tools are available
+2. **Use Figma for UI** - Get specs before implementing components
+3. **Use appropriate AI** - Claude for logic, GPT-4 for types, Grok for review
+4. **Search before creating** - Use Cody/Context7 to find existing code
+5. **Commit frequently** - After each completed task
+6. **Update docs** - Use Notion MCP for documentation
+7. **Track issues** - Use Linear MCP for task management
+8. **Automate** - Use n8n for recurring workflows
+9. **Protect PHI** - Use LM Studio for sensitive code
+10. **Follow patterns** - Match existing code style
+
+# ============================================================================
+# END OF CONFIGURATION
+# ============================================================================
+# 
+# Repository: https://github.com/ry86pkqf74-rgb/researchflow-production
+# Maintainer: Logan Glosser <logan.glosser@gmail.com>
+# Linear: https://linear.app/rostemp
+# Notion: ResearchFlow Mission Control
+# n8n: [Your n8n instance URL]
