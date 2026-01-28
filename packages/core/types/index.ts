@@ -55,3 +55,6 @@ export * from './organization';
 
 // Export workflow types for Phase G custom workflow builder
 export * from "./workflow";
+
+// Export manuscript ideation types
+export * from './manuscript-ideation';
