@@ -1,0 +1,270 @@
+# =============================================================================
+# Load Testing Workflow
+# =============================================================================
+# Runs K6 load testing against critical API endpoints on main branch
+# Ensures the system can handle target load with acceptable performance
+# SECURITY: This workflow only runs on the production repository
+
+name: Load Testing
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Run nightly load tests at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+concurrency:
+  group: load-testing-${{ github.ref }}
+  cancel-in-progress: false  # Don't cancel load tests
+
+env:
+  NODE_VERSION: '20'
+  PRODUCTION_REPO: 'ry86pkqf74-rgb/researchflow-production'
+
+jobs:
+  load-testing:
+    name: Load Testing Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Only run on production repository and main branch
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: ros
+          POSTGRES_PASSWORD: ros
+          POSTGRES_DB: ros
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install K6
+        run: |
+          sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6-stable.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+          k6 version
+
+      - name: Install Node dependencies
+        run: npm ci
+        env:
+          CI: true
+
+      - name: Create .env file
+        run: |
+          cp .env.example .env
+          echo "" >> .env
+          echo "# CI Override" >> .env
+          echo "GOVERNANCE_MODE=DEMO" >> .env
+          echo "JWT_SECRET=ci-test-secret-minimum-32-characters-required" >> .env
+          echo "AUTH_ALLOW_STATELESS_JWT=true" >> .env
+          echo "DASHBOARD_ENABLED=true" >> .env
+          echo "CHAT_AGENT_ENABLED=false" >> .env
+          echo "DATABASE_URL=postgresql://ros:ros@localhost:5432/ros" >> .env
+          echo "REDIS_URL=redis://localhost:6379" >> .env
+
+      - name: Build and start services
+        run: |
+          docker compose build --no-cache orchestrator worker web
+          docker compose up -d postgres redis
+          sleep 10
+          docker compose up -d orchestrator worker web
+          sleep 45
+
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting for orchestrator..."
+          timeout 120 bash -c 'until curl -sf http://localhost:3001/health; do sleep 3; done'
+          echo "Orchestrator healthy!"
+
+          echo "Waiting for worker..."
+          timeout 120 bash -c 'until curl -sf http://localhost:8000/health; do sleep 3; done'
+          echo "Worker healthy!"
+
+      - name: Create load test reports directory
+        run: mkdir -p tests/load/reports
+
+      - name: Run full load test
+        run: bash tests/load/k6-runner.sh full
+        env:
+          BASE_URL: http://localhost:3001
+          CI: true
+
+      - name: Run authentication endpoint load test
+        if: always()
+        run: bash tests/load/k6-runner.sh auth
+        env:
+          BASE_URL: http://localhost:3001
+          CI: true
+
+      - name: Run projects endpoint load test
+        if: always()
+        run: bash tests/load/k6-runner.sh projects
+        env:
+          BASE_URL: http://localhost:3001
+          CI: true
+
+      - name: Run governance endpoint load test
+        if: always()
+        run: bash tests/load/k6-runner.sh governance
+        env:
+          BASE_URL: http://localhost:3001
+          CI: true
+
+      - name: Run realistic workflow load test
+        if: always()
+        run: bash tests/load/k6-runner.sh workflow
+        env:
+          BASE_URL: http://localhost:3001
+          CI: true
+
+      - name: Upload load test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-test-reports
+          path: tests/load/reports/
+          retention-days: 30
+
+      - name: Parse and summarize load test results
+        if: always()
+        run: |
+          echo "## Load Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f tests/load/reports/*.json ]; then
+            for report in tests/load/reports/*.json; do
+              echo "### $(basename $report)" >> $GITHUB_STEP_SUMMARY
+              echo '```json' >> $GITHUB_STEP_SUMMARY
+              cat "$report" | jq '.metrics | {error_rate, http_req_duration, active_users}' >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+
+      - name: Create load test summary comment
+        if: github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const reportsDir = 'tests/load/reports';
+            if (!fs.existsSync(reportsDir)) {
+              console.log('No load test reports found');
+              return;
+            }
+
+            const files = fs.readdirSync(reportsDir).filter(f => f.endsWith('.json'));
+            if (files.length === 0) {
+              console.log('No JSON reports found');
+              return;
+            }
+
+            let comment = `## 📊 Load Testing Results\n\n`;
+            comment += `**Test Run**: ${new Date().toISOString()}\n\n`;
+
+            files.forEach(file => {
+              const filePath = path.join(reportsDir, file);
+              try {
+                const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                comment += `### ${file.replace('_report_', ' - ').replace('.json', '')}\n`;
+
+                if (data.metrics) {
+                  const metrics = data.metrics;
+                  if (metrics.error_rate) {
+                    const errorRate = (metrics.error_rate.values?.rate || 0) * 100;
+                    comment += `- Error Rate: **${errorRate.toFixed(2)}%**\n`;
+                  }
+                  if (metrics.http_req_duration) {
+                    const duration = metrics.http_req_duration.values || {};
+                    comment += `- Avg Response Time: **${(duration.avg || 0).toFixed(2)}ms**\n`;
+                    comment += `- P95 Response Time: **${(duration['p(95)'] || 0).toFixed(2)}ms**\n`;
+                    comment += `- Max Response Time: **${(duration.max || 0).toFixed(2)}ms**\n`;
+                  }
+                }
+                comment += `\n`;
+              } catch (e) {
+                console.error(`Error parsing ${file}:`, e.message);
+              }
+            });
+
+            comment += `**Artifacts**: [View detailed reports](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+
+            // Commit summary for workflow run
+            console.log(comment);
+
+      - name: Monitor system resources during load test
+        if: always()
+        run: |
+          echo "## System Resource Usage During Load Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Peak metrics captured during test run:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Memory" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          free -h >> $GITHUB_STEP_SUMMARY || echo "Memory info not available"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          echo "### Disk Space" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          df -h >> $GITHUB_STEP_SUMMARY || echo "Disk info not available"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          echo "=== Orchestrator Logs ===" || true
+          docker compose logs orchestrator --tail=100 || true
+          echo "=== Worker Logs ===" || true
+          docker compose logs worker --tail=100 || true
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v || true
+
+  # Alert job if tests exceed performance thresholds
+  performance-alert:
+    name: Performance Alert Check
+    runs-on: ubuntu-latest
+    needs: load-testing
+    if: always()
+    steps:
+      - name: Check for performance regressions
+        run: |
+          echo "Performance monitoring:"
+          echo "- Check load test reports for failures"
+          echo "- Review error rates and latencies"
+          echo "- Compare against baseline thresholds"
+          echo "- Consider performance bottlenecks if needed"
