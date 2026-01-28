@@ -22,8 +22,48 @@ export {
 } from './src/prompt-cache.service';
 export type { StructuredPrompt, PromptTemplate } from './src/prompt-cache.service';
 
+// Notion AI Logger
+export {
+  NotionAILogger,
+  getNotionLogger,
+  logAIUsage,
+  shutdownLogger,
+  type AIUsageLogEntry,
+  type NotionLoggerConfig,
+  type BudgetStatus,
+} from './src/notion';
+
+// Wrapped Providers with Logging
+export {
+  ClaudeProvider,
+  getClaudeProvider,
+  claudeComplete,
+  OpenAIProvider,
+  getOpenAIProvider,
+  openaiComplete,
+  openaiCompleteJSON,
+  type ClaudeRequestOptions,
+  type ClaudeResponse,
+  type OpenAIRequestOptions,
+  type OpenAIResponse,
+} from './src/providers';
+
+// Agent Roster
+export {
+  TOOL_REGISTRY,
+  AGENT_ROSTER,
+  getAgentForTaskType,
+  getHighRiskAgents,
+  getPhiSafeTools,
+  getToolsByCostTier,
+  type AITool,
+  type ToolCapabilities,
+  type AgentRole,
+  type OrchestratorAgent,
+} from './src/agents';
+
 // Package version
-export const AI_ROUTER_VERSION = '2.0.0';
+export const AI_ROUTER_VERSION = '2.1.0';
 
 /**
  * Quick start helper - creates a configured router instance
@@ -48,4 +88,7 @@ export default {
   getQualityGate: () => require('./src/quality-gate.service').getQualityGate(),
   getPhiGate: () => require('./src/phi-gate.service').getPhiGate(),
   getPromptCache: () => require('./src/prompt-cache.service').getPromptCache(),
+  getNotionLogger: () => require('./src/notion').getNotionLogger(),
+  getClaudeProvider: () => require('./src/providers').getClaudeProvider(),
+  getOpenAIProvider: () => require('./src/providers').getOpenAIProvider(),
 };

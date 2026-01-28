@@ -1,21 +1,25 @@
 {
   "name": "@researchflow/ai-router",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "main": "./index.ts",
   "types": "./index.ts",
-  "description": "AI model routing and orchestration with cost optimization",
+  "description": "AI model routing and orchestration with cost optimization, Notion logging, and agent roster",
   "exports": {
     ".": "./index.ts",
     "./types": "./src/types.ts",
     "./model-router": "./src/model-router.service.ts",
     "./quality-gate": "./src/quality-gate.service.ts",
     "./phi-gate": "./src/phi-gate.service.ts",
-    "./prompt-cache": "./src/prompt-cache.service.ts"
+    "./prompt-cache": "./src/prompt-cache.service.ts",
+    "./notion": "./src/notion/index.ts",
+    "./providers": "./src/providers/index.ts",
+    "./agents": "./src/agents/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "@notionhq/client": "^5.8.0",
     "@researchflow/core": "*",
     "@researchflow/phi-engine": "*",
     "openai": "^4.76.0"
