@@ -859,7 +859,8 @@ function classifyPhiSeverity(findings: Array<{ type?: string; confidence?: numbe
 }
 
 // Configure multer for file uploads
-const uploadDir = path.join(process.cwd(), 'uploads');
+// Use UPLOADS_PATH env var for Docker, fallback to local 'uploads' for development
+const uploadDir = process.env.UPLOADS_PATH || path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }

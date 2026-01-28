@@ -63,6 +63,8 @@ services:
       - REDIS_URL=redis://redis:6379
       - WORKER_CALLBACK_URL=http://worker:8000
       - WORKER_URL=http://worker:8000
+      - ROS_API_URL=http://worker:8000
+      - UPLOADS_PATH=/data/uploads
       - GOVERNANCE_MODE=LIVE
       - AUTH_ALLOW_STATELESS_JWT=${AUTH_ALLOW_STATELESS_JWT:-true}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
