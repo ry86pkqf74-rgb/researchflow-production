@@ -218,7 +218,7 @@ export const PHI_PATTERNS_OUTPUT_GUARD: PatternDefinition[] = [
     id: 'URL',
     type: 'URL',
     tier: ["OUTPUT_GUARD"],
-    regex: /https?://(?:www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_+.~#?&/=]*)/gi,
+    regex: /https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_+.~#?&\/=]*)/gi,
     hipaaCategory: '164.514(b)(2)(i)(M)',
     description: 'Web URL',
     baseConfidence: 0.85,
