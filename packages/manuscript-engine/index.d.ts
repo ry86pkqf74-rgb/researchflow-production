@@ -29,12 +29,12 @@ export { CitationSuggesterService } from './src/services/citation-suggester.serv
 export { ClaimHighlighterService } from './src/services/claim-highlighter.service';
 export * from './src/templates/table-templates';
 export * from './src/templates/phrase-library';
-export * from './src/prompts/abstract-generator.prompt';
 export * from './src/prompts/section-prompts/abstract.prompt';
 export * from './src/prompts/section-prompts/introduction.prompt';
 export * from './src/prompts/section-prompts/methods.prompt';
 export * from './src/prompts/section-prompts/results.prompt';
 export * from './src/prompts/section-prompts/discussion.prompt';
+export * from './validators/word-budget';
 export declare const MANUSCRIPT_ENGINE_VERSION = "2.0.0";
 export declare const PHASE_STATUS: {
     phase1: string;
