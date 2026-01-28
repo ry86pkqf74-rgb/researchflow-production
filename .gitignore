@@ -94,3 +94,7 @@ temp/
 progress.json
 status.json
 logs/
+
+# Screenshots from testing
+*-screenshot.png
+*.screenshot.png
