@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,7 @@ function getGroupProgress(stages: WorkflowStage[], executionState: ExecutionStat
 }
 
 export function WorkflowPipeline() {
+  const { toast } = useToast();
   const { data: stageGroups, isLoading } = useQuery<WorkflowStageGroup[]>({
     queryKey: ["/api/workflow/stages"],
   });
@@ -137,6 +139,7 @@ export function WorkflowPipeline() {
   
   // Data upload state for Phase 2
   const [uploadedFile, setUploadedFile] = useState<{
+    id: string;
     name: string;
     size: number;
     type: string;
@@ -144,6 +147,9 @@ export function WorkflowPipeline() {
     status: 'uploading' | 'uploaded' | 'validated' | 'error';
     recordCount?: number;
     variableCount?: number;
+    phiScanStatus?: 'clean' | 'detected' | 'pending' | 'error';
+    phiScanResult?: Record<string, unknown>;
+    error?: string;
   } | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const uploadTimeoutsRef = useRef<number[]>([]);
@@ -1015,12 +1021,13 @@ export function WorkflowPipeline() {
     uploadTimeoutsRef.current = [];
   };
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File) => {
     // Clear any existing timeouts
     clearUploadTimeouts();
-    
-    // Simulate upload with demo data
+
+    // Set initial uploading state
     setUploadedFile({
+      id: "",
       name: file.name,
       size: file.size,
       type: file.type,
@@ -1028,27 +1035,72 @@ export function WorkflowPipeline() {
       status: 'uploading'
     });
 
-    // Simulate upload progress and validation with tracked timeouts
-    const timeout1 = window.setTimeout(() => {
-      setUploadedFile(prev => prev ? {
-        ...prev,
-        status: 'uploaded'
-      } : null);
-    }, 800);
+    try {
+      // Create FormData for multipart upload
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const timeout2 = window.setTimeout(() => {
-      // Generate simulated dataset statistics
-      const isCSV = file.name.endsWith('.csv');
-      const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
-      setUploadedFile(prev => prev ? {
-        ...prev,
-        status: 'validated',
-        recordCount: Math.floor(Math.random() * 2000) + 500,
-        variableCount: isCSV || isExcel ? Math.floor(Math.random() * 30) + 15 : undefined
-      } : null);
-    }, 1500);
+      // POST to real upload endpoint
+      const uploadResponse = await fetch("/api/files/upload", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
 
-    uploadTimeoutsRef.current = [timeout1, timeout2];
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Upload failed: ${errorText}`);
+      }
+
+      const uploadData = await uploadResponse.json();
+
+      // Update state with server response
+      setUploadedFile(prev => prev ? ({
+        ...prev,
+        id: uploadData.id,
+        status: 'uploaded',
+        phiScanStatus: uploadData.phiScanStatus || 'pending',
+      }) : null);
+
+      // Fetch full file metadata (includes PHI scan results, row/column counts)
+      const metaResponse = await fetch(`/api/files/${uploadData.id}`, {
+        credentials: "include",
+      });
+
+      if (metaResponse.ok) {
+        const metadata = await metaResponse.json();
+
+        setUploadedFile(prev => prev ? ({
+          ...prev,
+          status: 'validated',
+          recordCount: metadata?.metadata?.rowCount || metadata?.recordCount,
+          variableCount: metadata?.metadata?.columnCount || metadata?.variableCount,
+          phiScanStatus: metadata?.phiScanStatus || 'clean',
+          phiScanResult: metadata?.phiScanResult,
+        }) : null);
+      }
+
+      // Show success toast
+      toast({
+        title: "File uploaded successfully",
+        description: `${file.name} is ready for processing`,
+      });
+
+    } catch (error) {
+      console.error("Upload error:", error);
+
+      setUploadedFile(prev => prev ? ({
+        ...prev,
+        status: 'error',
+        error: error instanceof Error ? error.message : "Upload failed",
+      }) : null);
+
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleRemoveFile = () => {
