@@ -28,7 +28,7 @@ export default function DemoLanding() {
             ResearchFlow Canvas
           </h1>
           <p className="text-xl text-slate-300 mb-2" data-testid="text-page-subtitle">
-            19-Stage Research Workflow Management System
+            20-Stage Research Workflow Management System
           </p>
           <p className="text-slate-400 max-w-2xl mx-auto" data-testid="text-page-description">
             From topic declaration to publication - governed, audited, and AI-enhanced at every step.
@@ -76,7 +76,7 @@ export default function DemoLanding() {
                   <div className="p-2 rounded-lg bg-blue-500/20">
                     <Workflow className="h-5 w-5 text-blue-400" aria-hidden="true" />
                   </div>
-                  <CardTitle className="text-white text-lg">19-Stage Workflow</CardTitle>
+                  <CardTitle className="text-white text-lg">20-Stage Workflow</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
