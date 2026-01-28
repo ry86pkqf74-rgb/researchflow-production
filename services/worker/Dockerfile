@@ -19,6 +19,7 @@ LABEL org.opencontainers.image.source="https://github.com/ry86pkqf74-rgb/researc
 
 # Install system dependencies and export toolchain in single layer
 # Includes: build tools, git, libgit2, and PDF/DOCX export tools
+# Note: PDF generation uses reportlab/PyMuPDF (Python), not wkhtmltopdf
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
@@ -30,7 +31,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-latex-base \
     texlive-fonts-recommended \
     texlive-latex-extra \
-    wkhtmltopdf \
     fonts-liberation \
     fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
