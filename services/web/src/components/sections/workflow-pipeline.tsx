@@ -895,17 +895,23 @@ export function WorkflowPipeline() {
         outcomes: stage1Scope?.outcomes
       };
     } else if (stageId === 4) {
-      // Stage 4 (Planned Extraction): pass topic and literature data from stage 2
+      // Stage 4 (Variable Definition): pass topic and literature data from stage 2
       const stage2Result = executionState[2]?.result;
       const literatureData = stage2Result?.literatureData as { keyInsights?: string[]; researchGaps?: string[] } | undefined;
-      
+
       body = {
         topic: topicText,
         literatureSummary: literatureData?.keyInsights?.join(". ") || "",
         researchGaps: literatureData?.researchGaps || []
       };
+    } else if (stageId >= 5 && stageId <= 8) {
+      // Stages 5-8 (PHI Scanning, Schema Extraction, etc.): pass fileId from uploaded file
+      body = {
+        fileId: uploadedFile?.id,
+        topic: topicText
+      };
     }
-    
+
     executeMutation.mutate({ stageId, body });
   };
 
@@ -946,6 +952,12 @@ export function WorkflowPipeline() {
               topic: topicText,
               literatureSummary: literatureData?.keyInsights?.join(". ") || "",
               researchGaps: literatureData?.researchGaps || []
+            };
+          } else if (stage.id >= 5 && stage.id <= 8) {
+            // Stages 5-8: pass fileId from uploaded file
+            body = {
+              fileId: uploadedFile?.id,
+              topic: topicText
             };
           }
 

@@ -2735,7 +2735,8 @@ export async function registerRoutes(
       selectedManuscript?: { id: number; title: string };
       selectedJournal?: { id: string; name: string };
     },
-    parsedData?: ParsedCSVData
+    parsedData?: ParsedCSVData,
+    fileUploadData?: { originalFilename?: string; phiScanStatus?: string; phiScanResult?: Record<string, unknown>; recordCount?: number }
   ): { summary: string; outputs: Array<{ title: string; content: string; type: string }>; manuscriptProposals?: any[]; journalRecommendations?: any[] } {
 
     const topic = userInput.researchOverview || "your research topic";
@@ -2772,6 +2773,46 @@ export async function registerRoutes(
         };
 
       case 5: // PHI Scanning
+        // If we have file upload data with PHI scan results, show actual results
+        if (fileUploadData && fileUploadData.phiScanStatus) {
+          const phiStatus = fileUploadData.phiScanStatus;
+          const phiResult = fileUploadData.phiScanResult || {};
+          const fileName = fileUploadData.originalFilename || dataset;
+          const fileRecordCount = fileUploadData.recordCount || records;
+
+          const statusIcon = phiStatus === 'clean' ? '✓' : '⚠';
+          const statusText = phiStatus === 'clean'
+            ? 'No PHI detected in the uploaded file.'
+            : `Potential PHI detected in ${(phiResult as any)?.findingsCount || 'unknown'} location(s).`;
+
+          const phiTypesFound = phiStatus !== 'clean' && (phiResult as any)?.types
+            ? `\n\nPHI Categories Found:\n${((phiResult as any).types as string[]).map((t: string) => `• ${t}`).join('\n')}`
+            : '';
+
+          return {
+            summary: phiStatus === 'clean'
+              ? `PHI scan complete for ${fileName}. No protected health information detected.`
+              : `PHI scan complete for ${fileName}. Potential PHI detected - review recommended.`,
+            outputs: [
+              {
+                title: "PHI Scan Results",
+                content: `File: ${fileName}\nRecords: ${fileRecordCount > 0 ? fileRecordCount.toLocaleString() : 'N/A'}\nStatus: ${phiStatus.toUpperCase()}\n\n${statusIcon} ${statusText}${phiTypesFound}\n\n${phiStatus === 'clean'
+                  ? 'The data appears safe for processing. Proceed with analysis stages.'
+                  : 'Recommendation: Review detected PHI and consider de-identification before proceeding.'}`,
+                type: "text"
+              },
+              {
+                title: "De-identification Guidance",
+                content: `Method: HIPAA Safe Harbor (45 CFR 164.514(b)(2))\n\n${phiStatus === 'clean'
+                  ? 'Your dataset passed PHI scanning. If you add more data, re-run this stage to verify.'
+                  : 'Recommended Transformations:\n• Dates → Year only\n• Ages >89 → Cap at 90\n• Geographic data → Generalize\n• Direct identifiers → Remove or hash'}`,
+                type: "list"
+              }
+            ]
+          };
+        }
+
+        // Fallback if no file uploaded yet
         return {
           summary: records > 0
             ? `PHI scanning ready for ${records.toLocaleString()} records. Upload your dataset to begin scanning.`
@@ -3254,28 +3295,40 @@ export async function registerRoutes(
       selectedJournal: req.body?.selectedJournal
     };
 
-    // For data processing stages (6, 7, 8), try to load and parse actual file content
+    // For data processing stages (5, 6, 7, 8), try to load file metadata and parse actual file content
     let parsedCSVData: ParsedCSVData | undefined;
+    let fileUploadData: { originalFilename?: string; phiScanStatus?: string; phiScanResult?: Record<string, unknown>; recordCount?: number } | undefined;
     const fileId = req.body?.fileId;
     const csvContent = req.body?.csvContent; // Direct CSV content (from frontend upload)
 
-    if ([6, 7, 8].includes(stageId)) {
+    if ([5, 6, 7, 8].includes(stageId)) {
       try {
-        if (csvContent && typeof csvContent === 'string') {
+        if (fileId) {
+          // Load file from storage
+          const fileUpload = await storage.getFileUpload(fileId);
+          if (fileUpload) {
+            // Store file metadata for PHI scanning stage
+            fileUploadData = {
+              originalFilename: fileUpload.originalFilename,
+              phiScanStatus: fileUpload.phiScanStatus,
+              phiScanResult: fileUpload.phiScanResult,
+              recordCount: fileUpload.metadata?.rowCount
+            };
+
+            // Parse file content for stages 6, 7, 8
+            if ([6, 7, 8].includes(stageId) && fileUpload.storedFilename) {
+              const filePath = path.join(uploadDir, fileUpload.storedFilename);
+              if (fs.existsSync(filePath)) {
+                const fileContent = fs.readFileSync(filePath, 'utf-8');
+                parsedCSVData = parseCSVContent(fileContent);
+                console.log(`[Stage ${stageId}] Parsed CSV from file ${fileUpload.originalFilename}: ${parsedCSVData.columns.length} columns, ${parsedCSVData.rowCount} rows`);
+              }
+            }
+          }
+        } else if (csvContent && typeof csvContent === 'string' && [6, 7, 8].includes(stageId)) {
           // Parse CSV content directly provided in request
           parsedCSVData = parseCSVContent(csvContent);
           console.log(`[Stage ${stageId}] Parsed CSV from request body: ${parsedCSVData.columns.length} columns, ${parsedCSVData.rowCount} rows`);
-        } else if (fileId) {
-          // Load file from storage and parse it
-          const fileUpload = await storage.getFileUpload(fileId);
-          if (fileUpload && fileUpload.storedFilename) {
-            const filePath = path.join(uploadDir, fileUpload.storedFilename);
-            if (fs.existsSync(filePath)) {
-              const fileContent = fs.readFileSync(filePath, 'utf-8');
-              parsedCSVData = parseCSVContent(fileContent);
-              console.log(`[Stage ${stageId}] Parsed CSV from file ${fileUpload.originalFilename}: ${parsedCSVData.columns.length} columns, ${parsedCSVData.rowCount} rows`);
-            }
-          }
         }
       } catch (parseError) {
         console.error(`[Stage ${stageId}] Error parsing CSV:`, parseError);
@@ -3316,7 +3369,7 @@ export async function registerRoutes(
 
     // For stages 3, 5-19: Generate dynamic outputs based on user input
     if (![1, 2, 4].includes(stageId)) {
-      const dynamicOutput = generateDynamicStageOutput(stageId, stageFromWorkflow.name, userInputs, parsedCSVData);
+      const dynamicOutput = generateDynamicStageOutput(stageId, stageFromWorkflow.name, userInputs, parsedCSVData, fileUploadData);
 
       // Find next stage
       const currentIndex = allStages.findIndex(s => s.id === stageId);
