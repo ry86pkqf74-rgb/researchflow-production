@@ -23,9 +23,9 @@ export const workflowStages: WorkflowStage[] = [
   },
   {
     id: 3,
-    name: "Data Extraction Points",
-    shortName: "Extraction",
-    description: "Define variables and extraction methodology",
+    name: "Variable Definition",
+    shortName: "Variables",
+    description: "Define variables, codebook, and data dictionary",
     status: "completed",
     icon: "Database",
     outputs: ["Variable codebook", "Data dictionary", "Extraction protocol"],

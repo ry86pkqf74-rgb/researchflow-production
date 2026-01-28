@@ -215,9 +215,9 @@ const workflowStageGroups = [
       },
       {
         id: 4,
-        name: "Planned Extraction",
-        shortName: "Extraction",
-        description: "Define variables and extraction methodology",
+        name: "Variable Definition",
+        shortName: "Variables",
+        description: "Define variables, codebook, and data dictionary",
         status: "completed",
         icon: "Database",
         outputs: ["Variable codebook", "Data dictionary", "Extraction protocol"],
