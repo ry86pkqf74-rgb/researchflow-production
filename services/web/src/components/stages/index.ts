@@ -8,6 +8,10 @@ export {
 } from './StageLayout';
 
 export {
+  Stage00ManuscriptIdeation,
+} from './Stage00ManuscriptIdeation';
+
+export {
   Stage01Hypothesis,
   type Hypothesis,
 } from './Stage01Hypothesis';
