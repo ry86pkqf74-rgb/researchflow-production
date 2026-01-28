@@ -33,7 +33,12 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // Disable sourcemaps in production for security and smaller bundles
+    sourcemap: process.env.NODE_ENV !== 'production',
+    // Target modern browsers for smaller bundles
+    target: 'es2020',
+    // Minification settings
+    minify: 'esbuild',
     rollupOptions: {
       // Mark optional dependencies as external to prevent build failures
       // when they're not installed (Sentry is optional - only needed if VITE_SENTRY_DSN is set)
@@ -42,8 +47,41 @@ export default defineConfig({
         // Handle external modules gracefully at runtime
         globals: {
           '@sentry/react': 'Sentry'
+        },
+        // Manual chunks for optimal caching and code splitting
+        manualChunks: (id) => {
+          // React core - changes rarely
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+            return 'vendor-react';
+          }
+          // Router - changes with React
+          if (id.includes('react-router')) {
+            return 'vendor-react';
+          }
+          // Radix UI components
+          if (id.includes('@radix-ui')) {
+            return 'vendor-ui';
+          }
+          // TanStack Query for data fetching
+          if (id.includes('@tanstack')) {
+            return 'vendor-query';
+          }
+          // TipTap editor
+          if (id.includes('@tiptap') || id.includes('prosemirror')) {
+            return 'vendor-editor';
+          }
+          // Charts
+          if (id.includes('recharts') || id.includes('d3')) {
+            return 'vendor-charts';
+          }
+          // Date utilities
+          if (id.includes('date-fns') || id.includes('react-day-picker')) {
+            return 'vendor-date';
+          }
         }
       }
-    }
+    },
+    // Chunk size warnings at 500KB
+    chunkSizeWarningLimit: 500
   }
 });
