@@ -45,4 +45,4 @@ try {
     </div>
   `;
 }
-// Build trigger Wed Jan 28 08:48:03 UTC 2026
+// Build trigger Wed Jan 28 09:15:00 UTC 2026 - Vercel config fixed
