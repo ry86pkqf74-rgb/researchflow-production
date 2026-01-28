@@ -1,5 +1,7 @@
 name: PubMed Scan (Prompt Suggestions)
 
+# SECURITY: This workflow only runs on the production repository
+# If this code is copied to another repository, workflows will be skipped
 # Run weekly on Mondays at 09:00 UTC
 # Also allows manual trigger
 on:
@@ -7,9 +9,15 @@ on:
     - cron: "0 9 * * 1"
   workflow_dispatch: {}
 
+env:
+  # Production repository identifier
+  PRODUCTION_REPO: 'ry86pkqf74-rgb/researchflow-production'
+
 jobs:
   scan:
     runs-on: ubuntu-latest
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
     
     steps:
       - name: Checkout repository

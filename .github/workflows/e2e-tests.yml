@@ -3,6 +3,8 @@
 # =============================================================================
 # Runs Playwright E2E tests against the full application stack
 # Triggered on push to main/develop and on PRs to main
+# SECURITY: This workflow only runs on the production repository
+# If this code is copied to another repository, workflows will be skipped
 
 name: E2E Tests
 
@@ -17,10 +19,16 @@ concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Production repository identifier
+  PRODUCTION_REPO: 'ry86pkqf74-rgb/researchflow-production'
+
 jobs:
   e2e-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
 
     services:
       # Note: We use docker compose for the full stack,
@@ -151,7 +159,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: e2e-tests
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Only run on production repository, on push to main
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout

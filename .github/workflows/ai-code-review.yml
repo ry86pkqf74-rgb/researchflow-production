@@ -1,5 +1,7 @@
 name: AI Code Review
 
+# SECURITY: This workflow only runs on the production repository
+# If this code is copied to another repository, workflows will be skipped
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -32,12 +34,16 @@ env:
   NODE_VERSION: '20'
   # AI Provider selection (default: claude)
   PRIMARY_MODEL: ${{ github.event.inputs.review_model || 'claude' }}
+  # Production repository identifier
+  PRODUCTION_REPO: 'ry86pkqf74-rgb/researchflow-production'
 
 jobs:
   # Stage 1: Run linters before AI review
   lint:
     name: Lint Check
     runs-on: ubuntu-latest
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
     outputs:
       lint_passed: ${{ steps.lint.outcome == 'success' }}
     steps:
@@ -79,8 +85,8 @@ jobs:
     name: AI Code Review (${{ github.event.inputs.review_model || 'claude' }})
     runs-on: ubuntu-latest
     needs: lint
-    # Only run if AI_REVIEW_ENABLED is true
-    if: ${{ vars.AI_REVIEW_ENABLED == 'true' }}
+    # Only run on production repository AND if AI_REVIEW_ENABLED is true
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && vars.AI_REVIEW_ENABLED == 'true'
     outputs:
       has_issues: ${{ steps.review.outputs.has_issues }}
     steps:
@@ -284,7 +290,8 @@ jobs:
     name: Filter False Positives
     runs-on: ubuntu-latest
     needs: ai-review
-    if: ${{ needs.ai-review.outputs.has_issues == 'true' }}
+    # Only run on production repository AND if there are issues
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && needs.ai-review.outputs.has_issues == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -374,7 +381,8 @@ jobs:
     name: Post Review Comment
     runs-on: ubuntu-latest
     needs: [lint, ai-review, evaluate]
-    if: always() && needs.ai-review.result == 'success'
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && always() && needs.ai-review.result == 'success'
     permissions:
       pull-requests: write
     steps:

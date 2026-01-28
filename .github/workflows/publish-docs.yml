@@ -1,5 +1,7 @@
 name: Publish Documentation
 
+# SECURITY: This workflow only runs on the production repository
+# If this code is copied to another repository, workflows will be skipped
 on:
   push:
     branches: [main]
@@ -22,10 +24,16 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
+env:
+  # Production repository identifier
+  PRODUCTION_REPO: 'ry86pkqf74-rgb/researchflow-production'
+
 jobs:
   build:
     name: Build Documentation
     runs-on: ubuntu-latest
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -120,6 +128,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

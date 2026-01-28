@@ -1,5 +1,7 @@
 name: Deploy to Staging
 
+# SECURITY: This workflow only runs on the production repository
+# If this code is copied to another repository, workflows will be skipped
 on:
   push:
     branches:
@@ -8,11 +10,15 @@ on:
 
 env:
   KUBE_NAMESPACE: researchflow-staging
+  # Production repository identifier
+  PRODUCTION_REPO: 'ry86pkqf74-rgb/researchflow-production'
 
 jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
 
     services:
       postgres:
@@ -85,6 +91,8 @@ jobs:
   build:
     name: Build Images
     needs: test
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
     uses: ./.github/workflows/build-images.yml
     secrets: inherit
 
@@ -93,6 +101,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: staging
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
 
     steps:
       - name: Checkout repository
@@ -122,6 +132,8 @@ jobs:
     name: Smoke Tests
     needs: deploy
     runs-on: ubuntu-latest
+    # Only run on production repository
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
 
     steps:
       - name: Checkout repository
