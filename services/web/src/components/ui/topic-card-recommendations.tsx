@@ -73,9 +73,9 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  refine: "bg-blue-500/10 text-blue-700 border-blue-200",
-  narrow: "bg-amber-500/10 text-amber-700 border-amber-200",
-  expand: "bg-purple-500/10 text-purple-700 border-purple-200"
+  refine: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20",
+  narrow: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20",
+  expand: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20"
 };
 
 const PRIORITY_ICONS: Record<string, React.ReactNode> = {
@@ -85,9 +85,9 @@ const PRIORITY_ICONS: Record<string, React.ReactNode> = {
 };
 
 const STRENGTH_COLORS: Record<string, string> = {
-  weak: "text-red-600 bg-red-50 border-red-200",
-  moderate: "text-amber-600 bg-amber-50 border-amber-200",
-  strong: "text-green-600 bg-green-50 border-green-200"
+  weak: "text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/20",
+  moderate: "text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20",
+  strong: "text-green-600 dark:text-green-400 bg-green-500/10 border-green-500/20"
 };
 
 export function TopicCardRecommendations({
@@ -161,10 +161,10 @@ export function TopicCardRecommendations({
 
           {/* Improvement Potential */}
           {data.overallAssessment?.improvementPotential && (
-            <Alert className="bg-blue-50 border-blue-200">
-              <ArrowRight className="h-4 w-4 text-blue-600" />
-              <AlertTitle className="text-blue-900 font-semibold">What These Recommendations Will Do</AlertTitle>
-              <AlertDescription className="mt-2 text-blue-800">
+            <Alert className="bg-blue-500/10 border-blue-500/20">
+              <ArrowRight className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <AlertTitle className="text-blue-700 dark:text-blue-300 font-semibold">What These Recommendations Will Do</AlertTitle>
+              <AlertDescription className="mt-2 text-blue-600 dark:text-blue-200">
                 {data.overallAssessment.improvementPotential}
               </AlertDescription>
             </Alert>
@@ -242,7 +242,7 @@ export function TopicCardRecommendations({
                         {/* Actions */}
                         <div className="flex gap-2 pt-2">
                           {isApplied(field, index) ? (
-                            <Badge variant="secondary" className="bg-green-500/10 text-green-700 border-green-200">
+                            <Badge variant="secondary" className="bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/20">
                               <Check className="h-3 w-3 mr-1" />
                               Applied
                             </Badge>
