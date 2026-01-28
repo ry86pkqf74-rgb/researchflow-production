@@ -382,6 +382,76 @@ async def validate_ai_ml_usage(
     }
 
 
+class AIMLComplianceCheckRequest(BaseModel):
+    """Request for AI/ML compliance check."""
+    disclosure: Dict[str, Any]
+    institution_id: str = "generic"
+
+
+class AIMLComplianceCheckResponse(BaseModel):
+    """AI/ML compliance check result."""
+    compliant: bool
+    score: float
+    missing_disclosures: List[str]
+    recommendations: List[str]
+    required_consent_language: List[str]
+
+
+@router.post("/ai-ml/compliance-check", response_model=AIMLComplianceCheckResponse)
+async def check_ai_ml_compliance(request: AIMLComplianceCheckRequest):
+    """Check AI/ML usage disclosure for compliance with institutional requirements."""
+    disclosure = request.disclosure
+    missing = []
+    recommendations = []
+    consent_language = []
+
+    # Check required fields
+    if disclosure.get("uses_ai_ml"):
+        if not disclosure.get("ai_ml_purposes") or len(disclosure.get("ai_ml_purposes", [])) == 0:
+            missing.append("AI/ML purposes not specified")
+
+        if not disclosure.get("model_types") or len(disclosure.get("model_types", [])) == 0:
+            missing.append("Model types not specified")
+
+        if not disclosure.get("human_oversight") or len(disclosure.get("human_oversight", "")) < 20:
+            missing.append("Human oversight procedures not adequately described")
+            recommendations.append("Describe how human researchers will review and validate AI outputs")
+
+        if not disclosure.get("bias_mitigation") or len(disclosure.get("bias_mitigation", "")) < 20:
+            missing.append("Bias mitigation measures not described")
+            recommendations.append("Explain steps taken to identify and address potential AI biases")
+
+        if not disclosure.get("transparency_measures") or len(disclosure.get("transparency_measures", "")) < 10:
+            recommendations.append("Consider adding transparency measures for participants")
+
+        if not disclosure.get("data_retention") or len(disclosure.get("data_retention", "")) < 10:
+            recommendations.append("Describe data retention policies for AI inputs/outputs")
+
+        if not disclosure.get("consent_language_included"):
+            missing.append("Consent forms do not include AI/ML disclosure")
+            consent_language.append("This study uses artificial intelligence/machine learning technology for [purposes].")
+            consent_language.append("AI-generated outputs are reviewed by human researchers before being used.")
+
+        # Institution-specific requirements
+        if request.institution_id.lower() == "emory":
+            if "llm" in disclosure.get("model_types", []) or "generation" in disclosure.get("ai_ml_purposes", []):
+                if not disclosure.get("training_data_description") or len(disclosure.get("training_data_description", "")) < 20:
+                    missing.append("Training data description required for generative AI models")
+
+    # Calculate score
+    total_checks = 7
+    passed_checks = total_checks - len(missing)
+    score = (passed_checks / total_checks) * 100
+
+    return AIMLComplianceCheckResponse(
+        compliant=len(missing) == 0,
+        score=round(score, 1),
+        missing_disclosures=missing,
+        recommendations=recommendations,
+        required_consent_language=consent_language,
+    )
+
+
 # ============================================
 # PHI Scanning Endpoints
 # ============================================
