@@ -92,21 +92,31 @@ const outputTypeIcons: Record<string, React.ComponentType<{ className?: string }
   chart: BarChart3
 };
 
-// Helper function to determine agent type based on stage
+/**
+ * Determine agent type based on workflow stage ID.
+ * Maps all 20 workflow stages to their corresponding agent types.
+ *
+ * Stage Mapping:
+ * - Stages 1-3 (Discovery): Hypothesis, Literature, Experiment Design → 'irb'
+ * - Stage 4 (Collection): Data Collection → 'analysis'
+ * - Stages 5-11 (Collection, Analysis, Validation): Data Preprocessing, Analysis, Stats, Visualization, Interpretation, Validation, Iteration → 'analysis'
+ * - Stages 12-20 (Dissemination): Documentation, Review, Ethical, Bundling, Handoff, Archiving, Impact, Dissemination, Conference → 'manuscript'
+ */
 function getAgentTypeForStage(stageId: number): 'irb' | 'analysis' | 'manuscript' {
-  // IRB-related stages: 1-4 (Topic through IRB Proposal)
-  if (stageId >= 1 && stageId <= 4) {
+  // Stages 1-3: Discovery phases (topic/hypothesis, literature review, experiment design)
+  if (stageId >= 1 && stageId <= 3) {
     return 'irb';
   }
-  // Analysis-related stages: 5-15 (Data Upload through Statistical Analysis)
-  if (stageId >= 5 && stageId <= 15) {
+  // Stages 4-11: Data collection and analysis (data collection, preprocessing, analysis, stats, visualization, interpretation, validation, iteration)
+  if (stageId >= 4 && stageId <= 11) {
     return 'analysis';
   }
-  // Manuscript-related stages: 12-20+ (Manuscript stages)
-  if (stageId >= 12) {
+  // Stages 12-20: Documentation and dissemination (documentation, review, ethical, bundling, handoff, archiving, impact, dissemination, conference)
+  if (stageId >= 12 && stageId <= 20) {
     return 'manuscript';
   }
-  return 'analysis'; // default
+  // Default fallback
+  return 'analysis';
 }
 
 interface ExecutionState {
@@ -2804,25 +2814,72 @@ export function WorkflowPipeline() {
                               }
                               artifactId={`stage-${selectedStage.id}`}
                               projectId="workflow-pipeline"
-                              getClientContext={() => ({
-                                artifactContent: JSON.stringify({
+                              getClientContext={() => {
+                                // Build stage-specific context based on stage ID
+                                const stageContext: Record<string, unknown> = {
                                   stage: selectedStage.name,
                                   stageId: selectedStage.id,
                                   status: getStageStatus(selectedStage),
                                   executionResult: executionState[selectedStage.id]?.result || null,
                                   outputs: executionState[selectedStage.id]?.result?.outputs || [],
                                   description: selectedStage.description,
-                                }, null, 2),
-                                artifactMetadata: {
-                                  stageId: selectedStage.id,
-                                  stageName: selectedStage.name,
-                                  stageStatus: getStageStatus(selectedStage),
-                                  agentType: getAgentTypeForStage(selectedStage.id),
-                                  hasResults: executionState[selectedStage.id]?.status === 'completed',
-                                  selectedManuscript: selectedManuscript || null,
-                                  selectedJournal: selectedJournal || null,
-                                },
-                              })}
+                                };
+
+                                // Stages 1-3: Add topic/hypothesis context (IRB agent)
+                                if (selectedStage.id >= 1 && selectedStage.id <= 3) {
+                                  stageContext.topicContext = overviewByStage[1] || null;
+                                  stageContext.topicVersions = topicVersionHistory;
+                                  stageContext.isTopicLocked = isTopicLocked;
+                                }
+
+                                // Stage 4+: Add data context (Analysis/Manuscript agents)
+                                if (selectedStage.id >= 4) {
+                                  stageContext.dataContext = {
+                                    uploadedFile: uploadedFile ? {
+                                      name: uploadedFile.name,
+                                      size: uploadedFile.size,
+                                      recordCount: uploadedFile.recordCount,
+                                      variableCount: uploadedFile.variableCount,
+                                      phiScanStatus: uploadedFile.phiScanStatus,
+                                    } : null,
+                                  };
+                                }
+
+                                // Stages 5-11: Add previous stage outputs (Analysis agent)
+                                if (selectedStage.id >= 5 && selectedStage.id <= 11) {
+                                  stageContext.previousStageOutputs = {};
+                                  for (let i = 4; i < selectedStage.id; i++) {
+                                    if (executionState[i]?.result?.outputs) {
+                                      stageContext.previousStageOutputs[`stage${i}`] = executionState[i].result.outputs;
+                                    }
+                                  }
+                                }
+
+                                // Stages 12-20: Add manuscript/journal context (Manuscript agent)
+                                if (selectedStage.id >= 12) {
+                                  stageContext.manuscriptContext = {
+                                    selectedManuscript: selectedManuscript || null,
+                                    selectedJournal: selectedJournal || null,
+                                    documentationOutputs: executionState[12]?.result?.outputs || [],
+                                  };
+                                }
+
+                                return {
+                                  artifactContent: JSON.stringify(stageContext, null, 2),
+                                  artifactMetadata: {
+                                    stageId: selectedStage.id,
+                                    stageName: selectedStage.name,
+                                    stageStatus: getStageStatus(selectedStage),
+                                    agentType: getAgentTypeForStage(selectedStage.id),
+                                    hasResults: executionState[selectedStage.id]?.status === 'completed',
+                                    // Context availability flags
+                                    hasTopicContext: selectedStage.id <= 3,
+                                    hasDataContext: selectedStage.id >= 4,
+                                    hasPreviousOutputs: selectedStage.id >= 5,
+                                    hasManuscriptContext: selectedStage.id >= 12,
+                                  },
+                                };
+                              }}
                               onActionExecuted={(action, result) => {
                                 toast({
                                   title: "Action Applied",
