@@ -17,7 +17,8 @@ LABEL org.opencontainers.image.description="Python FastAPI compute service for A
 LABEL org.opencontainers.image.vendor="ResearchFlow"
 LABEL org.opencontainers.image.source="https://github.com/ry86pkqf74-rgb/researchflow-production"
 
-# Install system dependencies (including libgit2 for pygit2 version control)
+# Install system dependencies and export toolchain in single layer
+# Includes: build tools, git, libgit2, and PDF/DOCX export tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
@@ -25,10 +26,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     libgit2-dev \
     cmake \
-    && rm -rf /var/lib/apt/lists/*
-
-# Export toolchain for PDF/DOCX generation (manuscript exports, reports)
-RUN apt-get update && apt-get install -y --no-install-recommends \
     pandoc \
     texlive-latex-base \
     texlive-fonts-recommended \
