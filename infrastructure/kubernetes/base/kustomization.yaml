@@ -9,6 +9,10 @@ resources:
   - pvc.yaml
   - orchestrator-deployment.yaml
   - worker-deployment.yaml
+  - collab-deployment.yaml
+  - collab-service.yaml
+  - guideline-engine-deployment.yaml
+  - guideline-engine-service.yaml
   - web-deployment.yaml
   - ingress.yaml
   - hpa-config.yaml
@@ -21,6 +25,10 @@ images:
   - name: researchflow/orchestrator
     newTag: latest
   - name: researchflow/worker
+    newTag: latest
+  - name: researchflow/collab
+    newTag: latest
+  - name: researchflow/guideline-engine
     newTag: latest
   - name: researchflow/web
     newTag: latest

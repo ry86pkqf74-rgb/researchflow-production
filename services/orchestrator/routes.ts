@@ -10,6 +10,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { topics } from "@researchflow/core/schema";
 import { eq } from "drizzle-orm";
+import { logger } from "./src/utils/logger";
 // JWT-based authentication (replaces Replit auth)
 import { requireAuth, requireAuth as isAuthenticated, optionalAuth, devOrRequireAuth } from "./src/services/authService";
 import jwtAuthRouter from "./src/routes/auth";
@@ -1194,7 +1195,7 @@ export async function registerRoutes(
         scopeValuesByStage
       });
     } catch (error) {
-      console.error('[Workflow Resume] Error:', error);
+      logger.error('Error in workflow resume', { errorMessage: String(error) });
       return res.status(500).json({ error: "Failed to load workflow state" });
     }
   });
@@ -1235,7 +1236,7 @@ export async function registerRoutes(
 
       return res.json({ success: true, manifestId: manifest.id });
     } catch (error) {
-      console.error('[Save Stage Inputs] Error:', error);
+      logger.error('Error saving stage inputs', { errorMessage: String(error) });
       return res.status(500).json({ error: "Failed to save stage inputs" });
     }
   });
@@ -1398,7 +1399,7 @@ export async function registerRoutes(
           createdAt: fileUpload.createdAt,
         });
       } catch (error) {
-        console.error("File upload error:", error);
+        logger.error("File upload error", { errorMessage: String(error) });
         res.status(500).json({ error: "Failed to upload file" });
       }
     }
@@ -1432,7 +1433,7 @@ export async function registerRoutes(
           }))
         );
       } catch (error) {
-        console.error("List files error:", error);
+        logger.error("List files error", { errorMessage: String(error) });
         res.status(500).json({ error: "Failed to list files" });
       }
     }
@@ -1467,7 +1468,7 @@ export async function registerRoutes(
           createdAt: fileUpload.createdAt,
         });
       } catch (error) {
-        console.error("Get file error:", error);
+        logger.error("Get file error", { errorMessage: String(error) });
         res.status(500).json({ error: "Failed to get file" });
       }
     }
@@ -1512,7 +1513,7 @@ export async function registerRoutes(
 
         res.json({ success: true, message: "File deleted successfully" });
       } catch (error) {
-        console.error("Delete file error:", error);
+        logger.error("Delete file error", { errorMessage: String(error) });
         res.status(500).json({ error: "Failed to delete file" });
       }
     }
@@ -2249,7 +2250,7 @@ export async function registerRoutes(
         // Validate bundle against schema
         const validationResult = ReproducibilityBundleSchema.safeParse(bundle);
         if (!validationResult.success) {
-          console.error("Bundle validation failed:", validationResult.error);
+          logger.error("Bundle validation failed", { validationError: validationResult.error });
           return res.status(500).json({
             error: "Bundle validation failed",
             details: validationResult.error.issues
@@ -2288,7 +2289,7 @@ export async function registerRoutes(
 
         await archive.finalize();
       } catch (error) {
-        console.error("Error generating reproducibility bundle:", error);
+        logger.error("Error generating reproducibility bundle", { errorMessage: String(error) });
         res.status(500).json({ 
           error: "Failed to generate reproducibility bundle",
           details: error instanceof Error ? error.message : "Unknown error"
@@ -2464,7 +2465,7 @@ export async function registerRoutes(
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error running statistical analysis:", error);
+      logger.error("Error running statistical analysis", { errorMessage: String(error) });
       res.status(500).json({
         error: "Failed to execute statistical analysis",
         mode: ROS_MODE
@@ -2492,7 +2493,7 @@ export async function registerRoutes(
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error running descriptive analysis:", error);
+      logger.error("Error running descriptive analysis", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to execute descriptive analysis" });
     }
   });
@@ -2517,7 +2518,7 @@ export async function registerRoutes(
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error running group comparison:", error);
+      logger.error("Error running group comparison", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to execute group comparison" });
     }
   });
@@ -2542,7 +2543,7 @@ export async function registerRoutes(
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error running survival analysis:", error);
+      logger.error("Error running survival analysis", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to execute survival analysis" });
     }
   });
@@ -2567,7 +2568,7 @@ export async function registerRoutes(
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("Error running regression analysis:", error);
+      logger.error("Error running regression analysis", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to execute regression analysis" });
     }
   });
@@ -3450,17 +3451,17 @@ export async function registerRoutes(
               if (fs.existsSync(filePath)) {
                 const fileContent = fs.readFileSync(filePath, 'utf-8');
                 parsedCSVData = parseCSVContent(fileContent);
-                console.log(`[Stage ${stageId}] Parsed CSV from file ${fileUpload.originalFilename}: ${parsedCSVData.columns.length} columns, ${parsedCSVData.rowCount} rows`);
+                logger.info('Parsed CSV from file upload', { stageId, filename: fileUpload.originalFilename, columns: parsedCSVData.columns.length, rows: parsedCSVData.rowCount });
               }
             }
           }
         } else if (csvContent && typeof csvContent === 'string' && [6, 7, 8].includes(stageId)) {
           // Parse CSV content directly provided in request
           parsedCSVData = parseCSVContent(csvContent);
-          console.log(`[Stage ${stageId}] Parsed CSV from request body: ${parsedCSVData.columns.length} columns, ${parsedCSVData.rowCount} rows`);
+          logger.info('Parsed CSV from request body', { stageId, columns: parsedCSVData.columns.length, rows: parsedCSVData.rowCount });
         }
       } catch (parseError) {
-        console.error(`[Stage ${stageId}] Error parsing CSV:`, parseError);
+        logger.error('Error parsing CSV', { stageId, errorMessage: String(parseError) });
         // Continue without parsed data - will use fallback
       }
     }
@@ -3550,9 +3551,9 @@ export async function registerRoutes(
             } : undefined
           }, [], 100);
 
-          console.log(`[Stage ${stageId}] Output persisted to cumulative data for ${projectId || researchId}`);
+          logger.info('Output persisted to cumulative data', { stageId, projectId: projectId || researchId });
         } catch (persistError) {
-          console.error(`[Stage ${stageId}] Failed to persist output:`, persistError);
+          logger.error('Failed to persist output', { stageId, errorMessage: String(persistError) });
           // Continue - don't fail the stage execution if persistence fails
         }
       }
@@ -3728,7 +3729,7 @@ export async function registerRoutes(
           nextStageId: nextStage?.id
         });
       } catch (error) {
-        console.error("Error in literature search:", error);
+        logger.error("Error in literature search", { errorMessage: String(error) });
         // Fall through to dynamic output on error
       }
     }
@@ -3792,7 +3793,7 @@ export async function registerRoutes(
           nextStageId: nextStage?.id
         });
       } catch (error) {
-        console.error("Error in planned extraction:", error);
+        logger.error("Error in planned extraction", { errorMessage: String(error) });
         // Fall through to dynamic output on error
       }
     }
@@ -4012,7 +4013,7 @@ Principal Investigator: _____________________________  Date: ____________
           nextStageId: nextStage?.id
         });
       } catch (error) {
-        console.error("Error generating IRB proposal:", error);
+        logger.error("Error generating IRB proposal", { errorMessage: String(error) });
         // Fall through to dynamic output
       }
     }
@@ -4077,7 +4078,7 @@ Principal Investigator: _____________________________  Date: ____________
           nextStageId: nextStage?.id
         });
       } catch (error) {
-        console.error("Error generating gap analysis:", error);
+        logger.error("Error generating gap analysis", { errorMessage: String(error) });
         // Fall through to dynamic output
       }
     }
@@ -4145,7 +4146,7 @@ Principal Investigator: _____________________________  Date: ____________
           nextStageId: nextStage?.id
         });
       } catch (error) {
-        console.error("Error generating statistical analysis:", error);
+        logger.error("Error generating statistical analysis", { errorMessage: String(error) });
         // Fall through to dynamic output
       }
     }
@@ -4224,7 +4225,7 @@ Principal Investigator: _____________________________  Date: ____________
           nextStageId: nextStage?.id
         });
       } catch (error) {
-        console.error("Error generating manuscript draft:", error);
+        logger.error("Error generating manuscript draft", { errorMessage: String(error) });
         // Fall through to dynamic output
       }
     }
@@ -4291,7 +4292,7 @@ Principal Investigator: _____________________________  Date: ____________
           nextStageId: nextStage?.id
         });
       } catch (error) {
-        console.error("Error polishing manuscript:", error);
+        logger.error("Error polishing manuscript", { errorMessage: String(error) });
         // Fall through to dynamic output
       }
     }
@@ -4556,7 +4557,7 @@ Principal Investigator: _____________________________  Date: ____________
         generatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error("Error generating research brief:", error);
+      logger.error("Error generating research brief", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to generate research brief" });
     }
   });
@@ -4585,7 +4586,7 @@ Principal Investigator: _____________________________  Date: ____________
         generatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error("Error generating evidence gap map:", error);
+      logger.error("Error generating evidence gap map", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to generate evidence gap map" });
     }
   });
@@ -4614,7 +4615,7 @@ Principal Investigator: _____________________________  Date: ____________
         generatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error("Error generating data contribution:", error);
+      logger.error("Error generating data contribution", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to generate data contribution analysis" });
     }
   });
@@ -4638,7 +4639,7 @@ Principal Investigator: _____________________________  Date: ____________
       
 
       // Log authorization
-      console.log(`[AI Topic Recommendations] Authorized by: ${authorizer}`);
+      logger.info('AI topic recommendations authorized', { authorizer });
 
       // Generate recommendations using OpenAI
       const prompt = `You are a clinical research methodology expert. Analyze the following research overview and provide recommendations for refining the study design.
@@ -4696,7 +4697,7 @@ Return ONLY valid JSON, no markdown.`;
         model: "gpt-4o"
       });
     } catch (error) {
-      console.error("Error generating topic recommendations:", error);
+      logger.error("Error generating topic recommendations", { errorMessage: String(error) });
       res.status(500).json({ 
         error: "Failed to generate topic recommendations",
         message: error instanceof Error ? error.message : "Unknown error"
@@ -4744,7 +4745,7 @@ Return ONLY valid JSON, no markdown.`;
         generatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error("Error generating study cards:", error);
+      logger.error("Error generating study cards", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to generate study cards" });
     }
   });
@@ -4769,7 +4770,7 @@ Return ONLY valid JSON, no markdown.`;
         generatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error("Error generating decision matrix:", error);
+      logger.error("Error generating decision matrix", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to generate decision matrix" });
     }
   });
@@ -4800,7 +4801,7 @@ Return ONLY valid JSON, no markdown.`;
         generatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error("Error generating journal recommendations:", error);
+      logger.error("Error generating journal recommendations", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to generate journal recommendations" });
     }
   });
@@ -4828,7 +4829,7 @@ Return ONLY valid JSON, no markdown.`;
         generatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error("Error generating submission requirements:", error);
+      logger.error("Error generating submission requirements", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to generate submission requirements" });
     }
   });
@@ -4860,7 +4861,7 @@ Return ONLY valid JSON, no markdown.`;
         generatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error("Error generating submission documents:", error);
+      logger.error("Error generating submission documents", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to generate submission documents" });
     }
   });
@@ -4891,7 +4892,7 @@ Return ONLY valid JSON, no markdown.`;
         createdAt: artifact.createdAt.toISOString()
       });
     } catch (error) {
-      console.error("Error creating artifact:", error);
+      logger.error("Error creating artifact", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to create artifact" });
     }
   });
@@ -4910,7 +4911,7 @@ Return ONLY valid JSON, no markdown.`;
         count: artifacts.length
       });
     } catch (error) {
-      console.error("Error listing artifacts:", error);
+      logger.error("Error listing artifacts", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to list artifacts" });
     }
   });
@@ -4929,7 +4930,7 @@ Return ONLY valid JSON, no markdown.`;
         count: artifacts.length
       });
     } catch (error) {
-      console.error("Error listing artifacts by stage:", error);
+      logger.error("Error listing artifacts by stage", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to list artifacts by stage" });
     }
   });
@@ -4952,7 +4953,7 @@ Return ONLY valid JSON, no markdown.`;
         artifact
       });
     } catch (error) {
-      console.error("Error getting artifact:", error);
+      logger.error("Error getting artifact", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to get artifact" });
     }
   });
@@ -4986,7 +4987,7 @@ Return ONLY valid JSON, no markdown.`;
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error("Error updating artifact:", error);
+      logger.error("Error updating artifact", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to update artifact" });
     }
   });
@@ -5011,7 +5012,7 @@ Return ONLY valid JSON, no markdown.`;
         deletedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error("Error deleting artifact:", error);
+      logger.error("Error deleting artifact", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to delete artifact" });
     }
   });
@@ -5052,7 +5053,7 @@ Return ONLY valid JSON, no markdown.`;
         createdAt: version.createdAt.toISOString()
       });
     } catch (error) {
-      console.error("Error creating artifact version:", error);
+      logger.error("Error creating artifact version", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to create artifact version" });
     }
   });
@@ -5078,7 +5079,7 @@ Return ONLY valid JSON, no markdown.`;
         count: versions.length
       });
     } catch (error) {
-      console.error("Error listing artifact versions:", error);
+      logger.error("Error listing artifact versions", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to list artifact versions" });
     }
   });
@@ -5101,7 +5102,7 @@ Return ONLY valid JSON, no markdown.`;
         version
       });
     } catch (error) {
-      console.error("Error getting artifact version:", error);
+      logger.error("Error getting artifact version", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to get artifact version" });
     }
   });
@@ -5142,7 +5143,7 @@ Return ONLY valid JSON, no markdown.`;
         comparedAt: comparison.comparedAt.toISOString()
       });
     } catch (error) {
-      console.error("Error creating artifact comparison:", error);
+      logger.error("Error creating artifact comparison", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to create artifact comparison" });
     }
   });
@@ -5165,7 +5166,7 @@ Return ONLY valid JSON, no markdown.`;
         comparison
       });
     } catch (error) {
-      console.error("Error getting artifact comparison:", error);
+      logger.error("Error getting artifact comparison", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to get artifact comparison" });
     }
   });
@@ -5277,7 +5278,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error getting SAP status:", error);
+      logger.error("Error getting SAP status", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to get execution status" });
     }
   });
@@ -5307,7 +5308,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error getting export status:", error);
+      logger.error("Error getting export status", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to get export status" });
     }
   });
@@ -5331,7 +5332,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error listing exports:", error);
+      logger.error("Error listing exports", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to list exports" });
     }
   });
@@ -5436,7 +5437,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error scanning for PHI:", error);
+      logger.error("Error scanning for PHI", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to scan content for PHI" });
     }
   });
@@ -5525,7 +5526,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error requesting PHI override:", error);
+      logger.error("Error requesting PHI override", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to request PHI override" });
     }
   });
@@ -5551,7 +5552,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error getting scan result:", error);
+      logger.error("Error getting scan result", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to get scan result" });
     }
   });
@@ -5577,7 +5578,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error getting override status:", error);
+      logger.error("Error getting override status", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to get override status" });
     }
   });
@@ -5636,7 +5637,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error getting PHI status:", error);
+      logger.error("Error getting PHI status", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to get PHI status" });
     }
   });
@@ -5805,7 +5806,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE,
       });
     } catch (error) {
-      console.error("Error listing pipeline runs:", error);
+      logger.error("Error listing pipeline runs", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to list pipeline runs" });
     }
   });
@@ -5830,7 +5831,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE,
       });
     } catch (error) {
-      console.error("Error getting pipeline run:", error);
+      logger.error("Error getting pipeline run", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to get pipeline run details" });
     }
   });
@@ -5861,7 +5862,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error getting topic versions:", error);
+      logger.error("Error getting topic versions", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to get topic version history" });
     }
   });
@@ -5913,7 +5914,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error getting topic diff:", error);
+      logger.error("Error getting topic diff", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to compute version diff" });
     }
   });
@@ -5948,7 +5949,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error checking outdated status:", error);
+      logger.error("Error checking outdated status", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to check outdated status" });
     }
   });
@@ -6001,7 +6002,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error locking topic:", error);
+      logger.error("Error locking topic", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to lock topic" });
     }
   });
@@ -6061,7 +6062,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error creating SAP:", error);
+      logger.error("Error creating SAP", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to create statistical analysis plan" });
     }
   });
@@ -6100,7 +6101,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error approving SAP:", error);
+      logger.error("Error approving SAP", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to approve SAP" });
     }
   });
@@ -6174,7 +6175,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error generating methods:", error);
+      logger.error("Error generating methods", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to generate statistical methods" });
     }
   });
@@ -6272,7 +6273,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error exporting conference materials:", error);
+      logger.error("Error exporting conference materials", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to export conference materials" });
     }
   });
@@ -6322,7 +6323,7 @@ Return ONLY valid JSON, no markdown.`;
         mode: ROS_MODE
       });
     } catch (error) {
-      console.error("Error getting conference requirements:", error);
+      logger.error("Error getting conference requirements", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to get conference requirements" });
     }
   });
@@ -6337,29 +6338,29 @@ Return ONLY valid JSON, no markdown.`;
       const webhookPath = req.params.path;
       const payload = req.body;
 
-      console.log(`n8n webhook received: ${webhookPath}`, payload);
+      logger.info('n8n webhook received', { webhookPath, payload });
 
       // Handle different webhook types
       switch (webhookPath) {
         case 'github-sync':
           // GitHub issue sync completed
-          console.log('GitHub sync webhook received');
+          logger.info('GitHub sync webhook received');
           break;
         case 'notion-update':
           // Notion task updated
-          console.log('Notion update webhook received');
+          logger.info('Notion update webhook received');
           break;
         case 'ci-complete':
           // CI/CD pipeline completed
-          console.log('CI complete webhook received');
+          logger.info('CI complete webhook received');
           break;
         default:
-          console.log(`Unknown webhook path: ${webhookPath}`);
+          logger.warn('Unknown webhook path', { webhookPath });
       }
 
       res.json({ success: true, received: webhookPath });
     } catch (error) {
-      console.error("n8n webhook error:", error);
+      logger.error("n8n webhook error", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to process n8n webhook" });
     }
   });
@@ -6393,7 +6394,7 @@ Return ONLY valid JSON, no markdown.`;
       const result = await response.json();
       res.json({ success: true, workflow: workflowName, result });
     } catch (error) {
-      console.error("n8n trigger error:", error);
+      logger.error("n8n trigger error", { errorMessage: String(error) });
       res.status(500).json({ error: "Failed to trigger n8n workflow" });
     }
   });

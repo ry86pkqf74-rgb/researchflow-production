@@ -1,7 +1,7 @@
 /**
  * RBAC Test Utilities
  * INF-12: Mock utilities for testing role-based access control
- * 
+ *
  * Provides helpers to simulate authenticated requests with different roles
  * for integration testing without real authentication.
  */
