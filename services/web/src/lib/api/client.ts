@@ -41,7 +41,7 @@ class ApiClient {
         credentials: 'include',
       });
 
-      const data = await response.json().catch(() => null);
+      const data = await response.json().catch((): null => null);
 
       if (!response.ok) {
         // Handle authentication errors

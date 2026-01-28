@@ -26,19 +26,23 @@ export type OrgCapability =
   | 'integrations'
   | 'admin';
 
+interface OrgInfo {
+  id: string;
+  name: string;
+  slug: string;
+  tier: string;
+  settings: Record<string, any>;
+}
+
+interface MembershipInfo {
+  role: OrgRole;
+  joinedAt: Date;
+  capabilities: OrgCapability[];
+}
+
 interface OrgContext {
-  org: {
-    id: string;
-    name: string;
-    slug: string;
-    tier: string;
-    settings: Record<string, any>;
-  } | null;
-  membership: {
-    role: OrgRole;
-    joinedAt: Date;
-    capabilities: OrgCapability[];
-  } | null;
+  org: OrgInfo | null;
+  membership: MembershipInfo | null;
   features: Record<string, boolean>;
 }
 
@@ -60,9 +64,9 @@ interface OrgState extends OrgContext {
 export const useOrgStore = create<OrgState>()(
   persist(
     (set, get) => ({
-      org: null,
-      membership: null,
-      features: {},
+      org: null as OrgInfo | null,
+      membership: null as MembershipInfo | null,
+      features: {} as Record<string, boolean>,
 
       /**
        * Fetch organization context from backend

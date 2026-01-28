@@ -201,16 +201,16 @@ export const useProjectStore = create<ProjectState>()(
   persist(
     (set, get) => ({
       // Initial state
-      projects: [],
-      currentProject: null,
-      currentWorkflow: null,
-      stats: null,
-      recentActivity: [],
+      projects: [] as Project[],
+      currentProject: null as ProjectWithWorkflows | null,
+      currentWorkflow: null as Workflow | null,
+      stats: null as ProjectStats | null,
+      recentActivity: [] as RecentActivity[],
       isLoading: false,
       isCreating: false,
-      error: null,
-      statusFilter: 'all',
-      sortBy: 'recent',
+      error: null as string | null,
+      statusFilter: 'all' as const,
+      sortBy: 'recent' as const,
       searchQuery: '',
 
       // Fetch all projects
@@ -312,11 +312,11 @@ export const useProjectStore = create<ProjectState>()(
             await new Promise((resolve) => setTimeout(resolve, 300));
             set((state) => ({
               projects: state.projects.map((p) =>
-                p.id === id ? { ...p, ...data, updatedAt: new Date().toISOString() } : p
+                p.id === id ? ({ ...p, ...data, updatedAt: new Date().toISOString() } as Project) : p
               ),
               currentProject:
                 state.currentProject?.id === id
-                  ? { ...state.currentProject, ...data, updatedAt: new Date().toISOString() }
+                  ? ({ ...state.currentProject, ...data, updatedAt: new Date().toISOString() } as ProjectWithWorkflows)
                   : state.currentProject,
             }));
             return;

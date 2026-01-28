@@ -57,7 +57,7 @@ interface TokenStore {
 export const useTokenStore = create<TokenStore>()(
   persist(
     (set) => ({
-      accessToken: null,
+      accessToken: null as string | null,
       setAccessToken: (token) => {
         set({ accessToken: token });
         // Sync with localStorage for api-client compatibility

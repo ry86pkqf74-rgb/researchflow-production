@@ -121,7 +121,7 @@ export default function AnalysisPlannerPage() {
     try {
       setIsLoading(true);
       const response = await planningApi.listPlans();
-      if (response.success && response.data) {
+      if (!response.error && response.data) {
         setPlans(response.data.plans);
       }
     } catch (err) {
@@ -152,7 +152,7 @@ export default function AnalysisPlannerPage() {
         constraints: { maxRows },
       });
 
-      if (response.success && response.data) {
+      if (!response.error && response.data) {
         if (response.data.phiWarning) {
           setPhiWarning(response.data.phiWarning);
         }
@@ -179,7 +179,7 @@ export default function AnalysisPlannerPage() {
   const handleSelectPlan = async (plan: AnalysisPlan) => {
     try {
       const response = await planningApi.getPlan(plan.id);
-      if (response.success && response.data) {
+      if (!response.error && response.data) {
         setSelectedPlan(response.data.plan);
         if (response.data.jobs && response.data.jobs.length > 0) {
           setActiveJob(response.data.jobs[0]);
@@ -195,7 +195,7 @@ export default function AnalysisPlannerPage() {
 
     try {
       const response = await planningApi.approvePlan(selectedPlan.id, { approved });
-      if (response.success && response.data) {
+      if (!response.error && response.data) {
         setSelectedPlan(response.data.plan);
         loadPlans();
       }
@@ -209,7 +209,7 @@ export default function AnalysisPlannerPage() {
 
     try {
       const response = await planningApi.runPlan(selectedPlan.id);
-      if (response.success && response.data) {
+      if (!response.error && response.data) {
         setActiveJob(response.data.job);
         loadPlans();
       }

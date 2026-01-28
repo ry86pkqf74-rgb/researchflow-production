@@ -538,7 +538,7 @@ export function Stage12Documentation({
         level: s.level,
         order: i,
         status: 'draft',
-        citationKeys: [],
+        citationKeys: [] as string[],
         isCollapsed: false,
         lastEditedAt: new Date(),
         aiGenerated: false,

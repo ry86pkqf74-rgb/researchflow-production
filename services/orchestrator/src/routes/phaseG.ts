@@ -2,9 +2,14 @@
  * Phase G Routes - Scalability, Performance, and Monitoring
  *
  * Tasks 116-135: Complete monitoring, scaling, and cloud integration
+ *
+ * SEC-003: RBAC MIDDLEWARE AUDIT
+ * All endpoints require ADMIN role for infrastructure access
  */
 
 import { Router, Request, Response } from 'express';
+import { protectWithRole, auditAccess } from '../middleware/rbac';
+import { requireAuth } from '../services/authService';
 import { clusterStatusService } from '../services/clusterStatusService';
 import { predictiveScalingService } from '../services/predictiveScalingService';
 import { metricsCollectorService } from '../services/metricsCollectorService';
@@ -23,12 +28,16 @@ import { costMonitoringService } from '../services/costMonitoringService';
 
 const router = Router();
 
+// Apply authentication and audit logging to all Phase G endpoints
+router.use(requireAuth, auditAccess);
+
 // ============================================================================
 // Section 1: Real-Time Monitoring Dashboard (Tasks 116, 117, 118, 122, 129, 130)
 // ============================================================================
 
 // Task 116, 122: Cluster Status & Auto-Scaling Indicators
-router.get('/cluster/status', async (_req: Request, res: Response) => {
+// Read-only - requires STEWARD or ADMIN
+router.get('/cluster/status', ...protectWithRole('STEWARD'), async (_req: Request, res: Response) => {
   try {
     const status = await clusterStatusService.getClusterStatus();
     res.json({ success: true, data: status });
@@ -37,7 +46,7 @@ router.get('/cluster/status', async (_req: Request, res: Response) => {
   }
 });
 
-router.get('/cluster/services', async (_req: Request, res: Response) => {
+router.get('/cluster/services', ...protectWithRole('STEWARD'), async (_req: Request, res: Response) => {
   try {
     const services = await clusterStatusService.getServicesStatus();
     res.json({ success: true, data: services });
@@ -46,7 +55,7 @@ router.get('/cluster/services', async (_req: Request, res: Response) => {
   }
 });
 
-router.get('/cluster/scaling-events', (_req: Request, res: Response) => {
+router.get('/cluster/scaling-events', ...protectWithRole('STEWARD'), (_req: Request, res: Response) => {
   try {
     const limit = parseInt(_req.query.limit as string) || 50;
     const events = clusterStatusService.getScalingHistory(limit);
@@ -57,7 +66,8 @@ router.get('/cluster/scaling-events', (_req: Request, res: Response) => {
 });
 
 // Task 117: Predictive Scaling
-router.post('/scaling/predict', async (req: Request, res: Response) => {
+// Write operations - requires ADMIN
+router.post('/scaling/predict', ...protectWithRole('ADMIN'), async (req: Request, res: Response) => {
   try {
     const prediction = await predictiveScalingService.predictScaling(req.body);
     res.json({ success: true, data: prediction });
@@ -66,7 +76,7 @@ router.post('/scaling/predict', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/scaling/scenarios', (_req: Request, res: Response) => {
+router.get('/scaling/scenarios', ...protectWithRole('STEWARD'), (_req: Request, res: Response) => {
   try {
     const scenarios = predictiveScalingService.getPresetScenarios();
     res.json({ success: true, data: scenarios });
@@ -75,7 +85,7 @@ router.get('/scaling/scenarios', (_req: Request, res: Response) => {
   }
 });
 
-router.get('/scaling/history', (_req: Request, res: Response) => {
+router.get('/scaling/history', ...protectWithRole('STEWARD'), (_req: Request, res: Response) => {
   try {
     const limit = parseInt(_req.query.limit as string) || 20;
     const history = predictiveScalingService.getPredictionHistory(limit);

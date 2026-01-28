@@ -76,12 +76,12 @@ export function ComplianceChecklist({
     },
   });
 
-  const items: ChecklistItem[] = checklistData?.items || 
+  const items: ChecklistItem[] = checklistData?.items ||
     conferenceRequirements?.map((req) => ({
       ...req,
       checked: false,
-      checkedAt: undefined,
-      checkedBy: undefined,
+      checkedAt: undefined as string | undefined,
+      checkedBy: undefined as string | undefined,
     })) || [];
 
   const requiredItems = items.filter((item) => item.required);

@@ -16,6 +16,8 @@ import {
   requireAuth,
   optionalAuth
 } from '../services/authService';
+import { logAuthEvent } from '../services/audit-service';
+import { getRequestMetadata } from '../utils/request-metadata';
 
 const router = Router();
 
@@ -25,9 +27,24 @@ const router = Router();
  */
 router.post('/register', async (req: Request, res: Response) => {
   try {
+    const metadata = getRequestMetadata(req);
+
     // Validate input
     const parseResult = RegisterSchema.safeParse(req.body);
     if (!parseResult.success) {
+      // Log registration validation failure
+      await logAuthEvent({
+        eventType: 'REGISTRATION',
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: false,
+        failureReason: 'Validation failed',
+        details: {
+          email: req.body.email,
+          errors: parseResult.error.errors
+        }
+      }).catch(err => console.error('Failed to log registration validation error:', err));
+
       return res.status(400).json({
         error: 'Validation failed',
         details: parseResult.error.errors
@@ -37,8 +54,33 @@ router.post('/register', async (req: Request, res: Response) => {
     const result = await authService.registerUser(parseResult.data);
 
     if (!result.success) {
+      // Log registration failure
+      await logAuthEvent({
+        eventType: 'REGISTRATION',
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: false,
+        failureReason: result.error,
+        details: {
+          email: parseResult.data.email
+        }
+      }).catch(err => console.error('Failed to log registration error:', err));
+
       return res.status(400).json({ error: result.error });
     }
+
+    // Log successful registration
+    await logAuthEvent({
+      eventType: 'REGISTRATION',
+      userId: result.user!.id,
+      ipAddress: metadata.ipAddress,
+      userAgent: metadata.userAgent,
+      success: true,
+      details: {
+        email: result.user!.email,
+        role: result.user!.role
+      }
+    }).catch(err => console.error('Failed to log registration success:', err));
 
     // Set refresh token in HTTP-only cookie
     res.cookie('refreshToken', result.refreshToken, {
@@ -60,6 +102,16 @@ router.post('/register', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
+    const metadata = getRequestMetadata(req);
+    await logAuthEvent({
+      eventType: 'REGISTRATION',
+      ipAddress: metadata.ipAddress,
+      userAgent: metadata.userAgent,
+      success: false,
+      failureReason: 'Internal server error',
+      details: { error: String(error) }
+    }).catch(err => console.error('Failed to log registration exception:', err));
+
     res.status(500).json({ error: 'Registration failed' });
   }
 });
@@ -70,9 +122,24 @@ router.post('/register', async (req: Request, res: Response) => {
  */
 router.post('/login', async (req: Request, res: Response) => {
   try {
+    const metadata = getRequestMetadata(req);
+
     // Validate input
     const parseResult = LoginSchema.safeParse(req.body);
     if (!parseResult.success) {
+      // Log login validation failure
+      await logAuthEvent({
+        eventType: 'LOGIN_FAILURE',
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: false,
+        failureReason: 'Validation failed',
+        details: {
+          email: req.body.email,
+          errors: parseResult.error.errors
+        }
+      }).catch(err => console.error('Failed to log login validation error:', err));
+
       return res.status(400).json({
         error: 'Validation failed',
         details: parseResult.error.errors
@@ -82,8 +149,33 @@ router.post('/login', async (req: Request, res: Response) => {
     const result = await authService.loginUser(parseResult.data);
 
     if (!result.success) {
+      // Log login failure with reason
+      await logAuthEvent({
+        eventType: 'LOGIN_FAILURE',
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: false,
+        failureReason: result.error,
+        details: {
+          email: parseResult.data.email
+        }
+      }).catch(err => console.error('Failed to log login failure:', err));
+
       return res.status(401).json({ error: result.error });
     }
+
+    // Log successful login
+    await logAuthEvent({
+      eventType: 'LOGIN_SUCCESS',
+      userId: result.user!.id,
+      ipAddress: metadata.ipAddress,
+      userAgent: metadata.userAgent,
+      success: true,
+      details: {
+        email: result.user!.email,
+        role: result.user!.role
+      }
+    }).catch(err => console.error('Failed to log login success:', err));
 
     // Set refresh token in HTTP-only cookie
     res.cookie('refreshToken', result.refreshToken, {
@@ -106,6 +198,16 @@ router.post('/login', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Login error:', error);
+    const metadata = getRequestMetadata(req);
+    await logAuthEvent({
+      eventType: 'LOGIN_FAILURE',
+      ipAddress: metadata.ipAddress,
+      userAgent: metadata.userAgent,
+      success: false,
+      failureReason: 'Internal server error',
+      details: { error: String(error) }
+    }).catch(err => console.error('Failed to log login exception:', err));
+
     res.status(500).json({ error: 'Login failed' });
   }
 });
@@ -114,22 +216,50 @@ router.post('/login', async (req: Request, res: Response) => {
  * POST /api/auth/refresh
  * Refresh access token using refresh token
  */
-router.post('/refresh', (req: Request, res: Response) => {
+router.post('/refresh', async (req: Request, res: Response) => {
   try {
+    const metadata = getRequestMetadata(req);
+
     // Get refresh token from cookie or body
     const refreshToken = req.cookies?.refreshToken || req.body.refreshToken;
 
     if (!refreshToken) {
+      // Log token refresh failure
+      await logAuthEvent({
+        eventType: 'TOKEN_REFRESH_FAILURE',
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: false,
+        failureReason: 'No refresh token provided'
+      }).catch(err => console.error('Failed to log token refresh error:', err));
+
       return res.status(401).json({ error: 'No refresh token provided' });
     }
 
     const result = authService.refreshAccessToken(refreshToken);
 
     if (!result.success) {
+      // Log token refresh failure
+      await logAuthEvent({
+        eventType: 'TOKEN_REFRESH_FAILURE',
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: false,
+        failureReason: result.error
+      }).catch(err => console.error('Failed to log token refresh failure:', err));
+
       // Clear invalid refresh token cookie
       res.clearCookie('refreshToken');
       return res.status(401).json({ error: result.error });
     }
+
+    // Log successful token refresh
+    await logAuthEvent({
+      eventType: 'TOKEN_REFRESH_SUCCESS',
+      ipAddress: metadata.ipAddress,
+      userAgent: metadata.userAgent,
+      success: true
+    }).catch(err => console.error('Failed to log token refresh success:', err));
 
     // Set new refresh token in HTTP-only cookie
     res.cookie('refreshToken', result.newRefreshToken, {
@@ -145,6 +275,16 @@ router.post('/refresh', (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Token refresh error:', error);
+    const metadata = getRequestMetadata(req);
+    await logAuthEvent({
+      eventType: 'TOKEN_REFRESH_FAILURE',
+      ipAddress: metadata.ipAddress,
+      userAgent: metadata.userAgent,
+      success: false,
+      failureReason: 'Internal server error',
+      details: { error: String(error) }
+    }).catch(err => console.error('Failed to log token refresh exception:', err));
+
     res.status(500).json({ error: 'Token refresh failed' });
   }
 });
@@ -153,12 +293,25 @@ router.post('/refresh', (req: Request, res: Response) => {
  * POST /api/auth/logout
  * Logout user and revoke tokens
  */
-router.post('/logout', optionalAuth, (req: Request, res: Response) => {
+router.post('/logout', optionalAuth, async (req: Request, res: Response) => {
   try {
+    const metadata = getRequestMetadata(req);
+    const user = authService.getUserFromRequest(req);
+
     const refreshToken = req.cookies?.refreshToken;
     if (refreshToken) {
       authService.revokeRefreshToken(refreshToken);
     }
+
+    // Log logout event
+    await logAuthEvent({
+      eventType: 'LOGOUT',
+      userId: user?.id,
+      ipAddress: metadata.ipAddress,
+      userAgent: metadata.userAgent,
+      success: true,
+      details: user ? { email: user.email } : undefined
+    }).catch(err => console.error('Failed to log logout:', err));
 
     // Clear refresh token cookie
     res.clearCookie('refreshToken');
@@ -166,6 +319,16 @@ router.post('/logout', optionalAuth, (req: Request, res: Response) => {
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
     console.error('Logout error:', error);
+    const metadata = getRequestMetadata(req);
+    await logAuthEvent({
+      eventType: 'LOGOUT',
+      ipAddress: metadata.ipAddress,
+      userAgent: metadata.userAgent,
+      success: false,
+      failureReason: 'Internal server error',
+      details: { error: String(error) }
+    }).catch(err => console.error('Failed to log logout error:', err));
+
     res.status(500).json({ error: 'Logout failed' });
   }
 });
@@ -223,8 +386,9 @@ router.get('/status', optionalAuth, (req: Request, res: Response) => {
  * POST /api/auth/logout-all
  * Logout from all devices (revoke all refresh tokens)
  */
-router.post('/logout-all', requireAuth, (req: Request, res: Response) => {
+router.post('/logout-all', requireAuth, async (req: Request, res: Response) => {
   try {
+    const metadata = getRequestMetadata(req);
     const user = authService.getUserFromRequest(req);
     if (!user) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -232,12 +396,37 @@ router.post('/logout-all', requireAuth, (req: Request, res: Response) => {
 
     authService.revokeAllUserTokens(user.id);
 
+    // Log logout-all event
+    await logAuthEvent({
+      eventType: 'LOGOUT',
+      userId: user.id,
+      ipAddress: metadata.ipAddress,
+      userAgent: metadata.userAgent,
+      success: true,
+      details: {
+        email: user.email,
+        action: 'logout_all_devices'
+      }
+    }).catch(err => console.error('Failed to log logout-all:', err));
+
     // Clear refresh token cookie
     res.clearCookie('refreshToken');
 
     res.json({ message: 'Logged out from all devices' });
   } catch (error) {
     console.error('Logout all error:', error);
+    const metadata = getRequestMetadata(req);
+    const user = authService.getUserFromRequest(req);
+    await logAuthEvent({
+      eventType: 'LOGOUT',
+      userId: user?.id,
+      ipAddress: metadata.ipAddress,
+      userAgent: metadata.userAgent,
+      success: false,
+      failureReason: 'Internal server error',
+      details: { error: String(error) }
+    }).catch(err => console.error('Failed to log logout-all error:', err));
+
     res.status(500).json({ error: 'Logout all failed' });
   }
 });
@@ -248,9 +437,19 @@ router.post('/logout-all', requireAuth, (req: Request, res: Response) => {
  */
 router.post('/forgot-password', async (req: Request, res: Response) => {
   try {
+    const metadata = getRequestMetadata(req);
     const { email } = req.body;
 
     if (!email) {
+      // Log password reset request validation failure
+      await logAuthEvent({
+        eventType: 'PASSWORD_RESET_REQUEST',
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: false,
+        failureReason: 'Email is required'
+      }).catch(err => console.error('Failed to log password reset validation error:', err));
+
       return res.status(400).json({
         error: 'Email is required'
       });
@@ -259,6 +458,16 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      // Log password reset request validation failure
+      await logAuthEvent({
+        eventType: 'PASSWORD_RESET_REQUEST',
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: false,
+        failureReason: 'Invalid email format',
+        details: { email }
+      }).catch(err => console.error('Failed to log password reset validation error:', err));
+
       return res.status(400).json({
         error: 'Invalid email format'
       });
@@ -271,6 +480,16 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       // Generate reset token (valid for 1 hour)
       const resetToken = await authService.generatePasswordResetToken(user.id);
 
+      // Log password reset request
+      await logAuthEvent({
+        eventType: 'PASSWORD_RESET_REQUEST',
+        userId: user.id,
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: true,
+        details: { email }
+      }).catch(err => console.error('Failed to log password reset request:', err));
+
       // In production, send email with reset link
       // For now, log to console (in dev mode) or return token (for testing)
       if (process.env.NODE_ENV === 'development') {
@@ -280,6 +499,15 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
       // TODO: Send email via email service (SendGrid, AWS SES, etc.)
       // await emailService.sendPasswordResetEmail(email, resetToken);
+    } else {
+      // Still log the request attempt (without revealing user doesn't exist)
+      await logAuthEvent({
+        eventType: 'PASSWORD_RESET_REQUEST',
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: true,
+        details: { email, userExists: false }
+      }).catch(err => console.error('Failed to log password reset request:', err));
     }
 
     // Always return success to prevent email enumeration
@@ -289,6 +517,16 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Forgot password error:', error);
+    const metadata = getRequestMetadata(req);
+    await logAuthEvent({
+      eventType: 'PASSWORD_RESET_REQUEST',
+      ipAddress: metadata.ipAddress,
+      userAgent: metadata.userAgent,
+      success: false,
+      failureReason: 'Internal server error',
+      details: { error: String(error) }
+    }).catch(err => console.error('Failed to log password reset error:', err));
+
     res.status(500).json({ error: 'Password reset request failed' });
   }
 });
@@ -299,15 +537,34 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
  */
 router.post('/reset-password', async (req: Request, res: Response) => {
   try {
+    const metadata = getRequestMetadata(req);
     const { token, newPassword } = req.body;
 
     if (!token || !newPassword) {
+      // Log password reset failure
+      await logAuthEvent({
+        eventType: 'PASSWORD_RESET_REQUEST',
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: false,
+        failureReason: 'Token and new password are required'
+      }).catch(err => console.error('Failed to log password reset error:', err));
+
       return res.status(400).json({
         error: 'Token and new password are required'
       });
     }
 
     if (newPassword.length < 8) {
+      // Log password reset failure
+      await logAuthEvent({
+        eventType: 'PASSWORD_RESET_REQUEST',
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: false,
+        failureReason: 'Password must be at least 8 characters'
+      }).catch(err => console.error('Failed to log password reset error:', err));
+
       return res.status(400).json({
         error: 'New password must be at least 8 characters'
       });
@@ -317,6 +574,15 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     const userId = await authService.verifyPasswordResetToken(token);
 
     if (!userId) {
+      // Log password reset failure
+      await logAuthEvent({
+        eventType: 'PASSWORD_RESET_REQUEST',
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: false,
+        failureReason: 'Invalid or expired reset token'
+      }).catch(err => console.error('Failed to log password reset error:', err));
+
       return res.status(400).json({
         error: 'Invalid or expired reset token'
       });
@@ -324,6 +590,15 @@ router.post('/reset-password', async (req: Request, res: Response) => {
 
     // Update password
     await authService.updatePassword(userId, newPassword);
+
+    // Log successful password reset
+    await logAuthEvent({
+      eventType: 'PASSWORD_RESET_SUCCESS',
+      userId,
+      ipAddress: metadata.ipAddress,
+      userAgent: metadata.userAgent,
+      success: true
+    }).catch(err => console.error('Failed to log password reset success:', err));
 
     // Invalidate all existing sessions for security
     await authService.invalidateUserSessions(userId);
@@ -333,6 +608,16 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Reset password error:', error);
+    const metadata = getRequestMetadata(req);
+    await logAuthEvent({
+      eventType: 'PASSWORD_RESET_REQUEST',
+      ipAddress: metadata.ipAddress,
+      userAgent: metadata.userAgent,
+      success: false,
+      failureReason: 'Internal server error',
+      details: { error: String(error) }
+    }).catch(err => console.error('Failed to log password reset error:', err));
+
     res.status(500).json({ error: 'Password reset failed' });
   }
 });

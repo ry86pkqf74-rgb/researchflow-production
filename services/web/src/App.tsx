@@ -65,7 +65,7 @@ const WorkflowBuilderPage = lazy(() => import("@/pages/workflow-builder"));
  * - LIVE: Authenticated + AI enabled
  * - OFFLINE: Authenticated + AI disabled
  */
-function ModeInitializer() {
+function ModeInitializer(): null {
   const setMode = useModeStore((state) => state.setMode);
   const aiEnabled = useModeStore((state) => state.aiEnabled);
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -98,7 +98,7 @@ function ModeInitializer() {
  * Fetches organization context when user is authenticated.
  * Runs after mode is initialized. Works for both LIVE and OFFLINE modes.
  */
-function OrgInitializer() {
+function OrgInitializer(): null {
   const { isLive, isOffline, isLoading: modeLoading } = useModeStore();
   const { user } = useAuth();
   const { fetchContext } = useOrgStore();
@@ -135,7 +135,7 @@ function ModeLoader() {
  *
  * Installs global keyboard shortcuts (Task 17)
  */
-function ShortcutsInitializer() {
+function ShortcutsInitializer(): null {
   useAppShortcuts();
   return null;
 }

@@ -5,22 +5,25 @@
  *
  * API namespace: /api/export
  *
+ * SEC-003: RBAC MIDDLEWARE AUDIT
+ * All endpoints require RESEARCHER+ role to prevent unauthorized data exfiltration
+ *
  * Endpoints:
- * - GET    /ping                        # Health check
- * - GET    /templates                   # List export templates
- * - GET    /templates/:id               # Get template details
- * - POST   /templates                   # Create custom template
- * - PATCH  /templates/:id               # Update template
- * - DELETE /templates/:id               # Delete template
- * - POST   /manuscripts/:id             # Export manuscript
- * - GET    /jobs                        # List export jobs
- * - GET    /jobs/:id                    # Get job status
- * - GET    /jobs/:id/download           # Download exported file
- * - DELETE /jobs/:id                    # Cancel/delete job
- * - GET    /presets                     # List user presets
- * - POST   /presets                     # Save preset
- * - GET    /journals                    # Search journals
- * - GET    /journals/:id                # Get journal requirements
+ * - GET    /ping                        # Health check (public)
+ * - GET    /templates                   # List export templates (RESEARCHER)
+ * - GET    /templates/:id               # Get template details (RESEARCHER)
+ * - POST   /templates                   # Create custom template (STEWARD)
+ * - PATCH  /templates/:id               # Update template (STEWARD)
+ * - DELETE /templates/:id               # Delete template (STEWARD)
+ * - POST   /manuscripts/:id             # Export manuscript (RESEARCHER)
+ * - GET    /jobs                        # List export jobs (RESEARCHER)
+ * - GET    /jobs/:id                    # Get job status (RESEARCHER)
+ * - GET    /jobs/:id/download           # Download exported file (RESEARCHER)
+ * - DELETE /jobs/:id                    # Cancel/delete job (RESEARCHER)
+ * - GET    /presets                     # List user presets (RESEARCHER)
+ * - POST   /presets                     # Save preset (RESEARCHER)
+ * - GET    /journals                    # Search journals (RESEARCHER)
+ * - GET    /journals/:id                # Get journal requirements (RESEARCHER)
  *
  * @module routes/export
  */
@@ -31,8 +34,18 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import path from 'path';
 import fs from 'fs/promises';
+import { protect, protectWithRole, requirePermission } from '../middleware/rbac';
+import { requireAuth } from '../services/authService';
 
 const router = Router();
+
+// Apply authentication to all non-ping endpoints
+router.use((req: Request, res: Response, next) => {
+  if (req.path === '/ping') {
+    return next();
+  }
+  return requireAuth(req, res, next);
+});
 
 // =============================================================================
 // Configuration

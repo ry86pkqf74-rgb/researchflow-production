@@ -320,7 +320,7 @@ export function SapBuilderPanel({ topicId, researchId, onGenerateSap }: SapBuild
       ],
       subgroupAnalyses: sapState.subgroupAnalyses.map(sg => ({
         variable: sg,
-        categories: [],
+        categories: [] as string[],
         justification: "Pre-specified subgroup"
       })),
       alphaLevel: parseFloat(sapState.alphaLevel)

@@ -121,7 +121,7 @@ export const searchApi = {
         grouped,
         total: result.data.total,
       },
-      error: null,
+      error: null as null,
     };
   },
 

@@ -51,7 +51,7 @@ export async function logAction(entry: AuditLogEntry): Promise<void> {
     previousHash,
     entryHash,
     details: entry.details ? entry.details : undefined
-  });
+  } as any);
 }
 
 /**
@@ -144,4 +144,64 @@ export async function getAuditLogsForResource(
       )
     )
     .orderBy(desc(auditLogs.createdAt));
+}
+
+/**
+ * Log an authentication event with full context
+ */
+export async function logAuthEvent(entry: {
+  eventType: 'LOGIN_SUCCESS' | 'LOGIN_FAILURE' | 'LOGOUT' | 'REGISTRATION' | 'PASSWORD_RESET_REQUEST' | 'PASSWORD_RESET_SUCCESS' | 'SESSION_EXPIRATION' | 'TOKEN_REFRESH_SUCCESS' | 'TOKEN_REFRESH_FAILURE';
+  userId?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  success: boolean;
+  failureReason?: string;
+  details?: Record<string, any>;
+}): Promise<void> {
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+
+  // Get the most recent audit log entry for hash chaining
+  const [previousEntry] = await db
+    .select()
+    .from(auditLogs)
+    .orderBy(desc(auditLogs.id))
+    .limit(1);
+
+  const previousHash = previousEntry?.entryHash || 'GENESIS';
+
+  // Prepare entry data for hashing
+  const timestamp = new Date().toISOString();
+  const auditDetails = {
+    ...entry.details,
+    success: entry.success,
+    ...(entry.failureReason && { failureReason: entry.failureReason })
+  };
+
+  const entryData = JSON.stringify({
+    eventType: entry.eventType,
+    userId: entry.userId,
+    ipAddress: entry.ipAddress,
+    userAgent: entry.userAgent,
+    details: auditDetails,
+    previousHash,
+    timestamp
+  });
+
+  const entryHash = createHash('sha256')
+    .update(entryData)
+    .digest('hex');
+
+  // Insert auth event into audit logs
+  await db.insert(auditLogs).values({
+    eventType: entry.eventType,
+    userId: entry.userId,
+    action: entry.success ? 'SUCCESS' : 'FAILURE',
+    ipAddress: entry.ipAddress,
+    userAgent: entry.userAgent,
+    previousHash,
+    entryHash,
+    details: auditDetails
+  } as any);
 }

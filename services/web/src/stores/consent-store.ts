@@ -58,7 +58,7 @@ export const useConsentStore = create<ConsentState>()(
       analyticsGranted: false,
       loaded: false,
       loading: false,
-      error: null,
+      error: null as string | null,
 
       loadFromServer: async () => {
         set({ loading: true, error: null });

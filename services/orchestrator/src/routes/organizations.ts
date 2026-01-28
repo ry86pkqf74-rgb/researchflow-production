@@ -2,13 +2,16 @@
  * Organizations Router (Task 81)
  *
  * API endpoints for organization management:
- * - POST /api/org - Create organization
- * - GET /api/org - List user's organizations
- * - GET /api/org/:orgId - Get organization details
- * - PATCH /api/org/:orgId - Update organization
+ * - POST /api/org - Create organization (RESEARCHER)
+ * - GET /api/org - List user's organizations (RESEARCHER)
+ * - GET /api/org/:orgId - Get organization details (ORG_MEMBER)
+ * - PATCH /api/org/:orgId - Update organization (ORG_ADMIN)
  * - DELETE /api/org/:orgId - Delete organization (OWNER only)
- * - POST /api/org/:orgId/select - Set active org in session
- * - GET /api/org/:orgId/members - List org members
+ * - POST /api/org/:orgId/select - Set active org in session (ORG_MEMBER)
+ * - GET /api/org/:orgId/members - List org members (ORG_MEMBER)
+ *
+ * SEC-003: RBAC MIDDLEWARE AUDIT
+ * Enhanced with application-level role checks for sensitive operations
  */
 
 import { Router, Request, Response } from "express";
@@ -35,16 +38,19 @@ import {
 } from "@researchflow/core/types/organization";
 import { logAction } from "../services/audit-service";
 import { requireAuth as isAuthenticated } from "../services/authService";
+import { protect, logAuditEvent } from "../middleware/rbac";
 
 const router = Router();
 
 /**
  * Create a new organization
  * The creating user becomes the OWNER
+ * SEC-003: Audit logging for org creation
  */
 router.post(
   "/",
   isAuthenticated,
+  logAuditEvent('CREATE', 'organization'),
   asyncHandler(async (req: Request, res: Response) => {
     const userId = (req.user as any)?.id;
     if (!userId) {

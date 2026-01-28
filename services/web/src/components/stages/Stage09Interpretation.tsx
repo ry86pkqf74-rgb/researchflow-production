@@ -307,10 +307,10 @@ export function Stage09Interpretation({
       // Extract mentions
       const mentionRegex = /@(\w+)/g;
       const mentions: string[] = [];
-      let match;
+      let match: RegExpExecArray | null;
       while ((match = mentionRegex.exec(newCommentText)) !== null) {
         const collaborator = collaborators.find(
-          (c) => c.name.toLowerCase().includes(match[1].toLowerCase())
+          (c) => c.name.toLowerCase().includes(match![1].toLowerCase())
         );
         if (collaborator) mentions.push(collaborator.id);
       }

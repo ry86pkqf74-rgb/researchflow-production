@@ -70,8 +70,8 @@ export const useGovernanceStore = create<GovernanceState>()(
         ALLOW_LLM_CALLS: true,
         REQUIRE_APPROVAL_FOR_EXPORTS: true,
       },
-      flagsMeta: [],
-      lastUpdated: null,
+      flagsMeta: [] as FlagMeta[],
+      lastUpdated: null as string | null,
       sseConnected: false,
 
       setMode: (mode) => set({ mode }),

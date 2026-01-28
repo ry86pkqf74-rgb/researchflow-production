@@ -5,18 +5,22 @@
  *
  * API namespace: /api/papers
  *
+ * SEC-003: RBAC MIDDLEWARE AUDIT
+ * All write operations require authentication (RESEARCHER+ role)
+ * Read operations are open but authenticated
+ *
  * Endpoints:
- * - GET    /ping                           # Health check
- * - POST   /upload                         # Upload PDF
- * - POST   /import                         # Import from DOI/PMID
- * - GET    /                               # List papers
- * - GET    /:id                            # Get paper details
- * - PATCH  /:id                            # Update paper metadata
- * - DELETE /:id                            # Delete paper
- * - POST   /:id/tags                       # Add tags
- * - DELETE /:id/tags/:tag                  # Remove tag
- * - GET    /search                         # Full-text search
- * - GET    /:id/text                       # Get extracted text
+ * - GET    /ping                           # Health check (public)
+ * - POST   /upload                         # Upload PDF (RESEARCHER)
+ * - POST   /import                         # Import from DOI/PMID (RESEARCHER)
+ * - GET    /                               # List papers (RESEARCHER)
+ * - GET    /:id                            # Get paper details (RESEARCHER)
+ * - PATCH  /:id                            # Update paper metadata (RESEARCHER)
+ * - DELETE /:id                            # Delete paper (RESEARCHER)
+ * - POST   /:id/tags                       # Add tags (RESEARCHER)
+ * - DELETE /:id/tags/:tag                  # Remove tag (RESEARCHER)
+ * - GET    /search                         # Full-text search (RESEARCHER)
+ * - GET    /:id/text                       # Get extracted text (RESEARCHER)
  *
  * Annotations (Phase 11): /api/papers/:id/annotations/*
  * AI Copilot (Phase 12):  /api/papers/:id/copilot/*
@@ -33,14 +37,16 @@ import { createHash } from 'crypto';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
+import { protect, requirePermission } from '../middleware/rbac';
+import { requireAuth } from '../services/authService';
 import annotationsRouter from './paper-annotations';
 import copilotRouter from './paper-copilot';
 
 const router = Router();
 
-// Mount subrouters
-router.use('/:paperId/annotations', annotationsRouter);
-router.use('/:paperId/copilot', copilotRouter);
+// Mount subrouters with authentication
+router.use('/:paperId/annotations', requireAuth, annotationsRouter);
+router.use('/:paperId/copilot', requireAuth, copilotRouter);
 
 // =============================================================================
 // Configuration
@@ -154,8 +160,9 @@ router.get('/ping', (_req: Request, res: Response) => {
 
 /**
  * Upload PDF
+ * SEC-003: Requires RESEARCHER role to prevent abuse
  */
-router.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/upload', ...protect('CREATE_PAPER'), upload.single('file'), async (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
     const file = req.file;
@@ -218,8 +225,9 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
 
 /**
  * Import paper from DOI/PMID
+ * SEC-003: Requires RESEARCHER role
  */
-router.post('/import', async (req: Request, res: Response) => {
+router.post('/import', ...protect('CREATE_PAPER'), async (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
     const parsed = importPaperSchema.safeParse(req.body);
