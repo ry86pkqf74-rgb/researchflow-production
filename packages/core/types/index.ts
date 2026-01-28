@@ -103,7 +103,13 @@ export {
   WORKFLOW_NODE_TYPES,
   GATE_TYPES,
   EDGE_CONDITION_KINDS,
-  WORKFLOW_STATUSES
+  WORKFLOW_STATUSES,
+  // Zod schemas for validation
+  WorkflowDefinitionSchema,
+  WorkflowPolicySchema,
+  WorkflowNodeSchema,
+  WorkflowEdgeSchema,
+  EdgeConditionSchema
 } from "./workflow";
 
 // Export manuscript ideation types

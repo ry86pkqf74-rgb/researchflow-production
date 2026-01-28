@@ -7,7 +7,7 @@ const solutions = [
   {
     icon: Zap,
     title: "Automated Pipeline",
-    description: "12-stage research workflow from data upload to manuscript draft, all automated with AI assistance.",
+    description: "20-stage research workflow from data upload to manuscript draft, all automated with AI assistance.",
     highlight: "Hours, not months",
     color: "ros-primary"
   },
