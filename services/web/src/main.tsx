@@ -46,3 +46,4 @@ try {
   `;
 }
 // Build trigger Wed Jan 28 09:15:00 UTC 2026 - Vercel config fixed
+// Trigger Vercel deployment - Wed Jan 28 09:31:37 UTC 2026
