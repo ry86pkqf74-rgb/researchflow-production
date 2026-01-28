@@ -95,6 +95,20 @@ import cumulativeDataRoutes from './routes/cumulative-data';
 // Multi-File Ingestion: Multi-file/multi-sheet data merging with ID detection
 import ingestRoutes from './routes/ingest';
 
+// Missing Routes Audit (2026-01-28): Previously unregistered route files
+import projectsRoutes from './routes/projects';  // Project CRUD operations
+import citationsRoutes from './routes/citations';  // Citation management
+import exportRoutes from './routes/export';  // Document export (PDF, DOCX, etc.)
+import ecosystemRoutes from './routes/ecosystem';  // Ecosystem integrations
+import integrityRoutes from './routes/integrity';  // Data integrity verification
+import papersRoutes from './routes/papers';  // Paper management
+import collectionsRoutes from './routes/collections';  // Collection management
+import guidelinesRoutes from './routes/guidelines.routes';  // Full guidelines engine routes
+import paperAnnotationsRoutes from './routes/paper-annotations';  // Paper annotations
+import paperCopilotRoutes from './routes/paper-copilot';  // AI paper copilot
+import literatureNotesRoutes from './routes/literature-notes';  // Literature notes
+import branchesRoutes from './routes/branches.routes';  // Branch management
+
 // Phase 3: Secondary Routes (Integration Plan)
 import governanceSimulateRoutes from './routes/governance-simulate';
 import qualityRoutes from './routes/quality';
@@ -267,6 +281,22 @@ app.use('/api/shares', sharesRoutes);  // Document sharing
 app.use('/api/topics', topicsRoutes);  // Topic management
 app.use('/api/analytics', analyticsRoutes);  // Analytics events
 
+// =============================================================================
+// Route Audit Fix (2026-01-28): Previously unregistered routes
+// =============================================================================
+app.use('/api/projects', projectsRoutes);  // Project CRUD operations
+app.use('/api/citations', citationsRoutes);  // Citation management (APA, MLA, etc.)
+app.use('/api/export/documents', exportRoutes);  // Document export (PDF, DOCX, LaTeX)
+app.use('/api/ecosystem', ecosystemRoutes);  // External ecosystem integrations
+app.use('/api/integrity', integrityRoutes);  // Data integrity & reproducibility checks
+app.use('/api/papers', papersRoutes);  // Paper management & metadata
+app.use('/api/collections', collectionsRoutes);  // Research collections
+app.use('/api/guidelines/full', guidelinesRoutes);  // Full guidelines engine (local routes)
+app.use('/api/papers/annotations', paperAnnotationsRoutes);  // Paper annotations & highlights
+app.use('/api/papers/copilot', paperCopilotRoutes);  // AI paper copilot assistant
+app.use('/api/literature/notes', literatureNotesRoutes);  // Literature notes & summaries
+app.use('/api/branches', branchesRoutes);  // Git-style branch management
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
@@ -392,6 +422,20 @@ httpServer.listen(PORT, () => {
   console.log('  ✓ SAP & Research Briefs');
   console.log('  ✓ Document Sharing');
   console.log('  ✓ Topics & Analytics');
+  console.log('='.repeat(60));
+  console.log('Route Audit Fix (2026-01-28): REGISTERED');
+  console.log('  ✓ Projects CRUD');
+  console.log('  ✓ Citations Management');
+  console.log('  ✓ Document Export (PDF/DOCX/LaTeX)');
+  console.log('  ✓ Ecosystem Integrations');
+  console.log('  ✓ Data Integrity Checks');
+  console.log('  ✓ Papers Management');
+  console.log('  ✓ Collections');
+  console.log('  ✓ Guidelines Engine (Full)');
+  console.log('  ✓ Paper Annotations');
+  console.log('  ✓ Paper Copilot');
+  console.log('  ✓ Literature Notes');
+  console.log('  ✓ Branch Management');
   console.log('='.repeat(60));
   console.log('AI Insights & Manuscript: ACTIVE');
   console.log('  ✓ AI Research Brief Generation');
