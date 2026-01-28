@@ -92,6 +92,8 @@ import guidelinesProxyRoutes from './routes/guidelines-proxy.routes';
 import hubRoutes from './routes/hub';
 // Cumulative Workflow: Stage data flow between 20 research stages
 import cumulativeDataRoutes from './routes/cumulative-data';
+// Multi-File Ingestion: Multi-file/multi-sheet data merging with ID detection
+import ingestRoutes from './routes/ingest';
 
 // Phase 3: Secondary Routes (Integration Plan)
 import governanceSimulateRoutes from './routes/governance-simulate';
@@ -245,6 +247,7 @@ app.use('/api/phase', phaseChatRoutes);  // Phase Chat: Stage-specific AI agents
 app.use('/api/guidelines', guidelinesProxyRoutes);  // Guidelines Engine: Proxy to Python FastAPI
 app.use('/api/hub', hubRoutes);  // Planning Hub: Notion-like pages, databases, tasks, goals, projections
 app.use('/api/cumulative', cumulativeDataRoutes);  // Cumulative Workflow: Stage data flow between 20 stages
+app.use('/api/ingest', ingestRoutes);  // Multi-File Ingestion: Multi-file/multi-sheet data merging with ID detection
 
 // =============================================================================
 // Integration Plan Routes - Phase 3: Secondary Routes

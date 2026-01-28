@@ -86,6 +86,15 @@ except ImportError as e:
     PROJECTIONS_AVAILABLE = False
     print(f"[ROS] Projections engine module not available: {e}")
 
+# Import ingest router for multi-file data ingestion
+try:
+    from src.api.ingest import router as ingest_router
+    INGEST_AVAILABLE = True
+    print("[ROS] Multi-file ingest module loaded")
+except ImportError as e:
+    INGEST_AVAILABLE = False
+    print(f"[ROS] Multi-file ingest module not available: {e}")
+
 # Import version control service for Git-based versioning
 try:
     from version_control import (
@@ -155,6 +164,11 @@ if GUIDELINES_AVAILABLE:
 if PROJECTIONS_AVAILABLE:
     app.include_router(projections_router, prefix="/api", tags=["hub-projections"])
     print("[ROS] Projections router registered at /api/projections/*")
+
+# Register ingest router for multi-file data ingestion
+if INGEST_AVAILABLE:
+    app.include_router(ingest_router, prefix="/api", tags=["multi-file-ingest"])
+    print("[ROS] Ingest router registered at /api/ingest/*")
 
 
 # ============ Data Models ============
