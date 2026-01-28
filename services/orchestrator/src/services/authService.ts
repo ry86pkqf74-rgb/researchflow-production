@@ -26,7 +26,44 @@ import { jwt, bcrypt } from '../../lib/crypto-deps.js';
 import { pool } from '../../db.js';
 
 // Environment configuration
-const JWT_SECRET = process.env.JWT_SECRET || 'development-jwt-secret-change-in-production';
+const JWT_SECRET = (() => {
+  const secret = process.env.JWT_SECRET;
+
+  if (process.env.NODE_ENV === 'production') {
+    // In production, JWT_SECRET is REQUIRED
+    if (!secret) {
+      throw new Error(
+        '[SECURITY] FATAL: JWT_SECRET environment variable must be set in production. ' +
+        'This is required for secure JWT token signing and verification.'
+      );
+    }
+
+    // In production, enforce minimum secret length for security
+    if (secret.length < 32) {
+      throw new Error(
+        '[SECURITY] FATAL: JWT_SECRET must be at least 32 characters in production. ' +
+        `Current length: ${secret.length} characters. ` +
+        'Generate a strong secret using: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+      );
+    }
+
+    console.log('[SECURITY] JWT_SECRET validation passed: production secret configured');
+    return secret;
+  }
+
+  // In development, warn if using default secret
+  if (!secret) {
+    console.warn(
+      '[SECURITY] WARNING: Using default JWT_SECRET in development mode. ' +
+      'For production, set JWT_SECRET environment variable with at least 32 characters.'
+    );
+    return 'development-jwt-secret-change-in-production';
+  }
+
+  // Development secret was explicitly provided
+  return secret;
+})();
+
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 const BCRYPT_SALT_ROUNDS = 12;
@@ -49,11 +86,6 @@ function getRoleForEmail(email: string): 'ADMIN' | 'RESEARCHER' | 'STEWARD' | 'V
   }
   // Default to RESEARCHER for new users (not VIEWER) so they can use the app
   return 'RESEARCHER';
-}
-
-// Warn if using default secret in production
-if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'development-jwt-secret-change-in-production') {
-  console.error('[AUTH] WARNING: Using default JWT secret in production. Set JWT_SECRET environment variable!');
 }
 
 // User schema for validation
@@ -346,7 +378,9 @@ export async function loginUser(input: LoginInput): Promise<{
   const normalizedEmail = input.email.toLowerCase();
   
   // TESTROS bypass for development/testing - auto-create and login without password
-  if (normalizedEmail === 'testros@gmail.com') {
+  // SECURITY: This bypass is DISABLED in production environments
+  if (process.env.NODE_ENV !== 'production' && normalizedEmail === 'testros@gmail.com') {
+    console.warn('[SECURITY AUDIT] TESTROS email bypass activated in non-production environment. IP:', input.ip || 'unknown');
     console.log('[AUTH] TESTROS bypass activated - auto-login without account creation');
     
     let userData = getUserByEmail(normalizedEmail);

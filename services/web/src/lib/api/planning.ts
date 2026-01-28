@@ -187,7 +187,7 @@ export const planningApi = {
     onEvent: (event: { type: string; job: AnalysisJob; events?: JobEvent[] }) => void,
     onError?: (error: Error) => void
   ): (() => void) => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
     const eventSource = new EventSource(`${baseUrl}/api/analysis/jobs/${jobId}/events`);
 
     eventSource.onmessage = (event) => {

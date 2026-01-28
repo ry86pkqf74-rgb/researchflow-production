@@ -54,7 +54,7 @@ export function ChatAgentPanel({
 
   // Check if feature is enabled
   const isEnabled = typeof window !== 'undefined' &&
-    (process.env.NEXT_PUBLIC_ENABLE_CHAT_AGENTS === 'true' || true); // Default enabled
+    (import.meta.env.VITE_ENABLE_CHAT_AGENTS === 'true' || true); // Default enabled
 
   // Initialize session and load messages
   useEffect(() => {

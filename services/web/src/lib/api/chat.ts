@@ -14,7 +14,7 @@ import type {
   ActionResponse,
 } from '@/components/chat/types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 /**
  * Get headers including auth and governance mode
