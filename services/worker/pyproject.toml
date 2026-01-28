@@ -51,7 +51,7 @@ api = [
     "requests==2.32.5",            # HTTP client
     "httpx==0.26.0",               # Async HTTP client
     "PyYAML==6.0.1",               # YAML parsing
-    "python-jose==3.3.0",          # JWT
+    "python-jose==3.4.0",          # JWT
     "passlib==1.7.4",              # Password hashing
     "sqlalchemy==2.0.38",          # DB layer
     "Authlib==1.6.6",              # OAuth helpers (optional)
