@@ -5,7 +5,7 @@
 #   pip install -e ".[dev]"       # Install with dev dependencies
 #
 # Or install specific groups:
-#   pip install pandas==2.2.0 pandera==0.18.0
+#   pip install pandas==2.2.0 pandera==0.28.1
 
 [build-system]
 requires = ["setuptools>=61.0"]
@@ -19,7 +19,7 @@ readme = "README.md"
 requires-python = "==3.11.5"
 dependencies = [
     "pandas==2.2.0",         # DataFrame operations and data manipulation
-    "pandera==0.18.0",       # Schema validation for tabular data
+    "pandera==0.28.1",       # Schema validation for tabular data
     "multimethod>=1.0,<2.0", # Required for pandera compatibility (avoids 2.x breaking changes)
     "jsonschema==4.25.1",    # JSON Schema validation for export bundles
     "pyarrow>=14.0.0",       # Parquet file I/O and metadata validation (INF-14)
