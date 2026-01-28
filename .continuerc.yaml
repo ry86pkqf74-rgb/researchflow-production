@@ -1,0 +1,50 @@
+# ResearchFlow Project-specific Continue Configuration
+# This file customizes Continue CLI behavior for this project
+
+# Project context
+allowAnonymousTelemetry: false
+
+# File patterns to include in context
+docs:
+  - path: "*.md"
+  - path: "docs/**/*.md"
+
+# Ignore patterns (beyond .gitignore)
+ignoreFiles:
+  - "**/node_modules/**"
+  - "**/__pycache__/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/.next/**"
+  - "**/coverage/**"
+  - "**/*.pyc"
+  - "**/postgres-data/**"
+  - "**/redis-data/**"
+
+# Code style preferences for this project
+codeStyle:
+  typescript:
+    quotes: double
+    semi: true
+    tabWidth: 2
+  python:
+    lineLength: 100
+    quotes: double
+
+# Custom instructions for this codebase
+systemMessage: |
+  You are working on ResearchFlow, a healthcare research data platform.
+
+  Key technologies:
+  - Backend: Python FastAPI (services/worker), Node.js Express (services/orchestrator)
+  - Frontend: React 18 + TypeScript + Vite (services/web)
+  - Database: PostgreSQL with pgvector, Redis for caching
+  - Real-time: WebSocket collaboration server (services/collab)
+
+  Important modules:
+  - IRB compliance: services/worker/src/ros_irb/
+  - Workflow pipeline: services/web/src/components/sections/workflow-pipeline.tsx
+  - PHI scanning: services/worker/src/ros_irb/phi_scanner_enhanced.py
+
+  Follow existing code patterns and maintain consistency with the codebase.
+  Always consider PHI/HIPAA compliance when handling patient data.
