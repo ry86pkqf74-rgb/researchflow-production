@@ -76,7 +76,7 @@ jobs:
     name: Container Vulnerability Scan
     runs-on: ubuntu-latest
     # Only run on production repository
-    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && (github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'container' || github.event.inputs.scan_type == '')
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && (github.event_name != 'workflow_dispatch' || github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'container' || github.event.inputs.scan_type == '')
     strategy:
       matrix:
         service: [orchestrator, worker, web]
@@ -131,7 +131,7 @@ jobs:
     name: Code Security Analysis
     runs-on: ubuntu-latest
     # Only run on production repository
-    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && (github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'code' || github.event.inputs.scan_type == '')
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && (github.event_name != 'workflow_dispatch' || github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'code' || github.event.inputs.scan_type == '')
     permissions:
       actions: read
       contents: read
@@ -159,7 +159,7 @@ jobs:
     name: Dependency Vulnerability Scan
     runs-on: ubuntu-latest
     # Only run on production repository
-    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && (github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'dependencies' || github.event.inputs.scan_type == '')
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && (github.event_name != 'workflow_dispatch' || github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'dependencies' || github.event.inputs.scan_type == '')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
