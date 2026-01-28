@@ -88,7 +88,7 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - WORKER_CALLBACK_URL=http://worker:8000
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -165,7 +165,7 @@ services:
       target: production
     environment:
       - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - ARTIFACT_PATH=/data/artifacts
       - LOG_PATH=/data/logs
       - UVICORN_WORKERS=${UVICORN_WORKERS:-2}
@@ -300,7 +300,7 @@ services:
       - HEALTH_PORT=1235
       - HOST=0.0.0.0
       - APP_MODE=${APP_MODE:-LIVE}
-      - REDIS_URL=${REDIS_URL}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
     depends_on:
@@ -409,7 +409,7 @@ services:
   # ===================
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
     networks:
@@ -421,7 +421,7 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5

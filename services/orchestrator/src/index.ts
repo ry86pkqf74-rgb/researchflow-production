@@ -132,6 +132,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { CollaborationWebSocketServer } from './collaboration/websocket-server';
 import { webSocketManager } from './websocket/manager';
 import { createLogger } from './utils/logger';
+import { configureSecurityHeaders, cspViolationReporter } from './middleware/securityHeaders.js';
 
 // Load environment variables
 dotenv.config();
@@ -245,6 +246,10 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Security Headers Middleware (SEC-005 Fix)
+app.use(configureSecurityHeaders());
+app.use('/api/csp-violations', cspViolationReporter());
 
 // Request logging (development only)
 if (NODE_ENV === 'development') {

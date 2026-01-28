@@ -27,6 +27,19 @@ services:
     restart: unless-stopped
     labels:
       monitoring: "true"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
   # Grafana - Visualization
   grafana:
@@ -51,6 +64,19 @@ services:
     restart: unless-stopped
     labels:
       monitoring: "true"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
   # Alertmanager - Alert Management
   alertmanager:
@@ -76,6 +102,19 @@ services:
     restart: unless-stopped
     labels:
       monitoring: "true"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
   # Node Exporter - Host Metrics
   node-exporter:
@@ -99,6 +138,19 @@ services:
     restart: unless-stopped
     labels:
       monitoring: "true"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9100/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
 
   # Redis Exporter - Redis Metrics
   redis-exporter:
@@ -116,6 +168,19 @@ services:
     restart: unless-stopped
     labels:
       monitoring: "true"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9121/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
 
   # PostgreSQL Exporter - PostgreSQL Metrics
   postgres-exporter:
@@ -133,6 +198,19 @@ services:
     restart: unless-stopped
     labels:
       monitoring: "true"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9187/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
 
   # cAdvisor - Container Metrics (optional, for Docker container monitoring)
   cadvisor:
@@ -154,6 +232,19 @@ services:
     restart: unless-stopped
     labels:
       monitoring: "true"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
   # Prometheus Webhook Receiver (optional, for webhook integrations)
   prometheus-webhook-receiver:
@@ -166,6 +257,19 @@ services:
     restart: unless-stopped
     labels:
       monitoring: "true"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8888/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
 
   # Existing services with monitoring enabled
   redis:
@@ -180,6 +284,21 @@ services:
     restart: unless-stopped
     labels:
       monitoring: "true"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis-dev-password}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
   postgres:
     image: postgres:15-alpine
@@ -197,6 +316,20 @@ services:
     restart: unless-stopped
     labels:
       monitoring: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-researchflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
   orchestrator:
     build:
@@ -208,7 +341,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-researchflow}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis-dev-password}@redis:6379
       PORT: 3000
     volumes:
       - ./services/orchestrator/src:/app/src
@@ -220,6 +353,20 @@ services:
     restart: unless-stopped
     labels:
       monitoring: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
   worker:
     build:
@@ -230,7 +377,7 @@ services:
       - "3002:3001"
     environment:
       NODE_ENV: production
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis-dev-password}@redis:6379
       ORCHESTRATOR_URL: http://orchestrator:3000
       PORT: 3001
     volumes:
@@ -243,6 +390,20 @@ services:
     restart: unless-stopped
     labels:
       monitoring: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
 
   web:
     build:
@@ -264,6 +425,20 @@ services:
     restart: unless-stopped
     labels:
       monitoring: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
 networks:
   researchflow:
