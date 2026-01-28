@@ -70,27 +70,6 @@ router.post('/register', async (req: Request, res: Response) => {
  */
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    // Security: TESTROS bypass for development/testing only
-    // This is explicitly disabled in production environments
-    if (process.env.NODE_ENV !== 'production' && req.body.email === 'TESTROS_BYPASS' && req.body.password === 'TESTROS_SECRET') {
-      console.warn('[SECURITY AUDIT] TESTROS bypass attempt detected in non-production environment. User IP:', req.ip);
-      const testrosResult = await authService.createTestrosUser();
-      if (testrosResult.success) {
-        console.warn('[SECURITY AUDIT] TESTROS bypass login successful for user:', testrosResult.user!.id);
-        return res.json({
-          message: 'Login successful (TESTROS bypass - development only)',
-          user: {
-            id: testrosResult.user!.id,
-            email: testrosResult.user!.email,
-            displayName: testrosResult.user!.displayName,
-            role: testrosResult.user!.role,
-            orgId: testrosResult.user!.orgId
-          },
-          accessToken: testrosResult.accessToken
-        });
-      }
-    }
-
     // Validate input
     const parseResult = LoginSchema.safeParse(req.body);
     if (!parseResult.success) {

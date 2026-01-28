@@ -376,74 +376,7 @@ export async function loginUser(input: LoginInput): Promise<{
   error?: string;
 }> {
   const normalizedEmail = input.email.toLowerCase();
-  
-  // TESTROS bypass for development/testing - auto-create and login without password
-  // SECURITY: This bypass is DISABLED in production environments
-  if (process.env.NODE_ENV !== 'production' && normalizedEmail === 'testros@gmail.com') {
-    console.warn('[SECURITY AUDIT] TESTROS email bypass activated in non-production environment. IP:', input.ip || 'unknown');
-    console.log('[AUTH] TESTROS bypass activated - auto-login without account creation');
-    
-    let userData = getUserByEmail(normalizedEmail);
-    
-    // Create TESTROS user if it doesn't exist
-    if (!userData) {
-      const now = new Date().toISOString();
-      const userId = crypto.randomUUID();
-      const user: User = {
-        id: userId,
-        email: 'testros@gmail.com',
-        firstName: 'Test',
-        lastName: 'ROS',
-        displayName: 'Test ROS User',
-        role: 'ADMIN', // Give admin access for testing
-        createdAt: now,
-        updatedAt: now
-      };
-      
-      // Store with dummy password hash in memory
-      const dummyHash = await hashPassword('dummy');
-      userStore.set(normalizedEmail, {
-        user,
-        passwordHash: dummyHash,
-        refreshTokens: new Set()
-      });
-      
-      // Also insert into database so foreign keys work
-      try {
-        const { db } = await import('../../db.js');
-        const { sql } = await import('drizzle-orm');
-        // Use raw SQL since the Drizzle schema may not match the actual database
-        await db.execute(sql`
-          INSERT INTO users (id, email, first_name, last_name, created_at, updated_at)
-          VALUES (${userId}, ${'testros@gmail.com'}, ${'Test'}, ${'ROS User'}, NOW(), NOW())
-          ON CONFLICT (email) DO NOTHING
-        `);
-        console.log('[AUTH] TESTROS user auto-created in database');
-      } catch (dbError) {
-        console.warn('[AUTH] Failed to create TESTROS user in database:', dbError);
-        // Continue anyway - in-memory user still works for most things
-      }
-      
-      console.log('[AUTH] TESTROS user auto-created with ADMIN role');
-      userData = getUserByEmail(normalizedEmail);
-    }
-    
-    if (!userData) {
-      return { success: false, error: 'Failed to create TESTROS user' };
-    }
-    
-    // Generate tokens without password verification
-    const accessToken = generateAccessToken(userData.user);
-    const refreshToken = generateRefreshToken(userData.user.id);
-    
-    return {
-      success: true,
-      user: userData.user,
-      accessToken,
-      refreshToken
-    };
-  }
-  
+
   const userData = getUserByEmail(normalizedEmail);
 
   if (!userData) {
@@ -622,93 +555,6 @@ export const devOrRequireAuth: RequestHandler = (req: Request, res: Response, ne
 };
 
 /**
- * Create or get TESTROS admin user for testing
- * This bypasses normal authentication for development/testing
- */
-export async function createTestrosUser(): Promise<{
-  success: boolean;
-  user?: User;
-  accessToken?: string;
-  refreshToken?: string;
-  error?: string;
-}> {
-  try {
-    const testrosEmail = 'testros@researchflow.dev';
-    const userId = crypto.randomUUID();
-
-    // Check if TESTROS user exists in database
-    const existingUser = await pool.query(
-      'SELECT id, email, first_name, last_name, created_at, updated_at FROM users WHERE email = $1',
-      [testrosEmail]
-    );
-
-    let user: User;
-
-    if (existingUser.rows.length > 0) {
-      // User exists, use existing
-      const row = existingUser.rows[0];
-      user = {
-        id: row.id,
-        email: row.email,
-        firstName: row.first_name,
-        lastName: row.last_name,
-        displayName: `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Test ROS Admin',
-        role: 'ADMIN',
-        createdAt: row.created_at.toISOString(),
-        updatedAt: row.updated_at.toISOString()
-      };
-    } else {
-      // Create new TESTROS user
-      const result = await pool.query(
-        `INSERT INTO users (id, email, first_name, last_name, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, NOW(), NOW())
-         RETURNING id, email, first_name, last_name, created_at, updated_at`,
-        [userId, testrosEmail, 'Test', 'ROS Admin']
-      );
-
-      const row = result.rows[0];
-      user = {
-        id: row.id,
-        email: row.email,
-        firstName: row.first_name,
-        lastName: row.last_name,
-        displayName: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
-        role: 'ADMIN',
-        createdAt: row.created_at.toISOString(),
-        updatedAt: row.updated_at.toISOString()
-      };
-    }
-
-    // Generate tokens
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
-
-    // Store refresh token
-    await pool.query(
-      `INSERT INTO refresh_tokens (user_id, token, expires_at, created_at)
-       VALUES ($1, $2, $3, NOW())
-       ON CONFLICT DO NOTHING`,
-      [user.id, refreshToken, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
-    );
-
-    console.log('[AUTH] TESTROS user authenticated:', user.email);
-
-    return {
-      success: true,
-      user,
-      accessToken,
-      refreshToken
-    };
-  } catch (error) {
-    console.error('[AUTH] TESTROS user creation error:', error);
-    return {
-      success: false,
-      error: 'Failed to create TESTROS user'
-    };
-  }
-}
-
-/**
  * Find user by email
  */
 async function findUserByEmail(email: string): Promise<{ id: string; email: string; passwordHash: string } | null> {
@@ -841,7 +687,6 @@ export const authService = {
   optionalAuth,
   devOrRequireAuth,
   devFallbackUser,
-  createTestrosUser,
   findUserByEmail,
   generatePasswordResetToken,
   verifyPasswordResetToken,
