@@ -56,7 +56,7 @@ marshmallow==4.2.0
 matplotlib==3.8.2
 mdurl==0.1.2
 msgpack==1.1.2
-multimethod==1.12
+multimethod==2.0.2
 mypy_extensions==1.1.0
 narwhals==2.15.0
 nltk==3.9.2
