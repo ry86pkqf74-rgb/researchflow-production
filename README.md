@@ -192,6 +192,20 @@ JWT_SECRET=your-secret-key
 
 ## Deployment
 
+### Vercel (Frontend Only)
+
+The frontend can be deployed to Vercel for fast, global CDN delivery. See [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md) for detailed instructions.
+
+```bash
+# Quick deployment
+vercel
+
+# Production deployment  
+vercel --prod
+```
+
+**Note**: Backend services (orchestrator, worker) must be deployed separately to a container platform like Railway, Render, or AWS.
+
 ### Docker Compose (Development/Staging)
 
 ```bash

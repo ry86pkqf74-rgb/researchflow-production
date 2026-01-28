@@ -40,11 +40,33 @@ export default defineConfig({
     // Minification settings
     minify: 'esbuild',
     rollupOptions: {
+      onwarn(warning, warn) {
+        // Suppress warnings about unresolved imports for backend-only modules
+        if (warning.code === 'UNRESOLVED_IMPORT') {
+          const externalModules = ['drizzle-orm', 'drizzle-zod', 'pg', 'postgres'];
+          if (externalModules.some(mod => warning.message.includes(mod))) {
+            return;
+          }
+        }
+        // Use default for everything else
+        warn(warning);
+      },
       // Mark optional/backend-only dependencies as external to prevent build failures
       // - @sentry/react: Optional, only needed if VITE_SENTRY_DSN is set
       // - drizzle-orm: Backend ORM, should not be in frontend bundle
       // - pg, postgres: Database drivers, backend only
-      external: ['@sentry/react', 'drizzle-orm', 'drizzle-orm/pg-core', 'pg', 'postgres'],
+      external: (id) => {
+        // External backend-only packages
+        const externals = [
+          '@sentry/react',
+          'drizzle-orm',
+          'drizzle-zod',
+          'pg',
+          'postgres',
+          'node:',
+        ];
+        return externals.some(ext => id.includes(ext));
+      },
       output: {
         // Handle external modules gracefully at runtime
         globals: {

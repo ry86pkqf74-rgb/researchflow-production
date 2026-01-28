@@ -1,0 +1,115 @@
+# Backend services (not deployed to Vercel)
+services/orchestrator
+services/worker
+services/collab
+
+# Infrastructure files
+infrastructure/
+k8s/
+docker-compose*.yml
+Dockerfile*
+*.dockerfile
+nginx.conf
+
+# Testing files
+tests/
+playwright-report/
+test-results/
+coverage/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Python files
+*.py
+*.pyc
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Documentation (not needed for deployment)
+docs/
+*.md
+!README.md
+
+# Development files
+.git/
+.github/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build artifacts from other services
+packages/*/dist/
+packages/*/build/
+
+# Notebooks and data
+notebooks/
+binder/
+*.csv
+*.ipynb
+primary_care_diabetes_study.csv
+
+# Scripts not needed for frontend
+scripts/
+migrations/
+evals/
+
+# Configuration files not needed for frontend
+.dockerignore
+.eslintrc.cjs
+vitest.config.ts
+playwright.config.ts
+tsconfig.json
+Makefile
+mkdocs.yml
+
+# Session and temporary files
+.claude
+.continue
+.continuerc.yaml
+.replit
+replit_integrations
+replit-prototype/
+tmp/
+temp/
+*.local
+.cache/
+
+# Archive and planning documents
+*ARCHIVE*.md
+*PLAN*.md
+*PROMPT*.md
+*FIX*.md
+*CHECKPOINT*.md
+*SESSION*.md
+*PROGRESS*.md
+*IMPLEMENTATION*.md
+*ASSESSMENT*.md
+planning/
+prompts/
+integration-prompts/
+
+# Test and workflow files
+test-*.sh
+run-prompts.txt
+Untitled-*.n8n
+
+# Logs
+logs/
+*.log
+
+# Shared schemas (backend only)
+shared/
+types/
+config/
+apps/
