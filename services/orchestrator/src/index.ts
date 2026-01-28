@@ -124,6 +124,7 @@ import manuscriptGenerationRoutes from './routes/manuscript-generation';
 import sharesRoutes from './routes/shares';
 import topicsRoutes from './routes/topics';
 import analyticsRoutes from './routes/analytics';
+import demoRoutes from './routes/demo';
 import { mockAuthMiddleware } from './middleware/auth.js';
 import { optionalAuth } from './services/authService';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -166,6 +167,9 @@ app.get('/health', (req, res) => {
     governanceMode: process.env.GOVERNANCE_MODE || 'DEMO'
   });
 });
+
+// Demo routes (no auth required)
+app.use('/api/demo', demoRoutes);
 
 // API Routes
 app.use('/api/governance', governanceRoutes);
