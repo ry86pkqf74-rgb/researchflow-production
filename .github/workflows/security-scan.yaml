@@ -51,7 +51,7 @@ jobs:
     name: Secret Detection
     runs-on: ubuntu-latest
     # Only run on production repository
-    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && (github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'secrets' || github.event.inputs.scan_type == '')
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production' && (github.event_name != 'workflow_dispatch' || github.event.inputs.scan_type == 'all' || github.event.inputs.scan_type == 'secrets' || github.event.inputs.scan_type == '')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
