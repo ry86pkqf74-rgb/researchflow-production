@@ -125,6 +125,7 @@ import sharesRoutes from './routes/shares';
 import topicsRoutes from './routes/topics';
 import analyticsRoutes from './routes/analytics';
 import demoRoutes from './routes/demo';
+import manuscriptIdeationRoutes from './routes/manuscript-ideation';
 import { mockAuthMiddleware } from './middleware/auth.js';
 import { optionalAuth } from './services/authService';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -266,6 +267,7 @@ app.use('/api/guidelines', guidelinesProxyRoutes);  // Guidelines Engine: Proxy 
 app.use('/api/hub', hubRoutes);  // Planning Hub: Notion-like pages, databases, tasks, goals, projections
 app.use('/api/cumulative', cumulativeDataRoutes);  // Cumulative Workflow: Stage data flow between 20 stages
 app.use('/api/ingest', ingestRoutes);  // Multi-File Ingestion: Multi-file/multi-sheet data merging with ID detection
+app.use('/api/ros/stages/manuscript_ideation', manuscriptIdeationRoutes);  // Manuscript ideation workflow stage
 
 // =============================================================================
 // Integration Plan Routes - Phase 3: Secondary Routes
