@@ -1,7 +1,8 @@
 # ResearchFlow Integration Rebuild Progress
 
 **Started**: 2026-01-28
-**Status**: In Progress
+**Completed**: 2026-01-28
+**Status**: ✅ SUCCESS
 
 ## Phase Completion
 
@@ -11,10 +12,10 @@
 | 1. P0 Assessment (Export/PHI) | ✅ Complete | Already fixed in prior commit | - |
 | 2. Backend Route Audit | ✅ Complete | 12 missing routes | ✅ All registered |
 | 3. Environment Config | ✅ Complete | None - comprehensive | - |
-| 4. Docker Rebuild | ⏳ Pending | Docker starting | - |
-| 5. Smoke Tests | ⏳ Pending | - | - |
-| 6. Frontend Testing | ⏳ Pending | - | - |
-| 7. Final Commit | ⏳ Pending | - | - |
+| 4. Docker Rebuild | ✅ Complete | wkhtmltopdf unavailable | ✅ Removed (use reportlab) |
+| 5. Smoke Tests | ✅ Complete | None | - |
+| 6. Frontend Testing | ✅ Complete | None | - |
+| 7. Final Commit | ✅ Complete | - | - |
 
 ## Issues Discovered & Fixed
 
@@ -62,14 +63,14 @@ Per the audit document, the following P0 critical items were already addressed i
 
 | Service | Status | Notes |
 |---------|--------|-------|
-| postgres | ⏳ | PostgreSQL 16-alpine |
-| redis | ⏳ | Redis 7-alpine with persistence |
-| migrate | ⏳ | Runs 17+ SQL migrations |
-| orchestrator | ⏳ | Node.js Express API |
-| worker | ⏳ | Python FastAPI compute |
-| web | ⏳ | React/Vite frontend |
-| collab | ⏳ | Yjs CRDT collaboration |
-| guideline-engine | ⏳ | Python FastAPI clinical scoring |
+| postgres | ✅ healthy | PostgreSQL 16 with pgvector |
+| redis | ✅ healthy | Redis 7-alpine with persistence |
+| migrate | ✅ completed | Runs 17+ SQL migrations |
+| orchestrator | ✅ healthy | Node.js Express API on port 3001 |
+| worker | ✅ healthy | Python FastAPI compute on port 8000 |
+| web | ✅ healthy | React/Vite frontend on port 5173 |
+| collab | ✅ healthy | Yjs CRDT collaboration on port 1234/1235 |
+| guideline-engine | ✅ healthy | Python FastAPI clinical scoring on port 8001 |
 
 ## API Endpoints to Test
 
@@ -96,7 +97,9 @@ Per the audit document, the following P0 critical items were already addressed i
 
 | Hash | Message |
 |------|---------|
-| (pending) | fix(routes): register 12 missing API routes in orchestrator |
+| 78febee | fix(routes): register 12 missing API routes in orchestrator |
+| e51fc0f | fix(docker): combine apt-get layers in worker Dockerfile |
+| 5c620ce | fix(docker): remove unavailable wkhtmltopdf, use reportlab/PyMuPDF instead |
 
 ## Next Steps
 
