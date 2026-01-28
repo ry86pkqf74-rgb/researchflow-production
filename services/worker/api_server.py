@@ -95,6 +95,15 @@ except ImportError as e:
     INGEST_AVAILABLE = False
     print(f"[ROS] Multi-file ingest module not available: {e}")
 
+# Import IRB enhanced router for institution-specific IRB templates
+try:
+    from src.api.irb_enhanced import router as irb_enhanced_router
+    IRB_ENHANCED_AVAILABLE = True
+    print("[ROS] IRB Enhanced module loaded")
+except ImportError as e:
+    IRB_ENHANCED_AVAILABLE = False
+    print(f"[ROS] IRB Enhanced module not available: {e}")
+
 # Import version control service for Git-based versioning
 try:
     from version_control import (
@@ -169,6 +178,11 @@ if PROJECTIONS_AVAILABLE:
 if INGEST_AVAILABLE:
     app.include_router(ingest_router, prefix="/api", tags=["multi-file-ingest"])
     print("[ROS] Ingest router registered at /api/ingest/*")
+
+# Register IRB enhanced router for institution-specific templates
+if IRB_ENHANCED_AVAILABLE:
+    app.include_router(irb_enhanced_router, prefix="/api", tags=["irb-enhanced"])
+    print("[ROS] IRB Enhanced router registered at /api/irb/*")
 
 
 # ============ Data Models ============
