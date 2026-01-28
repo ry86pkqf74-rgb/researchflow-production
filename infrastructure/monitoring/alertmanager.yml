@@ -1,0 +1,150 @@
+global:
+  resolve_timeout: 5m
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+  smtp_smarthost: '${SMTP_SERVER}'
+  smtp_auth_username: '${SMTP_USERNAME}'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_from: 'researchflow-alerts@researchflow.local'
+
+route:
+  # Default route
+  receiver: 'default-receiver'
+  group_by: ['service', 'alertname']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  # Service-specific routes
+  routes:
+    # Critical alerts - immediate Slack notification
+    - match:
+        severity: 'critical'
+      receiver: 'slack-critical'
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 1h
+      continue: true
+
+    # Service Down alerts
+    - match:
+        alertname: 'ServiceDown'
+      receiver: 'slack-critical'
+      group_by: ['service']
+      group_wait: 15s
+      group_interval: 2m
+
+    # High Error Rate alerts
+    - match:
+        alertname: 'HighErrorRate'
+      receiver: 'slack-errors'
+      group_by: ['service']
+      group_wait: 30s
+      group_interval: 5m
+
+    # Performance alerts
+    - match:
+        alertname: 'HighLatency'
+      receiver: 'slack-performance'
+      group_wait: 30s
+      group_interval: 5m
+
+    # Resource alerts
+    - match:
+        alertname: 'DiskSpaceLow'
+      receiver: 'email-ops'
+      group_wait: 1m
+      group_interval: 10m
+
+    - match:
+        alertname: 'MemoryHigh'
+      receiver: 'slack-performance'
+      group_wait: 30s
+      group_interval: 5m
+
+    # Default for unmatched
+    - receiver: 'default-receiver'
+      continue: false
+
+inhibit_rules:
+  # Don't send alerts if service is already down
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: 'HighLatency|HighErrorRate'
+    equal: ['service']
+
+  # Don't send high latency if service is down
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match:
+      alertname: 'HighLatency'
+    equal: ['service']
+
+receivers:
+  # Default receiver
+  - name: 'default-receiver'
+    slack_configs:
+      - channel: '#alerts'
+        title: 'Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+        api_url: '${SLACK_WEBHOOK_URL}'
+        actions:
+          - type: button
+            text: 'Grafana Dashboard'
+            url: '{{ (index .Alerts 0).GeneratorURL }}'
+          - type: button
+            text: 'View Alert'
+            url: 'http://alertmanager:9093'
+
+  # Critical alerts to Slack with escalation
+  - name: 'slack-critical'
+    slack_configs:
+      - channel: '#critical-alerts'
+        title: 'CRITICAL: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts.Firing }}{{ .Annotations.description }}\n{{ end }}'
+        send_resolved: true
+        api_url: '${SLACK_WEBHOOK_URL}'
+        color: 'danger'
+        actions:
+          - type: button
+            text: 'View Metrics'
+            url: '{{ (index .Alerts 0).GeneratorURL }}'
+
+  # Error rate alerts to Slack
+  - name: 'slack-errors'
+    slack_configs:
+      - channel: '#error-alerts'
+        title: 'Error Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}Service: {{ .Labels.service }}\nDescription: {{ .Annotations.description }}\n{{ end }}'
+        send_resolved: true
+        api_url: '${SLACK_WEBHOOK_URL}'
+
+  # Performance alerts to Slack
+  - name: 'slack-performance'
+    slack_configs:
+      - channel: '#performance-alerts'
+        title: 'Performance Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}'
+        send_resolved: true
+        api_url: '${SLACK_WEBHOOK_URL}'
+
+  # Email for operations team
+  - name: 'email-ops'
+    email_configs:
+      - to: 'ops-team@researchflow.local'
+        from: 'researchflow-alerts@researchflow.local'
+        smarthost: '${SMTP_SERVER}'
+        auth_username: '${SMTP_USERNAME}'
+        auth_password: '${SMTP_PASSWORD}'
+        headers:
+          Subject: '[ResearchFlow] Alert: {{ .GroupLabels.alertname }}'
+
+silence:
+  # Configuration for silencing alerts
+  # Note: Silences are typically managed via the API or UI
+  # This is here for reference
+  # duration: 1h
+  # matchers:
+  #   - name: 'alertname'
+  #     value: 'MaintenanceWindow'

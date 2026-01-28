@@ -1,0 +1,282 @@
+version: '3.9'
+
+services:
+  # Prometheus - Time Series Database
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/monitoring/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - researchflow
+    environment:
+      - TZ=UTC
+    depends_on:
+      - alertmanager
+    restart: unless-stopped
+    labels:
+      monitoring: "true"
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION=false
+      - TZ=UTC
+    networks:
+      - researchflow
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    labels:
+      monitoring: "true"
+
+  # Alertmanager - Alert Management
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./infrastructure/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--log.level=info'
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-https://hooks.slack.com/services/YOUR/WEBHOOK/URL}
+      - SMTP_SERVER=${SMTP_SERVER:-smtp.researchflow.local:587}
+      - SMTP_USERNAME=${SMTP_USERNAME:-alerts@researchflow.local}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-password}
+      - TZ=UTC
+    networks:
+      - researchflow
+    restart: unless-stopped
+    labels:
+      monitoring: "true"
+
+  # Node Exporter - Host Metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|cgroup|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|squashfs|sysfs|tracefs)$$'
+    networks:
+      - researchflow
+    restart: unless-stopped
+    labels:
+      monitoring: "true"
+
+  # Redis Exporter - Redis Metrics
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    ports:
+      - "9121:9121"
+    environment:
+      REDIS_ADDR: redis:6379
+      TZ: UTC
+    networks:
+      - researchflow
+    depends_on:
+      - redis
+    restart: unless-stopped
+    labels:
+      monitoring: "true"
+
+  # PostgreSQL Exporter - PostgreSQL Metrics
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    ports:
+      - "9187:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-researchflow}?sslmode=disable"
+      TZ: UTC
+    networks:
+      - researchflow
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    labels:
+      monitoring: "true"
+
+  # cAdvisor - Container Metrics (optional, for Docker container monitoring)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    privileged: true
+    networks:
+      - researchflow
+    restart: unless-stopped
+    labels:
+      monitoring: "true"
+
+  # Prometheus Webhook Receiver (optional, for webhook integrations)
+  prometheus-webhook-receiver:
+    image: grafana/cortex-tools:latest
+    container_name: webhook-receiver
+    ports:
+      - "8888:8888"
+    networks:
+      - researchflow
+    restart: unless-stopped
+    labels:
+      monitoring: "true"
+
+  # Existing services with monitoring enabled
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - researchflow
+    restart: unless-stopped
+    labels:
+      monitoring: "true"
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-researchflow}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - researchflow
+    restart: unless-stopped
+    labels:
+      monitoring: "true"
+
+  orchestrator:
+    build:
+      context: ./services/orchestrator
+      dockerfile: Dockerfile
+    container_name: orchestrator
+    ports:
+      - "3001:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-researchflow}
+      REDIS_URL: redis://redis:6379
+      PORT: 3000
+    volumes:
+      - ./services/orchestrator/src:/app/src
+    networks:
+      - researchflow
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    labels:
+      monitoring: "true"
+
+  worker:
+    build:
+      context: ./services/worker
+      dockerfile: Dockerfile
+    container_name: worker
+    ports:
+      - "3002:3001"
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      ORCHESTRATOR_URL: http://orchestrator:3000
+      PORT: 3001
+    volumes:
+      - ./services/worker/src:/app/src
+    networks:
+      - researchflow
+    depends_on:
+      - redis
+      - orchestrator
+    restart: unless-stopped
+    labels:
+      monitoring: "true"
+
+  web:
+    build:
+      context: ./services/web
+      dockerfile: Dockerfile
+    container_name: web
+    ports:
+      - "3003:3002"
+    environment:
+      NODE_ENV: production
+      ORCHESTRATOR_URL: http://orchestrator:3000
+      PORT: 3002
+    volumes:
+      - ./services/web/src:/app/src
+    networks:
+      - researchflow
+    depends_on:
+      - orchestrator
+    restart: unless-stopped
+    labels:
+      monitoring: "true"
+
+networks:
+  researchflow:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local

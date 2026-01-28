@@ -8,9 +8,11 @@ let productionPlugins = [];
 
 // Only load production plugins in production mode to improve dev performance
 if (process.env.NODE_ENV === 'production' || process.env.ANALYZE === 'true') {
-  // Lazy load compression plugin for production
+  // Lazy load compression plugin for production (gzip + brotli)
   try {
     const compressionPlugin = require('vite-plugin-compression').default;
+
+    // Gzip compression
     productionPlugins.push(
       compressionPlugin({
         verbose: true,
@@ -18,6 +20,18 @@ if (process.env.NODE_ENV === 'production' || process.env.ANALYZE === 'true') {
         threshold: 10240, // 10KB - only compress files larger than 10KB
         algorithm: 'gzip',
         ext: '.gz',
+        deleteOriginFile: false
+      })
+    );
+
+    // Brotli compression (better compression ratio than gzip)
+    productionPlugins.push(
+      compressionPlugin({
+        verbose: true,
+        disable: false,
+        threshold: 10240,
+        algorithm: 'brotli',
+        ext: '.br',
         deleteOriginFile: false
       })
     );
@@ -33,7 +47,9 @@ if (process.env.NODE_ENV === 'production' || process.env.ANALYZE === 'true') {
         open: process.env.ANALYZE === 'true',
         gzipSize: true,
         brotliSize: true,
-        filename: 'dist/stats.html'
+        filename: 'dist/stats.html',
+        title: 'ResearchFlow Bundle Analysis',
+        template: 'treemap' // or 'sunburst', 'table'
       })
     );
   } catch (e) {
@@ -75,8 +91,15 @@ export default defineConfig({
     sourcemap: process.env.NODE_ENV !== 'production',
     // Target modern browsers for smaller bundles
     target: 'es2020',
-    // Minification settings
+    // Minification settings with all optimizations
     minify: 'esbuild',
+    // Define esbuild minify options
+    esbuild: {
+      // Drop console logs in production
+      drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : undefined,
+      // Pure functions for better tree-shaking
+      pure: ['console.log'],
+    },
     // Rollup options for code splitting and optimization
     rollupOptions: {
       // Mark optional/backend-only dependencies as external to prevent build failures
@@ -103,50 +126,100 @@ export default defineConfig({
           return `assets/[name]-[hash][extname]`;
         },
         // Manual chunks for optimal caching and code splitting
-        manualChunks: (id) => {
-          // React core - changes rarely
+        // Vendor chunk strategy: split by library to enable granular caching
+        manualChunks: (id, { getModuleInfo }) => {
+          // Skip node_modules for entry points
+          if (!id.includes('node_modules')) {
+            return;
+          }
+
+          // React core - changes rarely (high benefit from separate chunk)
           if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
             return 'vendor-react';
           }
+
           // Router - changes with React
           if (id.includes('react-router') || id.includes('wouter')) {
             return 'vendor-react';
           }
-          // Radix UI components
+
+          // Radix UI components library
           if (id.includes('@radix-ui')) {
             return 'vendor-ui';
           }
-          // TanStack Query for data fetching
-          if (id.includes('@tanstack')) {
+
+          // TanStack Query for data fetching (large library)
+          if (id.includes('@tanstack/react-query') || id.includes('@tanstack/query')) {
             return 'vendor-query';
           }
-          // Rich text editor and ProseMirror
+
+          // Rich text editor and ProseMirror (large, specialized)
           if (id.includes('@tiptap') || id.includes('prosemirror')) {
             return 'vendor-editor';
           }
-          // Charts
-          if (id.includes('recharts') || id.includes('d3')) {
+
+          // Charts (large visualization library)
+          if (id.includes('recharts')) {
             return 'vendor-charts';
           }
-          // Date utilities
-          if (id.includes('date-fns') || id.includes('react-day-picker')) {
+
+          // D3 utilities (if included)
+          if (id.includes('d3')) {
+            return 'vendor-d3';
+          }
+
+          // Date utilities (commonly used, stable)
+          if (id.includes('date-fns')) {
             return 'vendor-date';
           }
+
+          // React day picker
+          if (id.includes('react-day-picker')) {
+            return 'vendor-date';
+          }
+
           // Collaborative editing - Yjs and websocket
-          if (id.includes('yjs') || id.includes('y-websocket') || id.includes('y-prosemirror')) {
+          if (id.includes('yjs')) {
             return 'vendor-collab';
           }
-          // Flow visualization
+
+          if (id.includes('y-websocket') || id.includes('y-prosemirror')) {
+            return 'vendor-collab';
+          }
+
+          // Flow visualization (specialized, large)
           if (id.includes('reactflow')) {
             return 'vendor-flow';
           }
-          // Form handling
-          if (id.includes('react-hook-form') || id.includes('zod') || id.includes('drizzle-zod')) {
+
+          // Form handling libraries
+          if (id.includes('react-hook-form')) {
             return 'vendor-forms';
           }
-          // Animations and utilities
-          if (id.includes('framer-motion') || id.includes('class-variance-authority') || id.includes('clsx')) {
+
+          // Schema validation
+          if (id.includes('zod') || id.includes('drizzle-zod')) {
+            return 'vendor-validation';
+          }
+
+          // Animations
+          if (id.includes('framer-motion')) {
             return 'vendor-anim';
+          }
+
+          // Utility libraries
+          if (id.includes('class-variance-authority') || id.includes('clsx') || id.includes('classnames')) {
+            return 'vendor-utils';
+          }
+
+          // Lodash
+          if (id.includes('lodash')) {
+            return 'vendor-lodash';
+          }
+
+          // All other vendor libraries in a common vendor chunk
+          if (id.includes('node_modules')) {
+            return 'vendor-common';
           }
         }
       }
@@ -159,6 +232,22 @@ export default defineConfig({
     dynamicImportVarsOptions: {
       warnOnError: true,
       exclude: ['node_modules']
+    },
+    // Optimize CSS
+    cssCodeSplit: true,
+    // Pre-compress assets
+    terserOptions: {
+      compress: {
+        drop_console: process.env.NODE_ENV === 'production',
+        drop_debugger: true,
+        pure_funcs: ['console.log'],
+        passes: 3, // More aggressive minification
+      },
+      mangle: {
+        properties: {
+          keep_quoted: true
+        }
+      }
     }
   },
   // Environment variables configuration

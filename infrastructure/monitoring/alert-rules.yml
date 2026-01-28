@@ -1,0 +1,275 @@
+groups:
+  - name: researchflow.rules
+    interval: 30s
+    rules:
+      # SERVICE HEALTH ALERTS
+      - alert: ServiceDown
+        expr: up{job=~"orchestrator|worker|web|redis|postgres|node"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: '{{ $labels.job }}'
+        annotations:
+          summary: 'Service {{ $labels.job }} is down'
+          description: 'Service {{ $labels.job }} has been down for more than 5 minutes.'
+          dashboard_url: 'http://grafana:3000/d/service-health'
+
+      # ERROR RATE ALERTS
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"4..|5..",job=~"orchestrator|worker|web"}[5m])) by (job)
+            /
+            sum(rate(http_requests_total{job=~"orchestrator|worker|web"}[5m])) by (job)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: '{{ $labels.job }}'
+        annotations:
+          summary: 'High error rate on {{ $labels.job }}'
+          description: |
+            Service {{ $labels.job }} has error rate of {{ printf "%.2f" $value | humanizePercentage }}
+            (threshold: 5% over 5 minutes)
+          dashboard_url: 'http://grafana:3000/d/error-rates'
+
+      - alert: VeryHighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"4..|5..",job=~"orchestrator|worker|web"}[5m])) by (job)
+            /
+            sum(rate(http_requests_total{job=~"orchestrator|worker|web"}[5m])) by (job)
+          ) > 0.10
+        for: 2m
+        labels:
+          severity: critical
+          service: '{{ $labels.job }}'
+        annotations:
+          summary: 'Very high error rate on {{ $labels.job }}'
+          description: |
+            Service {{ $labels.job }} has error rate of {{ printf "%.2f" $value | humanizePercentage }}
+            (threshold: 10% over 2 minutes)
+          dashboard_url: 'http://grafana:3000/d/error-rates'
+
+      # LATENCY ALERTS
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, rate(http_request_duration_ms_bucket{job=~"orchestrator|worker|web"}[5m])) > 500
+        for: 5m
+        labels:
+          severity: warning
+          service: '{{ $labels.job }}'
+        annotations:
+          summary: 'High P95 latency on {{ $labels.job }}'
+          description: |
+            Service {{ $labels.job }} P95 latency is {{ printf "%.0f" $value }}ms
+            (threshold: 500ms over 5 minutes)
+          dashboard_url: 'http://grafana:3000/d/api-latency'
+
+      - alert: VeryHighLatency
+        expr: |
+          histogram_quantile(0.95, rate(http_request_duration_ms_bucket{job=~"orchestrator|worker|web"}[5m])) > 1000
+        for: 2m
+        labels:
+          severity: critical
+          service: '{{ $labels.job }}'
+        annotations:
+          summary: 'Very high P95 latency on {{ $labels.job }}'
+          description: |
+            Service {{ $labels.job }} P95 latency is {{ printf "%.0f" $value }}ms
+            (threshold: 1000ms over 2 minutes)
+          dashboard_url: 'http://grafana:3000/d/api-latency'
+
+      - alert: P99LatencyHigh
+        expr: |
+          histogram_quantile(0.99, rate(http_request_duration_ms_bucket{job=~"orchestrator|worker|web"}[5m])) > 2000
+        for: 5m
+        labels:
+          severity: warning
+          service: '{{ $labels.job }}'
+        annotations:
+          summary: 'High P99 latency on {{ $labels.job }}'
+          description: |
+            Service {{ $labels.job }} P99 latency is {{ printf "%.0f" $value }}ms
+            (threshold: 2000ms over 5 minutes)
+          dashboard_url: 'http://grafana:3000/d/api-latency'
+
+      # DISK SPACE ALERTS
+      - alert: DiskSpaceLow
+        expr: |
+          (
+            node_filesystem_avail_bytes{fstype!="tmpfs"}
+            /
+            node_filesystem_size_bytes{fstype!="tmpfs"}
+          ) < 0.10
+        for: 5m
+        labels:
+          severity: warning
+          service: 'host'
+        annotations:
+          summary: 'Low disk space on {{ $labels.device }}'
+          description: |
+            Device {{ $labels.device }} has only {{ printf "%.2f" $value | humanizePercentage }}
+            disk space remaining (threshold: 10%)
+          dashboard_url: 'http://grafana:3000/d/resources'
+
+      - alert: DiskSpaceCritical
+        expr: |
+          (
+            node_filesystem_avail_bytes{fstype!="tmpfs"}
+            /
+            node_filesystem_size_bytes{fstype!="tmpfs"}
+          ) < 0.05
+        for: 2m
+        labels:
+          severity: critical
+          service: 'host'
+        annotations:
+          summary: 'Critical disk space on {{ $labels.device }}'
+          description: |
+            Device {{ $labels.device }} has only {{ printf "%.2f" $value | humanizePercentage }}
+            disk space remaining (threshold: 5%)
+          dashboard_url: 'http://grafana:3000/d/resources'
+
+      # MEMORY ALERTS
+      - alert: MemoryHigh
+        expr: |
+          (
+            1 - (
+              (node_memory_MemAvailable_bytes or (node_memory_MemFree_bytes + node_memory_Buffers_bytes + node_memory_Cached_bytes))
+              /
+              node_memory_MemTotal_bytes
+            )
+          ) > 0.90
+        for: 5m
+        labels:
+          severity: warning
+          service: 'host'
+        annotations:
+          summary: 'High memory usage on host'
+          description: |
+            Host memory is {{ printf "%.2f" $value | humanizePercentage }} utilized
+            (threshold: 90% over 5 minutes)
+          dashboard_url: 'http://grafana:3000/d/resources'
+
+      - alert: MemoryCritical
+        expr: |
+          (
+            1 - (
+              (node_memory_MemAvailable_bytes or (node_memory_MemFree_bytes + node_memory_Buffers_bytes + node_memory_Cached_bytes))
+              /
+              node_memory_MemTotal_bytes
+            )
+          ) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          service: 'host'
+        annotations:
+          summary: 'Critical memory usage on host'
+          description: |
+            Host memory is {{ printf "%.2f" $value | humanizePercentage }} utilized
+            (threshold: 95% over 2 minutes)
+          dashboard_url: 'http://grafana:3000/d/resources'
+
+      # CPU ALERTS
+      - alert: HighCPUUsage
+        expr: |
+          100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: 'host'
+        annotations:
+          summary: 'High CPU usage on host'
+          description: |
+            Host CPU is {{ printf "%.2f" $value }}% utilized
+            (threshold: 80% over 5 minutes)
+          dashboard_url: 'http://grafana:3000/d/resources'
+
+      - alert: VeryHighCPUUsage
+        expr: |
+          100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 95
+        for: 2m
+        labels:
+          severity: critical
+          service: 'host'
+        annotations:
+          summary: 'Very high CPU usage on host'
+          description: |
+            Host CPU is {{ printf "%.2f" $value }}% utilized
+            (threshold: 95% over 2 minutes)
+          dashboard_url: 'http://grafana:3000/d/resources'
+
+      # REDIS ALERTS
+      - alert: RedisConnectionError
+        expr: redis_connected_clients == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: 'redis'
+        annotations:
+          summary: 'Redis has no connected clients'
+          description: 'Redis server has no connected clients for 2 minutes'
+          dashboard_url: 'http://grafana:3000/d/service-health'
+
+      # POSTGRES ALERTS
+      - alert: PostgresConnectionError
+        expr: pg_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: 'postgres'
+        annotations:
+          summary: 'PostgreSQL is down'
+          description: 'PostgreSQL database is down for 2 minutes'
+          dashboard_url: 'http://grafana:3000/d/service-health'
+
+      # REQUEST QUEUE ALERTS
+      - alert: HighQueueDepth
+        expr: |
+          histogram_quantile(0.95, rate(queue_depth_bucket[5m])) > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: '{{ $labels.job }}'
+        annotations:
+          summary: 'High queue depth on {{ $labels.job }}'
+          description: |
+            Queue depth on {{ $labels.job }} is {{ printf "%.0f" $value }} items
+            (threshold: 100 items over 5 minutes)
+
+      # CUSTOM BUSINESS METRICS
+      - alert: LowActiveUsers
+        expr: active_users < 1
+        for: 10m
+        labels:
+          severity: info
+          service: 'orchestrator'
+        annotations:
+          summary: 'No active users in system'
+          description: 'No users have been active in the last 10 minutes'
+
+      - alert: HighPendingApprovals
+        expr: pending_approvals > 100
+        for: 15m
+        labels:
+          severity: warning
+          service: 'orchestrator'
+        annotations:
+          summary: 'High number of pending approvals'
+          description: |
+            There are {{ printf "%.0f" $value }} pending approvals
+            (threshold: 100 over 15 minutes)
+
+      - alert: VeryHighPendingApprovals
+        expr: pending_approvals > 500
+        for: 5m
+        labels:
+          severity: critical
+          service: 'orchestrator'
+        annotations:
+          summary: 'Very high number of pending approvals'
+          description: |
+            There are {{ printf "%.0f" $value }} pending approvals requiring immediate attention
+            (threshold: 500 over 5 minutes)

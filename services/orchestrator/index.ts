@@ -7,6 +7,18 @@ import dotenv from "dotenv";
 import net from "net";
 import { pool } from "./db";
 import { createLogger, type LogLevel } from "./src/utils/logger";
+import {
+  createDefaultLimiter,
+  createAuthLimiter,
+  createApiLimiter,
+  closeRedisClient,
+} from "./src/middleware/rateLimit";
+import {
+  configureSecurityHeaders,
+  cspViolationReporter,
+  apiSecurityHeaders,
+  initializeSecurityHeadersLogging,
+} from "./src/middleware/securityHeaders";
 
 // Load environment variables
 dotenv.config();
@@ -26,6 +38,10 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Security headers middleware
+app.use(configureSecurityHeaders());
+app.use(apiSecurityHeaders());
 
 declare module "http" {
   interface IncomingMessage {
@@ -277,6 +293,29 @@ app.use((req, res, next) => {
   try {
     log("Starting ResearchFlow Orchestrator...");
 
+    // Initialize security headers logging
+    initializeSecurityHeadersLogging();
+
+    // Initialize rate limiters
+    log("Initializing rate limiters...");
+    const defaultLimiter = await createDefaultLimiter();
+    const authLimiter = await createAuthLimiter();
+    const apiLimiter = await createApiLimiter();
+
+    // Apply default rate limiter globally
+    app.use(defaultLimiter);
+
+    // Apply stricter auth limiter to authentication endpoints
+    app.use(/\/(auth|login|signup|refresh-token)/, authLimiter);
+
+    // Apply API limiter to all /api routes
+    app.use(/^\/api\//, apiLimiter);
+
+    log("Rate limiters configured");
+
+    // Register CSP violation reporter endpoint before other routes
+    app.post("/api/csp-violations", express.json(), cspViolationReporter());
+
     // Register API routes
     await registerRoutes(httpServer, app);
     log("Routes registered");
@@ -341,6 +380,9 @@ app.use((req, res, next) => {
     // Graceful shutdown
     const shutdown = async (signal: string) => {
       log(`Received ${signal}, shutting down gracefully...`);
+
+      // Close Redis client for rate limiting
+      await closeRedisClient();
 
       httpServer.close(() => {
         log("HTTP server closed");
