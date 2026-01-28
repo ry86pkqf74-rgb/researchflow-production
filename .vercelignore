@@ -33,6 +33,8 @@ __pycache__/
 docs/
 *.md
 !README.md
+!VERCEL_DEPLOYMENT.md
+!VERCEL_CHECKLIST.md
 
 # Development files
 .git/

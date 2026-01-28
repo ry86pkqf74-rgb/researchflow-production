@@ -56,16 +56,17 @@ export default defineConfig({
       // - drizzle-orm: Backend ORM, should not be in frontend bundle
       // - pg, postgres: Database drivers, backend only
       external: (id) => {
-        // External backend-only packages
-        const externals = [
-          '@sentry/react',
-          'drizzle-orm',
-          'drizzle-zod',
-          'pg',
-          'postgres',
-          'node:',
-        ];
-        return externals.some(ext => id.includes(ext));
+        // External backend-only packages - use precise matching
+        return (
+          id === 'drizzle-orm' ||
+          id === 'drizzle-zod' ||
+          id === 'pg' ||
+          id === 'postgres' ||
+          id === '@sentry/react' ||
+          id.startsWith('drizzle-orm/') ||
+          id.startsWith('drizzle-zod/') ||
+          id.startsWith('node:')
+        );
       },
       output: {
         // Handle external modules gracefully at runtime
