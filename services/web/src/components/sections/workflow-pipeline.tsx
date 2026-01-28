@@ -60,6 +60,7 @@ import { WorkflowSidebar } from "@/components/sections/workflow-sidebar";
 import { AIConsentModal, type AIConsentResult } from "@/components/ui/ai-consent-modal";
 import { useAIAuthorizationStore } from "@/stores/ai-authorization-store";
 import { TopicCardRecommendations, type TopicRecommendationsData } from "@/components/ui/topic-card-recommendations";
+import { StageOutputViewer } from "@/components/ui/stage-output-viewer";
 import { useAI } from "@/hooks/useAI";
 import { useAIWithRetry } from "@/hooks/useAIWithRetry";
 import { type PhaseGroupInfo, type WorkflowStageInfo } from "@/components/ui/progress-stepper";
@@ -2038,57 +2039,22 @@ export function WorkflowPipeline() {
                                     <PhiStatusBadge status={phiStatus} size="sm" showLabel={true} />
                                   )}
                                 </h4>
-                                <div className="space-y-3">
-                                  {executionState[selectedStage.id]?.result?.outputs.map((output, index) => {
-                                    const outputKey = `${selectedStage.id}-${index}`;
-                                    const isExpanded = expandedOutputs[outputKey];
-                                    const OutputIcon = outputTypeIcons[output.type] || FileText;
-                                    
-                                    return (
-                                      <div 
-                                        key={index}
-                                        className="border rounded-lg overflow-hidden"
-                                        data-testid={`output-${index}`}
-                                      >
-                                        <button
-                                          onClick={() => toggleOutputExpand(outputKey)}
-                                          className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors text-left"
-                                          data-testid={`button-toggle-output-${index}`}
-                                        >
-                                          <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center">
-                                            <OutputIcon className="h-4 w-4 text-muted-foreground" />
-                                          </div>
-                                          <div className="flex-1">
-                                            <div className="font-medium text-sm">{output.title}</div>
-                                            <div className="text-xs text-muted-foreground capitalize">{output.type}</div>
-                                          </div>
-                                          {isExpanded ? (
-                                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                                          ) : (
-                                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                          )}
-                                        </button>
-                                        
-                                        <AnimatePresence>
-                                          {isExpanded && (
-                                            <motion.div
-                                              initial={{ height: 0, opacity: 0 }}
-                                              animate={{ height: "auto", opacity: 1 }}
-                                              exit={{ height: 0, opacity: 0 }}
-                                              transition={{ duration: 0.2 }}
-                                              className="border-t"
-                                            >
-                                              <div className="p-4 bg-muted/30">
-                                                <pre className="text-sm whitespace-pre-wrap font-mono text-muted-foreground leading-relaxed">
-                                                  {output.content}
-                                                </pre>
-                                              </div>
-                                            </motion.div>
-                                          )}
-                                        </AnimatePresence>
-                                      </div>
-                                    );
-                                  })}
+                                <div className="space-y-4">
+                                  {executionState[selectedStage.id]?.result?.outputs.map((output, index) => (
+                                    <StageOutputViewer
+                                      key={index}
+                                      output={{
+                                        id: `output-${selectedStage.id}-${index}`,
+                                        title: output.title,
+                                        type: output.type as 'text' | 'table' | 'list' | 'document' | 'chart' | 'json',
+                                        content: output.content,
+                                        metadata: output.metadata,
+                                        source: output.source as 'ai' | 'computed' | 'template' | undefined,
+                                      }}
+                                      className="mb-2"
+                                      data-testid={`output-${index}`}
+                                    />
+                                  ))}
                                 </div>
                               </div>
 

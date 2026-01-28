@@ -226,9 +226,12 @@ export const demoRequestSchema = z.object({
 export type DemoRequest = z.infer<typeof demoRequestSchema>;
 
 export interface StageExecutionOutput {
+  id?: string;
   title: string;
   content: string;
-  type: 'text' | 'table' | 'list' | 'document' | 'chart';
+  type: 'text' | 'table' | 'list' | 'document' | 'chart' | 'json';
+  metadata?: Record<string, unknown>;
+  source?: 'ai' | 'computed' | 'template';
 }
 
 export interface ManuscriptProposalCard {
