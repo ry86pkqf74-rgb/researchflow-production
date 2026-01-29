@@ -224,7 +224,7 @@ export default function GovernancePage() {
 
           <TabsContent value="status" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card data-testid="card-system-mode">
+              <Card data-testid="mode-system-card">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Settings className="h-5 w-5" />
@@ -235,7 +235,7 @@ export default function GovernancePage() {
                   <div className="flex items-center gap-4">
                     <div className={`w-4 h-4 rounded-full ${MODE_COLORS[currentMode] || "bg-gray-500"} animate-pulse`} />
                     <div>
-                      <div className="text-2xl font-bold" data-testid="text-current-mode">{currentMode}</div>
+                      <div className="text-2xl font-bold" data-testid="mode-current-display">{currentMode}</div>
                       <p className="text-sm text-muted-foreground">
                         {MODE_DESCRIPTIONS[currentMode] || "Unknown mode"}
                       </p>
