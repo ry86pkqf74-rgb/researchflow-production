@@ -59,7 +59,7 @@ export function GovernanceBadge({ mode: propMode, showTooltip = false, clickable
       variant="outline"
       className={`${config.className} ${clickable ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
       aria-label={`Current governance mode: ${config.label}`}
-      data-testid={`mode-badge-${currentMode.toLowerCase()}`}
+      data-testid={`governance-badge-${currentMode.toLowerCase()}`}
       onClick={clickable ? (e: React.MouseEvent) => {
         // Stop propagation to prevent parent anchor tags from navigating
         e.stopPropagation();
