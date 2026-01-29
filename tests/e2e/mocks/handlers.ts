@@ -51,11 +51,76 @@ export function addPendingApproval(approval: typeof pendingApprovals[0]): void {
 }
 
 /**
+ * Helper to get user from localStorage auth-store (set by loginAs fixture).
+ * This syncs MSW mock state with Playwright's localStorage injection.
+ */
+function getUserFromLocalStorage(): E2EUser | null {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return null;
+  }
+  try {
+    const authStore = localStorage.getItem('auth-store');
+    if (authStore) {
+      const parsed = JSON.parse(authStore);
+      const user = parsed?.state?.user;
+      if (user && user.id) {
+        return user as E2EUser;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to parse auth-store from localStorage:', e);
+  }
+  return null;
+}
+
+/**
+ * Helper to get mode from localStorage mode-store (set by setMode fixture).
+ */
+function getModeFromLocalStorage(): 'DEMO' | 'LIVE' | null {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return null;
+  }
+  try {
+    const modeStore = localStorage.getItem('mode-store');
+    if (modeStore) {
+      const parsed = JSON.parse(modeStore);
+      const mode = parsed?.state?.mode;
+      if (mode === 'DEMO' || mode === 'LIVE') {
+        return mode;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to parse mode-store from localStorage:', e);
+  }
+  return null;
+}
+
+/**
+ * Ensure currentUser and currentMode are synced from localStorage.
+ * Call this at the start of handlers that need auth/mode state.
+ */
+function syncFromLocalStorage(): void {
+  if (!currentUser) {
+    const lsUser = getUserFromLocalStorage();
+    if (lsUser) {
+      currentUser = lsUser;
+    }
+  }
+  const lsMode = getModeFromLocalStorage();
+  if (lsMode) {
+    currentMode = lsMode;
+  }
+}
+
+/**
  * MSW request handlers for API endpoints.
  */
 export const handlers = [
   // Authentication endpoints
   http.get('/api/auth/user', () => {
+    // Sync state from localStorage (set by Playwright fixtures)
+    syncFromLocalStorage();
+
     if (!currentUser) {
       return HttpResponse.json(
         { error: 'Not authenticated' },
@@ -73,10 +138,12 @@ export const handlers = [
 
   // Governance endpoints
   http.get('/api/governance/mode', () => {
+    syncFromLocalStorage();
     return HttpResponse.json({ mode: currentMode });
   }),
 
   http.post('/api/governance/mode', async ({ request }) => {
+    syncFromLocalStorage();
     // Only ADMIN can change mode
     if (!currentUser || currentUser.role !== 'ADMIN') {
       return HttpResponse.json(
@@ -91,6 +158,7 @@ export const handlers = [
   }),
 
   http.get('/api/governance/state', () => {
+    syncFromLocalStorage();
     return HttpResponse.json({
       mode: currentMode,
       flags: {

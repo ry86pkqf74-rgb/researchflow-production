@@ -603,9 +603,9 @@ async function generatePasswordResetToken(userId: string): Promise<string> {
 
 /**
  * Verify password reset token
- * Returns user ID if valid, null if invalid or expired
+ * Returns { userId, isExpired, isInvalid } for granular error handling
  */
-async function verifyPasswordResetToken(token: string): Promise<string | null> {
+async function verifyPasswordResetToken(token: string): Promise<{ userId: string | null; isExpired: boolean; isInvalid: boolean }> {
   try {
     const result = await pool.query(
       `SELECT user_id, expires_at
@@ -615,7 +615,7 @@ async function verifyPasswordResetToken(token: string): Promise<string | null> {
     );
 
     if (result.rows.length === 0) {
-      return null;
+      return { userId: null, isExpired: false, isInvalid: true };
     }
 
     const { user_id: userId, expires_at: expiresAt } = result.rows[0];
@@ -624,13 +624,13 @@ async function verifyPasswordResetToken(token: string): Promise<string | null> {
     if (new Date(expiresAt) < new Date()) {
       // Delete expired token
       await pool.query('DELETE FROM password_reset_tokens WHERE token = $1', [token]);
-      return null;
+      return { userId: null, isExpired: true, isInvalid: false };
     }
 
-    return userId;
+    return { userId, isExpired: false, isInvalid: false };
   } catch (error) {
     console.error('[Auth] Error verifying password reset token:', error);
-    return null;
+    return { userId: null, isExpired: false, isInvalid: true };
   }
 }
 

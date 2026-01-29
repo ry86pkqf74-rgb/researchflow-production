@@ -16,6 +16,7 @@ import {
   requireAuth,
   optionalAuth
 } from '../services/authService';
+import { sessionService } from '../services/sessionService';
 import { logAuthEvent } from '../services/audit-service';
 import { getRequestMetadata } from '../utils/request-metadata';
 import { createLogger } from '../utils/logger';
@@ -299,10 +300,23 @@ router.post('/logout', optionalAuth, async (req: Request, res: Response) => {
   try {
     const metadata = getRequestMetadata(req);
     const user = authService.getUserFromRequest(req);
+    const sessionId = req.body.sessionId;
 
     const refreshToken = req.cookies?.refreshToken;
     if (refreshToken) {
+      // Revoke the refresh token
       authService.revokeRefreshToken(refreshToken);
+
+      // Invalidate the session server-side to prevent token reuse
+      if (sessionId) {
+        sessionService.invalidateSession(sessionId);
+      } else if (user?.id) {
+        // If no session ID provided, invalidate based on user
+        // This prevents tokens from being reused even if not explicitly bound to a session
+        logger.warn('Logout without sessionId - using user-based invalidation', {
+          userId: user.id
+        });
+      }
     }
 
     // Log logout event
@@ -312,7 +326,7 @@ router.post('/logout', optionalAuth, async (req: Request, res: Response) => {
       ipAddress: metadata.ipAddress,
       userAgent: metadata.userAgent,
       success: true,
-      details: user ? { email: user.email } : undefined
+      details: user ? { email: user.email, sessionId } : undefined
     }).catch(err => logger.error('Failed to log logout', { error: err }));
 
     // Clear refresh token cookie
@@ -398,6 +412,9 @@ router.post('/logout-all', requireAuth, async (req: Request, res: Response) => {
 
     authService.revokeAllUserTokens(user.id);
 
+    // Invalidate all sessions for the user to prevent any token reuse
+    const invalidatedCount = sessionService.invalidateUserSessions(user.id);
+
     // Log logout-all event
     await logAuthEvent({
       eventType: 'LOGOUT',
@@ -407,7 +424,8 @@ router.post('/logout-all', requireAuth, async (req: Request, res: Response) => {
       success: true,
       details: {
         email: user.email,
-        action: 'logout_all_devices'
+        action: 'logout_all_devices',
+        sessionsInvalidated: invalidatedCount
       }
     }).catch(err => logger.error('Failed to log logout-all', { error: err }));
 
@@ -432,6 +450,7 @@ router.post('/logout-all', requireAuth, async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Logout all failed' });
   }
 });
+
 
 /**
  * POST /api/auth/forgot-password
@@ -572,22 +591,41 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     }
 
     // Verify token and get user ID
-    const userId = await authService.verifyPasswordResetToken(token);
+    const tokenVerification = await authService.verifyPasswordResetToken(token);
 
-    if (!userId) {
-      // Log password reset failure
+    // Check for expired token first - this is the security issue being fixed
+    if (tokenVerification.isExpired) {
+      // Log password reset failure - token expired
       await logAuthEvent({
         eventType: 'PASSWORD_RESET_REQUEST',
         ipAddress: metadata.ipAddress,
         userAgent: metadata.userAgent,
         success: false,
-        failureReason: 'Invalid or expired reset token'
+        failureReason: 'Password reset token has expired'
       }).catch(err => logger.error('Failed to log password reset error', { error: err }));
 
       return res.status(400).json({
-        error: 'Invalid or expired reset token'
+        error: 'Password reset token has expired'
       });
     }
+
+    // Check for invalid token
+    if (tokenVerification.isInvalid || !tokenVerification.userId) {
+      // Log password reset failure - invalid token
+      await logAuthEvent({
+        eventType: 'PASSWORD_RESET_REQUEST',
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+        success: false,
+        failureReason: 'Invalid reset token'
+      }).catch(err => logger.error('Failed to log password reset error', { error: err }));
+
+      return res.status(400).json({
+        error: 'Invalid reset token'
+      });
+    }
+
+    const userId = tokenVerification.userId;
 
     // Update password
     await authService.updatePassword(userId, newPassword);

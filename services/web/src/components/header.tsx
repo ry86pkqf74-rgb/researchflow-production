@@ -105,7 +105,7 @@ export function Header() {
             </div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-xl" data-testid="text-brand-name">ResearchFlow</span>
-              <div className="inline-flex">
+              <div className="hidden sm:inline-flex">
                 <GovernanceBadge
                   mode={(governanceMode as 'DEMO' | 'LIVE' | 'OFFLINE') || 'DEMO'}
                   showTooltip

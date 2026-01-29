@@ -48,6 +48,13 @@ COPY packages/manuscript-engine/index.ts ./packages/manuscript-engine/
 COPY packages/manuscript-engine/src ./packages/manuscript-engine/src
 COPY packages/manuscript-engine/validators ./packages/manuscript-engine/validators
 
+# Copy notion-integration package
+COPY packages/notion-integration/package.json ./packages/notion-integration/
+COPY packages/notion-integration/src ./packages/notion-integration/src
+
+# Replace workspace:* with file: references for npm compatibility
+RUN sed -i 's/"workspace:\*"/"file:..\/..\/packages\/notion-integration"/g' package.json
+
 # Install dependencies
 RUN npm install
 
@@ -60,11 +67,12 @@ COPY services/orchestrator/ ./
 
 # Ensure @researchflow packages are accessible in node_modules (symlinks don't transfer)
 RUN mkdir -p ./node_modules/@researchflow && \
-    rm -rf ./node_modules/@researchflow/core ./node_modules/@researchflow/phi-engine ./node_modules/@researchflow/ai-router ./node_modules/@researchflow/manuscript-engine && \
+    rm -rf ./node_modules/@researchflow/core ./node_modules/@researchflow/phi-engine ./node_modules/@researchflow/ai-router ./node_modules/@researchflow/manuscript-engine ./node_modules/@researchflow/notion-integration && \
     cp -r ./packages/core ./node_modules/@researchflow/core && \
     cp -r ./packages/phi-engine ./node_modules/@researchflow/phi-engine && \
     cp -r ./packages/ai-router ./node_modules/@researchflow/ai-router && \
-    cp -r ./packages/manuscript-engine ./node_modules/@researchflow/manuscript-engine
+    cp -r ./packages/manuscript-engine ./node_modules/@researchflow/manuscript-engine && \
+    cp -r ./packages/notion-integration ./node_modules/@researchflow/notion-integration
 
 ENV NODE_ENV=development
 ENV NODE_PATH=/app/node_modules
@@ -89,11 +97,12 @@ COPY services/orchestrator/ ./
 # Ensure @researchflow packages are accessible in node_modules
 # (file: dependencies create symlinks that don't transfer between build stages)
 RUN mkdir -p ./node_modules/@researchflow && \
-    rm -rf ./node_modules/@researchflow/core ./node_modules/@researchflow/phi-engine ./node_modules/@researchflow/ai-router ./node_modules/@researchflow/manuscript-engine && \
+    rm -rf ./node_modules/@researchflow/core ./node_modules/@researchflow/phi-engine ./node_modules/@researchflow/ai-router ./node_modules/@researchflow/manuscript-engine ./node_modules/@researchflow/notion-integration && \
     cp -r ./packages/core ./node_modules/@researchflow/core && \
     cp -r ./packages/phi-engine ./node_modules/@researchflow/phi-engine && \
     cp -r ./packages/ai-router ./node_modules/@researchflow/ai-router && \
-    cp -r ./packages/manuscript-engine ./node_modules/@researchflow/manuscript-engine
+    cp -r ./packages/manuscript-engine ./node_modules/@researchflow/manuscript-engine && \
+    cp -r ./packages/notion-integration ./node_modules/@researchflow/notion-integration
 
 # Create data directories and fix permissions for nodejs user
 RUN mkdir -p /data/artifacts /data/logs /data/manifests && \

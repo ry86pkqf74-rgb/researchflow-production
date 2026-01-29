@@ -56,7 +56,7 @@ export const E2E_USERS: Record<string, E2EUser> = {
  */
 export const ROLE_HIERARCHY: Record<Role, number> = {
   VIEWER: 0,
-  RESEARCHER: 1,
+  ANALYST: 1,
   STEWARD: 2,
   ADMIN: 3,
 };

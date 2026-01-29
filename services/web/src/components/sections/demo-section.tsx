@@ -100,7 +100,7 @@ export function DemoSection() {
             Thyroid Research Demo
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto" data-testid="text-demo-description">
-            Watch how ResearchFlow transforms a clinical thyroid dataset into actionable 
+            Watch how ResearchFlow transforms a clinical thyroid dataset into actionable
             research insights and manuscript proposals.
           </p>
         </motion.div>

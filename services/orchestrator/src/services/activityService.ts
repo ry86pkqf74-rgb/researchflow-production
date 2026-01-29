@@ -1,4 +1,4 @@
-import { query } from '../db';
+import { query } from '../../db';
 
 export enum ActivityActions {
   PROJECT_CREATED = 'project_created',

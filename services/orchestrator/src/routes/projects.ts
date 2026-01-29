@@ -38,6 +38,15 @@ const UpdateProjectSchema = z.object({
   settings: z.record(z.unknown()).optional(),
 });
 
+const AddMemberSchema = z.object({
+  email: z.string().email(),
+  role: z.enum(['admin', 'member', 'viewer']),
+});
+
+const UpdateMemberRoleSchema = z.object({
+  role: z.enum(['admin', 'member', 'viewer']),
+});
+
 // =============================================================================
 // LIST PROJECTS
 // =============================================================================
@@ -692,6 +701,278 @@ router.get('/templates', requireAuth, async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error listing templates:', error);
     res.status(500).json({ error: 'Failed to list templates' });
+  }
+});
+
+// =============================================================================
+// TEAM MEMBER MANAGEMENT
+// =============================================================================
+
+/**
+ * GET /api/projects/:projectId/members
+ * List all members of a project
+ * Access: Any project member
+ */
+router.get('/:projectId/members', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Check if user has access to project
+    const accessCheck = await pool.query(
+      `SELECT 1 FROM projects p
+       LEFT JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = $2
+       WHERE p.id = $1 AND (p.owner_id = $2 OR pm.user_id IS NOT NULL)`,
+      [projectId, userId]
+    );
+
+    if (accessCheck.rowCount === 0) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Get all members with user details
+    const result = await pool.query(
+      `SELECT pm.id, pm.user_id, pm.role, pm.joined_at, u.email, u.first_name, u.last_name
+       FROM project_members pm
+       JOIN users u ON pm.user_id = u.id
+       WHERE pm.project_id = $1
+       ORDER BY pm.joined_at DESC`,
+      [projectId]
+    );
+
+    const members = result.rows.map((row: any) => ({
+      id: row.id,
+      userId: row.user_id,
+      email: row.email,
+      name: `${row.first_name || ''} ${row.last_name || ''}`.trim() || row.email,
+      role: row.role,
+      joinedAt: row.joined_at,
+    }));
+
+    res.json({ members, total: result.rowCount });
+  } catch (error) {
+    console.error('Error listing project members:', error);
+    res.status(500).json({ error: 'Failed to list project members' });
+  }
+});
+
+/**
+ * POST /api/projects/:projectId/members
+ * Add a member to project
+ * RBAC: owner/admin only
+ */
+router.post('/:projectId/members', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const input = AddMemberSchema.parse(req.body);
+
+    // Check if user is owner/admin
+    const roleCheck = await pool.query(
+      `SELECT pm.role FROM project_members pm
+       WHERE pm.project_id = $1 AND pm.user_id = $2 AND pm.role IN ('owner', 'admin')`,
+      [projectId, userId]
+    );
+
+    if (roleCheck.rowCount === 0) {
+      return res.status(403).json({ error: 'Only project owner/admin can add members' });
+    }
+
+    // Find user by email
+    const userResult = await pool.query(
+      `SELECT id FROM users WHERE email = $1`,
+      [input.email]
+    );
+
+    if (userResult.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const targetUserId = userResult.rows[0].id;
+
+    // Check if already a member
+    const existingMember = await pool.query(
+      `SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2`,
+      [projectId, targetUserId]
+    );
+
+    if (existingMember.rowCount > 0) {
+      return res.status(409).json({ error: 'User is already a project member' });
+    }
+
+    // Add member
+    const result = await pool.query(
+      `INSERT INTO project_members (project_id, user_id, role)
+       VALUES ($1, $2, $3)
+       RETURNING id, user_id, role, joined_at`,
+      [projectId, targetUserId, input.role]
+    );
+
+    const row = result.rows[0];
+
+    // Get user details for response
+    const userDetails = await pool.query(
+      `SELECT email, first_name, last_name FROM users WHERE id = $1`,
+      [row.user_id]
+    );
+
+    const userData = userDetails.rows[0];
+    const member = {
+      id: row.id,
+      userId: row.user_id,
+      email: userData.email,
+      name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.email,
+      role: row.role,
+      joinedAt: row.joined_at,
+    };
+
+    res.status(201).json(member);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+    console.error('Error adding project member:', error);
+    res.status(500).json({ error: 'Failed to add project member' });
+  }
+});
+
+/**
+ * PATCH /api/projects/:projectId/members/:userId
+ * Update member role
+ * RBAC: owner/admin only
+ */
+router.patch('/:projectId/members/:userId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { projectId, userId: targetUserId } = req.params;
+    const requesterId = (req as any).user?.id;
+    if (!requesterId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const input = UpdateMemberRoleSchema.parse(req.body);
+
+    // Check if requester is owner/admin
+    const roleCheck = await pool.query(
+      `SELECT pm.role FROM project_members pm
+       WHERE pm.project_id = $1 AND pm.user_id = $2 AND pm.role IN ('owner', 'admin')`,
+      [projectId, requesterId]
+    );
+
+    if (roleCheck.rowCount === 0) {
+      return res.status(403).json({ error: 'Only project owner/admin can update member roles' });
+    }
+
+    // Verify target member exists
+    const memberCheck = await pool.query(
+      `SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2`,
+      [projectId, targetUserId]
+    );
+
+    if (memberCheck.rowCount === 0) {
+      return res.status(404).json({ error: 'Member not found in project' });
+    }
+
+    // Cannot change owner role
+    const ownerCheck = await pool.query(
+      `SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2`,
+      [projectId, targetUserId]
+    );
+
+    if (ownerCheck.rows[0].role === 'owner' && input.role !== 'owner') {
+      return res.status(400).json({ error: 'Cannot change owner role' });
+    }
+
+    // Update role
+    const result = await pool.query(
+      `UPDATE project_members SET role = $1 WHERE project_id = $2 AND user_id = $3
+       RETURNING id, user_id, role, joined_at`,
+      [input.role, projectId, targetUserId]
+    );
+
+    const row = result.rows[0];
+
+    // Get user details for response
+    const userDetails = await pool.query(
+      `SELECT email, first_name, last_name FROM users WHERE id = $1`,
+      [row.user_id]
+    );
+
+    const userData = userDetails.rows[0];
+    const member = {
+      id: row.id,
+      userId: row.user_id,
+      email: userData.email,
+      name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.email,
+      role: row.role,
+      joinedAt: row.joined_at,
+    };
+
+    res.json(member);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+    console.error('Error updating member role:', error);
+    res.status(500).json({ error: 'Failed to update member role' });
+  }
+});
+
+/**
+ * DELETE /api/projects/:projectId/members/:userId
+ * Remove member from project
+ * RBAC: owner/admin only
+ */
+router.delete('/:projectId/members/:userId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { projectId, userId: targetUserId } = req.params;
+    const requesterId = (req as any).user?.id;
+    if (!requesterId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Check if requester is owner/admin
+    const roleCheck = await pool.query(
+      `SELECT pm.role FROM project_members pm
+       WHERE pm.project_id = $1 AND pm.user_id = $2 AND pm.role IN ('owner', 'admin')`,
+      [projectId, requesterId]
+    );
+
+    if (roleCheck.rowCount === 0) {
+      return res.status(403).json({ error: 'Only project owner/admin can remove members' });
+    }
+
+    // Verify target member exists
+    const memberCheck = await pool.query(
+      `SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2`,
+      [projectId, targetUserId]
+    );
+
+    if (memberCheck.rowCount === 0) {
+      return res.status(404).json({ error: 'Member not found in project' });
+    }
+
+    // Cannot remove owner
+    if (memberCheck.rows[0].role === 'owner') {
+      return res.status(400).json({ error: 'Cannot remove project owner' });
+    }
+
+    // Remove member
+    await pool.query(
+      `DELETE FROM project_members WHERE project_id = $1 AND user_id = $2`,
+      [projectId, targetUserId]
+    );
+
+    res.json({ deleted: true });
+  } catch (error) {
+    console.error('Error removing project member:', error);
+    res.status(500).json({ error: 'Failed to remove project member' });
   }
 });
 

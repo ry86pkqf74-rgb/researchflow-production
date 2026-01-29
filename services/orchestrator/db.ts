@@ -14,3 +14,11 @@ export const pool = process.env.DATABASE_URL ? new Pool({
 }) : null;
 
 export const db = pool ? drizzle(pool, { schema }) : null;
+
+// Raw query function for direct SQL access
+export async function query(text: string, params?: unknown[]) {
+  if (!pool) {
+    throw new Error('Database pool not initialized');
+  }
+  return pool.query(text, params);
+}

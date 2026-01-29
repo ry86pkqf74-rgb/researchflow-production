@@ -4,7 +4,7 @@
  * Covers the most critical user journeys end-to-end:
  * 1. Project creation via bundle import
  * 2. Pipeline run viewing and artifact inspection
- * 3. Role-based access (ADMIN, RESEARCHER, VIEWER)
+ * 3. Role-based access (ADMIN, ANALYST, VIEWER)
  * 4. Failure scenarios (AI provider failure, offline mode)
  */
 
@@ -239,7 +239,7 @@ test.describe('Critical Journeys', () => {
   });
 
   /**
-   * Scenario C — Role Coverage: ADMIN vs RESEARCHER vs VIEWER
+   * Scenario C — Role Coverage: ADMIN vs ANALYST vs VIEWER
    */
   test.describe('Role-Based Access', () => {
     const testRoles = ['ADMIN', 'ANALYST', 'VIEWER'] as const;

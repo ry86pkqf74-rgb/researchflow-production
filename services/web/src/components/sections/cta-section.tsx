@@ -79,8 +79,8 @@ export function CTASection() {
             </h2>
             
             <p className="text-lg text-muted-foreground" data-testid="text-cta-description">
-              Join hundreds of researchers who have transformed their workflow. 
-              From clinicians to biologists, ResearchFlow empowers non-technical 
+              Join hundreds of researchers who have transformed their workflow.
+              From clinicians to biologists, ResearchFlow empowers non-technical
               researchers to conduct data-driven studies without coding.
             </p>
 
