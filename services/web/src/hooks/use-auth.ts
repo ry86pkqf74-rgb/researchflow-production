@@ -291,7 +291,7 @@ export function useAuth() {
 
   return {
     user,
-    isLoading: isLoading || loginMutation.isPending || registerMutation.isPending,
+    isLoading: isLoading || loginMutation.isPending || registerMutation.isPending || (!!accessToken && !user),
     isAuthenticated: !!user && !!accessToken,
     login,
     register,
