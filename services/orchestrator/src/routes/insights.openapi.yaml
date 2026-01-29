@@ -1,0 +1,616 @@
+openapi: 3.0.3
+info:
+  title: ResearchFlow Insights API
+  description: Real-time observability and event streaming for clinical research workflows
+  version: 1.0.0
+  contact:
+    name: ResearchFlow Team
+
+servers:
+  - url: /api/v1
+    description: Main API server
+
+tags:
+  - name: Events
+    description: Insight event operations
+  - name: Subscriptions
+    description: WebSocket subscription management
+  - name: Alerts
+    description: Alert configuration and history
+
+paths:
+  /insights/events:
+    get:
+      tags: [Events]
+      summary: Query insight events
+      description: Retrieve paginated insight events with filtering
+      operationId: getInsightEvents
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [trace, metric, alert, audit]
+        - name: source
+          in: query
+          schema:
+            type: string
+            enum: [orchestrator, worker, web, collab, guideline-engine]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [info, warning, error, critical]
+        - name: eventType
+          in: query
+          schema:
+            type: string
+        - name: researchId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: traceId
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Events]
+      summary: Create insight event
+      description: Publish a new insight event to the stream
+      operationId: createInsightEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightEvent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /insights/events/{eventId}:
+    get:
+      tags: [Events]
+      summary: Get single event
+      operationId: getInsightEvent
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Event details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightEvent'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /insights/subscriptions:
+    get:
+      tags: [Subscriptions]
+      summary: List active subscriptions
+      operationId: getSubscriptions
+      responses:
+        '200':
+          description: Active subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InsightSubscription'
+
+    post:
+      tags: [Subscriptions]
+      summary: Create subscription
+      operationId: createSubscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubscriptionRequest'
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightSubscription'
+
+  /insights/subscriptions/{subscriptionId}:
+    delete:
+      tags: [Subscriptions]
+      summary: Delete subscription
+      operationId: deleteSubscription
+      parameters:
+        - name: subscriptionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Subscription deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /insights/alerts:
+    get:
+      tags: [Alerts]
+      summary: List alert configurations
+      operationId: getAlerts
+      responses:
+        '200':
+          description: Alert configurations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InsightAlert'
+
+    post:
+      tags: [Alerts]
+      summary: Create alert
+      operationId: createAlert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAlertRequest'
+      responses:
+        '201':
+          description: Alert created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightAlert'
+
+  /insights/alerts/{alertId}:
+    get:
+      tags: [Alerts]
+      summary: Get alert details
+      operationId: getAlert
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Alert details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightAlert'
+
+    patch:
+      tags: [Alerts]
+      summary: Update alert
+      operationId: updateAlert
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAlertRequest'
+      responses:
+        '200':
+          description: Alert updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightAlert'
+
+    delete:
+      tags: [Alerts]
+      summary: Delete alert
+      operationId: deleteAlert
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Alert deleted
+
+  /insights/alerts/{alertId}/history:
+    get:
+      tags: [Alerts]
+      summary: Get alert trigger history
+      operationId: getAlertHistory
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Alert history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertHistoryResponse'
+
+
+components:
+  schemas:
+    InsightEvent:
+      type: object
+      required: [id, category, eventType, source, severity, timestamp]
+      properties:
+        id:
+          type: string
+          format: uuid
+        category:
+          type: string
+          enum: [trace, metric, alert, audit]
+        eventType:
+          type: string
+        source:
+          type: string
+          enum: [orchestrator, worker, web, collab, guideline-engine]
+        severity:
+          type: string
+          enum: [info, warning, error, critical]
+        timestamp:
+          type: string
+          format: date-time
+        researchId:
+          type: string
+          format: uuid
+        orgId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        traceId:
+          type: string
+        spanId:
+          type: string
+        parentSpanId:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    CreateEventRequest:
+      type: object
+      required: [category, eventType, source, severity]
+      properties:
+        category:
+          type: string
+          enum: [trace, metric, alert, audit]
+        eventType:
+          type: string
+        source:
+          type: string
+        severity:
+          type: string
+          enum: [info, warning, error, critical]
+        researchId:
+          type: string
+          format: uuid
+        traceId:
+          type: string
+        spanId:
+          type: string
+        parentSpanId:
+          type: string
+        payload:
+          type: object
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+        retentionDays:
+          type: integer
+          default: 90
+
+    EventsResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/InsightEvent'
+        cursor:
+          type: string
+        hasMore:
+          type: boolean
+        total:
+          type: integer
+
+    InsightSubscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        channelId:
+          type: string
+        filters:
+          $ref: '#/components/schemas/SubscriptionFilters'
+        createdAt:
+          type: string
+          format: date-time
+
+    SubscriptionFilters:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            type: string
+        sources:
+          type: array
+          items:
+            type: string
+        severities:
+          type: array
+          items:
+            type: string
+        eventTypes:
+          type: array
+          items:
+            type: string
+        researchId:
+          type: string
+          format: uuid
+
+    CreateSubscriptionRequest:
+      type: object
+      required: [channelId]
+      properties:
+        channelId:
+          type: string
+        filters:
+          $ref: '#/components/schemas/SubscriptionFilters'
+
+    InsightAlert:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        condition:
+          $ref: '#/components/schemas/AlertCondition'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertAction'
+        cooldownMinutes:
+          type: integer
+        lastTriggeredAt:
+          type: string
+          format: date-time
+        triggerCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AlertCondition:
+      type: object
+      properties:
+        metric:
+          type: string
+        operator:
+          type: string
+          enum: [gt, gte, lt, lte, eq, neq]
+        threshold:
+          type: number
+        windowMinutes:
+          type: integer
+
+    AlertAction:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [webhook, email, slack, pagerduty]
+        config:
+          type: object
+          additionalProperties: true
+
+    CreateAlertRequest:
+      type: object
+      required: [name, condition, actions]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        condition:
+          $ref: '#/components/schemas/AlertCondition'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertAction'
+        cooldownMinutes:
+          type: integer
+          default: 15
+
+    UpdateAlertRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        condition:
+          $ref: '#/components/schemas/AlertCondition'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertAction'
+        cooldownMinutes:
+          type: integer
+
+    AlertHistoryResponse:
+      type: object
+      properties:
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertHistoryEntry'
+        cursor:
+          type: string
+        hasMore:
+          type: boolean
+
+    AlertHistoryEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        alertId:
+          type: string
+          format: uuid
+        triggeredAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+        metricValue:
+          type: number
+        eventId:
+          type: string
+          format: uuid
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: string
+
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

@@ -8,18 +8,18 @@
 
 import { z } from 'zod';
 
-// =====================
-// BASE TYPES
-// =====================
+// Import base types from schema (these are exported via schema.ts in index.ts)
+import {
+  INSIGHT_CATEGORIES,
+  INSIGHT_SOURCES,
+  INSIGHT_SEVERITIES,
+  type InsightCategory,
+  type InsightSource,
+  type InsightSeverity,
+} from './schema';
 
-export const INSIGHT_CATEGORIES = ['trace', 'metric', 'alert', 'audit'] as const;
-export type InsightCategory = typeof INSIGHT_CATEGORIES[number];
-
-export const INSIGHT_SOURCES = ['orchestrator', 'worker', 'web', 'collab', 'guideline-engine'] as const;
-export type InsightSource = typeof INSIGHT_SOURCES[number];
-
-export const INSIGHT_SEVERITIES = ['info', 'warning', 'error', 'critical'] as const;
-export type InsightSeverity = typeof INSIGHT_SEVERITIES[number];
+// Note: INSIGHT_* constants are NOT re-exported here to avoid duplicate exports
+// Consumers should import them from the main package or from './schema'
 
 // =====================
 // BASE EVENT SCHEMA
