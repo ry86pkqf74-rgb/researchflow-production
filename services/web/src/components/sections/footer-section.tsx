@@ -48,7 +48,7 @@ export function FooterSection() {
               <div className="w-10 h-10 rounded-lg bg-ros-primary flex items-center justify-center">
                 <Database className="h-5 w-5 text-white" />
               </div>
-              <span className="font-bold text-xl" data-testid="text-footer-brand">ResearchOps</span>
+              <span className="font-bold text-xl" data-testid="text-footer-brand">ResearchFlow</span>
             </a>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs" data-testid="text-footer-description">
               Transforming complex research workflows into accessible, 
@@ -164,7 +164,7 @@ export function FooterSection() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <p className="text-sm text-muted-foreground" data-testid="text-footer-copyright">
-              © 2026 ResearchOps. All rights reserved.
+              © 2026 ResearchFlow. All rights reserved.
             </p>
           </div>
 

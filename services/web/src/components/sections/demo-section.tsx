@@ -100,7 +100,7 @@ export function DemoSection() {
             Thyroid Research Demo
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto" data-testid="text-demo-description">
-            Watch how ResearchOps transforms a clinical thyroid dataset into actionable 
+            Watch how ResearchFlow transforms a clinical thyroid dataset into actionable 
             research insights and manuscript proposals.
           </p>
         </motion.div>
@@ -280,7 +280,7 @@ export function DemoSection() {
                 </div>
                 <div data-testid="comparison-researchops">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm">With ResearchOps</span>
+                    <span className="text-sm">With ResearchFlow</span>
                     <span className="text-sm font-medium text-ros-success">2-4 hours</span>
                   </div>
                   <div className="h-3 bg-ros-success/20 rounded-full overflow-hidden">

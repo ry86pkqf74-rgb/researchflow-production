@@ -104,7 +104,7 @@ export function Header() {
               <Database className="h-5 w-5 text-white" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xl" data-testid="text-brand-name">ResearchOps</span>
+              <span className="font-bold text-xl" data-testid="text-brand-name">ResearchFlow</span>
               <div className="hidden sm:inline-flex">
                 <GovernanceBadge
                   mode={(governanceMode as 'DEMO' | 'LIVE' | 'OFFLINE') || 'DEMO'}

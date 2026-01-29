@@ -80,7 +80,7 @@ export function CTASection() {
             
             <p className="text-lg text-muted-foreground" data-testid="text-cta-description">
               Join hundreds of researchers who have transformed their workflow. 
-              From clinicians to biologists, ResearchOps empowers non-technical 
+              From clinicians to biologists, ResearchFlow empowers non-technical 
               researchers to conduct data-driven studies without coding.
             </p>
 
