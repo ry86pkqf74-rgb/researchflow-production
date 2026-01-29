@@ -117,3 +117,6 @@ export * from './manuscript-ideation';
 
 // Export transparency types for LIT integration and reporting
 export * from './transparency';
+
+// Export insight event types for Phase 6 observability
+export * from './insights';

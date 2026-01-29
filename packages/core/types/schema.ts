@@ -1941,3 +1941,226 @@ export const ANALYTICS_EVENT_NAMES = [
   'experiment.assigned',
 ] as const;
 export type AnalyticsEventName = (typeof ANALYTICS_EVENT_NAMES)[number];
+
+
+// ============================================================
+// PHASE 6: INSIGHTS & OBSERVABILITY TABLES
+// ============================================================
+
+// =====================
+// INSIGHT EVENT CATEGORIES & SOURCES
+// =====================
+
+export const INSIGHT_CATEGORIES = ['trace', 'metric', 'alert', 'audit'] as const;
+export type InsightCategory = (typeof INSIGHT_CATEGORIES)[number];
+
+export const INSIGHT_SOURCES = ['orchestrator', 'worker', 'web', 'collab', 'guideline-engine'] as const;
+export type InsightSource = (typeof INSIGHT_SOURCES)[number];
+
+export const INSIGHT_SEVERITIES = ['info', 'warning', 'error', 'critical'] as const;
+export type InsightSeverity = (typeof INSIGHT_SEVERITIES)[number];
+
+// =====================
+// INSIGHT EVENTS TABLE
+// Store events for replay, audit, and analytics
+// =====================
+
+export const insightEvents = pgTable("insight_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  timestamp: timestamp("timestamp").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  category: varchar("category", { length: 20 }).notNull(),
+  source: varchar("source", { length: 50 }).notNull(),
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  severity: varchar("severity", { length: 20 }).default('info').notNull(),
+  
+  // Context identifiers
+  runId: varchar("run_id"),
+  researchId: varchar("research_id"),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  sessionId: varchar("session_id"),
+  
+  // Event payload (PHI-safe: no raw data content)
+  payload: jsonb("payload").default({}).notNull(),
+  
+  // Tracing support
+  traceId: varchar("trace_id", { length: 64 }),
+  spanId: varchar("span_id", { length: 32 }),
+  parentSpanId: varchar("parent_span_id", { length: 32 }),
+  
+  // Metadata
+  durationMs: integer("duration_ms"),
+  metadata: jsonb("metadata").default({}).notNull(),
+  
+  // Retention
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertInsightEventSchema = createInsertSchema(insightEvents).omit({id: true, createdAt: true} as any);
+
+export type InsightEvent = InferSelectModel<typeof insightEvents>;
+export type InsertInsightEvent = z.infer<typeof insertInsightEventSchema>;
+
+// =====================
+// INSIGHT SUBSCRIPTIONS TABLE
+// Track who subscribes to what events (WebSocket channels)
+// =====================
+
+export const insightSubscriptions = pgTable("insight_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Subscription filters
+  categories: jsonb("categories").default([]).notNull(), // ['trace', 'metric']
+  sources: jsonb("sources").default([]).notNull(),       // ['orchestrator', 'worker']
+  eventTypes: jsonb("event_types").default([]).notNull(), // Specific event types
+  severities: jsonb("severities").default([]).notNull(), // ['warning', 'error', 'critical']
+  
+  // Scope filters
+  researchIds: jsonb("research_ids").default([]).notNull(),
+  
+  // Delivery settings
+  deliveryChannel: varchar("delivery_channel", { length: 50 }).default('websocket').notNull(),
+  webhookUrl: text("webhook_url"),
+  
+  // Status
+  isActive: boolean("is_active").default(true).notNull(),
+  lastDeliveredAt: timestamp("last_delivered_at"),
+  
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertInsightSubscriptionSchema = createInsertSchema(insightSubscriptions).omit({id: true, createdAt: true, updatedAt: true} as any);
+
+export type InsightSubscription = InferSelectModel<typeof insightSubscriptions>;
+export type InsertInsightSubscription = z.infer<typeof insertInsightSubscriptionSchema>;
+
+// =====================
+// INSIGHT ALERTS TABLE
+// Alert configurations with thresholds and actions
+// =====================
+
+export const ALERT_OPERATORS = ['gt', 'gte', 'lt', 'lte', 'eq', 'neq', 'contains', 'matches'] as const;
+export type AlertOperator = (typeof ALERT_OPERATORS)[number];
+
+export const ALERT_ACTIONS = ['email', 'slack', 'webhook', 'pagerduty', 'in_app'] as const;
+export type AlertAction = (typeof ALERT_ACTIONS)[number];
+
+export const insightAlerts = pgTable("insight_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  
+  // Alert condition
+  category: varchar("category", { length: 20 }).notNull(),
+  eventType: varchar("event_type", { length: 100 }),
+  conditionField: varchar("condition_field", { length: 100 }).notNull(),
+  conditionOperator: varchar("condition_operator", { length: 20 }).notNull(),
+  conditionValue: text("condition_value").notNull(),
+  
+  // Threshold settings (for rate-based alerts)
+  thresholdCount: integer("threshold_count"),
+  thresholdWindowSeconds: integer("threshold_window_seconds"),
+  
+  // Actions
+  actions: jsonb("actions").default([]).notNull(), // [{type: 'email', config: {...}}]
+  
+  // Scope
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: "cascade" }),
+  researchIds: jsonb("research_ids").default([]).notNull(),
+  
+  // Status
+  enabled: boolean("enabled").default(true).notNull(),
+  lastTriggeredAt: timestamp("last_triggered_at"),
+  triggerCount: integer("trigger_count").default(0).notNull(),
+  
+  // Cooldown (prevent alert storms)
+  cooldownSeconds: integer("cooldown_seconds").default(300).notNull(),
+  
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertInsightAlertSchema = createInsertSchema(insightAlerts).omit({id: true, createdAt: true, updatedAt: true} as any);
+
+export type InsightAlert = InferSelectModel<typeof insightAlerts>;
+export type InsertInsightAlert = z.infer<typeof insertInsightAlertSchema>;
+
+// =====================
+// INSIGHT ALERT HISTORY TABLE
+// Track when alerts were triggered
+// =====================
+
+export const insightAlertHistory = pgTable("insight_alert_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  alertId: varchar("alert_id").notNull().references(() => insightAlerts.id, { onDelete: "cascade" }),
+  eventId: varchar("event_id").references(() => insightEvents.id, { onDelete: "set null" }),
+  
+  // Trigger context
+  triggerValue: text("trigger_value"),
+  matchedCondition: jsonb("matched_condition").notNull(),
+  
+  // Actions taken
+  actionsTaken: jsonb("actions_taken").default([]).notNull(),
+  actionResults: jsonb("action_results").default({}).notNull(),
+  
+  // Resolution
+  acknowledged: boolean("acknowledged").default(false).notNull(),
+  acknowledgedBy: varchar("acknowledged_by").references(() => users.id),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  resolution: text("resolution"),
+  
+  triggeredAt: timestamp("triggered_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertInsightAlertHistorySchema = createInsertSchema(insightAlertHistory).omit({id: true, triggeredAt: true} as any);
+
+export type InsightAlertHistory = InferSelectModel<typeof insightAlertHistory>;
+export type InsertInsightAlertHistory = z.infer<typeof insertInsightAlertHistorySchema>;
+
+// =====================
+// AI TRACE EVENTS TABLE
+// Detailed AI invocation tracing for explainability
+// =====================
+
+export const aiTraceEvents = pgTable("ai_trace_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Link to parent invocation
+  invocationId: varchar("invocation_id").references(() => aiInvocations.id, { onDelete: "cascade" }),
+  insightEventId: varchar("insight_event_id").references(() => insightEvents.id, { onDelete: "set null" }),
+  
+  // Tracing identifiers
+  traceId: varchar("trace_id", { length: 64 }).notNull(),
+  spanId: varchar("span_id", { length: 32 }).notNull(),
+  parentSpanId: varchar("parent_span_id", { length: 32 }),
+  
+  // Event details
+  spanName: varchar("span_name", { length: 100 }).notNull(),
+  spanKind: varchar("span_kind", { length: 20 }).default('internal').notNull(),
+  
+  // Timing
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  durationMs: integer("duration_ms"),
+  
+  // Attributes (PHI-safe metadata only)
+  attributes: jsonb("attributes").default({}).notNull(),
+  
+  // Status
+  statusCode: varchar("status_code", { length: 20 }).default('OK').notNull(),
+  statusMessage: text("status_message"),
+  
+  // Context
+  researchId: varchar("research_id"),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertAiTraceEventSchema = createInsertSchema(aiTraceEvents).omit({id: true, createdAt: true} as any);
+
+export type AiTraceEvent = InferSelectModel<typeof aiTraceEvents>;
+export type InsertAiTraceEvent = z.infer<typeof insertAiTraceEventSchema>;
