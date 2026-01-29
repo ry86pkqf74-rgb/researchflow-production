@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "types": ["vitest/globals"],
+    "typeRoots": ["./node_modules/@types"],
     "target": "ES2022",
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "Node",
     "lib": ["ES2022", "DOM"],
     "jsx": "react-jsx",
     "strict": false,
