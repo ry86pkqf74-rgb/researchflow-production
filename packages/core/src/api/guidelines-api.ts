@@ -435,7 +435,7 @@ export class GuidelinesApiClient {
    * Generate a validation study blueprint for a system card
    */
   async generateBlueprint(params: GenerateBlueprintParams): Promise<ValidationBlueprint> {
-    return this.request<ValidationBlueprint>('POST', '/api/guidelines/ideate', params);
+    return this.request<ValidationBlueprint>('POST', '/api/guidelines/ideate', params as unknown as Record<string, unknown>);
   }
 
   /**
@@ -449,7 +449,7 @@ export class GuidelinesApiClient {
    * Update a blueprint
    */
   async updateBlueprint(id: string, params: UpdateBlueprintParams): Promise<ValidationBlueprint> {
-    return this.request<ValidationBlueprint>('PATCH', `/api/guidelines/blueprints/${id}`, params);
+    return this.request<ValidationBlueprint>('PATCH', `/api/guidelines/blueprints/${id}`, params as unknown as Record<string, unknown>);
   }
 
   /**

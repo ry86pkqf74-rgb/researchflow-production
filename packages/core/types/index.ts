@@ -119,4 +119,28 @@ export * from './manuscript-ideation';
 export * from './transparency';
 
 // Export insight event types for Phase 6 observability
-export * from './insights';
+// Note: InsightEvent is already exported from schema.ts (database type)
+// insights.ts InsightEvent is renamed to InsightEventPayload to avoid conflict
+export {
+  BaseInsightEventSchema,
+  AIInvocationEventSchema,
+  StageTransitionEventSchema,
+  DataAccessEventSchema,
+  PerformanceMetricEventSchema,
+  UserActionEventSchema,
+  SystemAlertEventSchema,
+  GovernanceEventSchema,
+  InsightEventSchema,
+  createInsightEvent,
+  type BaseInsightEvent,
+  type AIInvocationEvent,
+  type StageTransitionEvent,
+  type DataAccessEvent,
+  type PerformanceMetricEvent,
+  type UserActionEvent,
+  type SystemAlertEvent,
+  type GovernanceEvent,
+  type InsightEventPayload,
+  type InsightSubscription,
+  type AlertRule,
+} from './insights';

@@ -298,7 +298,8 @@ export const InsightEventSchema = z.discriminatedUnion('eventType', [
   GovernanceEventSchema,
 ]);
 
-export type InsightEvent = z.infer<typeof InsightEventSchema>;
+// Note: Named InsightEventPayload to avoid conflict with InsightEvent from schema.ts (database type)
+export type InsightEventPayload = z.infer<typeof InsightEventSchema>;
 
 // =====================
 // EVENT FACTORY HELPERS
@@ -356,16 +357,8 @@ export interface InsightAlertConfig {
 }
 
 // =====================
-// EXPORT ALL
+// EXPORT ALL (types only - schemas already exported inline)
 // =====================
 
-export {
-  BaseInsightEventSchema,
-  AIInvocationEventSchema,
-  StageTransitionEventSchema,
-  DataAccessEventSchema,
-  PerformanceMetricEventSchema,
-  UserActionEventSchema,
-  SystemAlertEventSchema,
-  GovernanceEventSchema,
-};
+// Type exports are handled by the inline type definitions
+// Schema exports are handled by the inline const exports
