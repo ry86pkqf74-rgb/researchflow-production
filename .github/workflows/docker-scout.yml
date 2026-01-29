@@ -1,0 +1,364 @@
+# .github/workflows/docker-scout.yml
+# Docker Scout Security Scanning for ResearchFlow
+# Compares PR images against production for vulnerability analysis
+# Aligned with existing build-images.yml workflow
+
+name: Docker Scout Security Scan
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "services/**"
+      - "packages/**"
+      - "Dockerfile*"
+      - "docker-compose*.yml"
+      - "infrastructure/docker/**"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/researchflow
+  SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
+  PRODUCTION_REPO: 'ry86pkqf74-rgb/researchflow-production'
+
+jobs:
+  # =============================================================================
+  # Build and scan the Orchestrator service (Node.js)
+  # =============================================================================
+  scout-orchestrator:
+    name: Scout - Orchestrator
+    runs-on: ubuntu-latest
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Docker Scout requires Docker Hub auth for API access
+      - name: Log in to Docker Hub (for Scout)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PAT }}
+
+      - name: Extract Docker metadata (Orchestrator)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/orchestrator
+          labels: |
+            org.opencontainers.image.revision=${{ env.SHA }}
+            org.opencontainers.image.title=ResearchFlow Orchestrator
+            org.opencontainers.image.description=Node.js API orchestrator for ResearchFlow
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha,prefix=,suffix=,format=short
+
+      - name: Build Orchestrator image
+        id: build-orchestrator
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/orchestrator
+          file: ./services/orchestrator/Dockerfile
+          target: production
+          sbom: ${{ github.event_name != 'pull_request' }}
+          provenance: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=orchestrator
+          cache-to: type=gha,mode=max,scope=orchestrator
+
+      - name: Docker Scout Compare (Orchestrator)
+        id: scout-compare
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: docker/scout-action@v1
+        with:
+          command: compare
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/orchestrator:pr-${{ github.event.number }}
+          to: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/orchestrator:main
+          ignore-unchanged: true
+          only-severities: critical,high
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          summary: true
+
+      - name: Docker Scout CVEs (Orchestrator)
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/orchestrator:pr-${{ github.event.number }}
+          only-severities: critical,high
+          sarif-file: sarif-orchestrator.json
+
+      - name: Upload SARIF (Orchestrator)
+        if: ${{ github.event_name == 'pull_request' && hashFiles('sarif-orchestrator.json') != '' }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sarif-orchestrator.json
+          category: docker-scout-orchestrator
+        continue-on-error: true
+
+  # =============================================================================
+  # Build and scan the Worker service (Python FastAPI)
+  # =============================================================================
+  scout-worker:
+    name: Scout - Worker
+    runs-on: ubuntu-latest
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub (for Scout)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PAT }}
+
+      - name: Extract Docker metadata (Worker)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/worker
+          labels: |
+            org.opencontainers.image.revision=${{ env.SHA }}
+            org.opencontainers.image.title=ResearchFlow Worker
+            org.opencontainers.image.description=Python FastAPI worker for ResearchFlow
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha,prefix=,suffix=,format=short
+
+      - name: Build Worker image
+        id: build-worker
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/worker
+          file: ./services/worker/Dockerfile
+          target: production
+          sbom: ${{ github.event_name != 'pull_request' }}
+          provenance: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,mode=max,scope=worker
+
+      - name: Docker Scout Compare (Worker)
+        id: scout-compare
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: docker/scout-action@v1
+        with:
+          command: compare
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/worker:pr-${{ github.event.number }}
+          to: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/worker:main
+          ignore-unchanged: true
+          only-severities: critical,high
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          summary: true
+
+      - name: Docker Scout CVEs (Worker)
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/worker:pr-${{ github.event.number }}
+          only-severities: critical,high
+          sarif-file: sarif-worker.json
+
+      - name: Upload SARIF (Worker)
+        if: ${{ github.event_name == 'pull_request' && hashFiles('sarif-worker.json') != '' }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sarif-worker.json
+          category: docker-scout-worker
+        continue-on-error: true
+
+  # =============================================================================
+  # Build and scan the Web service (React)
+  # =============================================================================
+  scout-web:
+    name: Scout - Web
+    runs-on: ubuntu-latest
+    if: github.repository == 'ry86pkqf74-rgb/researchflow-production'
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub (for Scout)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PAT }}
+
+      - name: Extract Docker metadata (Web)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/web
+          labels: |
+            org.opencontainers.image.revision=${{ env.SHA }}
+            org.opencontainers.image.title=ResearchFlow Web
+            org.opencontainers.image.description=React frontend for ResearchFlow
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha,prefix=,suffix=,format=short
+
+      - name: Build Web image
+        id: build-web
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/web
+          file: ./services/web/Dockerfile
+          target: production
+          sbom: ${{ github.event_name != 'pull_request' }}
+          provenance: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      - name: Docker Scout Compare (Web)
+        id: scout-compare
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: docker/scout-action@v1
+        with:
+          command: compare
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/web:pr-${{ github.event.number }}
+          to: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/web:main
+          ignore-unchanged: true
+          only-severities: critical,high
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          summary: true
+
+      - name: Docker Scout CVEs (Web)
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/web:pr-${{ github.event.number }}
+          only-severities: critical,high
+          sarif-file: sarif-web.json
+
+      - name: Upload SARIF (Web)
+        if: ${{ github.event_name == 'pull_request' && hashFiles('sarif-web.json') != '' }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sarif-web.json
+          category: docker-scout-web
+        continue-on-error: true
+
+  # =============================================================================
+  # Summary job - aggregate results
+  # =============================================================================
+  scout-summary:
+    name: Scout Summary
+    needs: [scout-orchestrator, scout-worker, scout-web]
+    runs-on: ubuntu-latest
+    if: always() && github.repository == 'ry86pkqf74-rgb/researchflow-production'
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🔍 Docker Scout Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Status | Details |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|---------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Orchestrator status
+          if [[ "${{ needs.scout-orchestrator.result }}" == "success" ]]; then
+            echo "| 🟢 Orchestrator | ✅ Passed | Node.js API |" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ needs.scout-orchestrator.result }}" == "skipped" ]]; then
+            echo "| ⚪ Orchestrator | ⏭️ Skipped | No changes detected |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🔴 Orchestrator | ❌ Failed | Check logs |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Worker status
+          if [[ "${{ needs.scout-worker.result }}" == "success" ]]; then
+            echo "| 🟢 Worker | ✅ Passed | Python FastAPI |" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ needs.scout-worker.result }}" == "skipped" ]]; then
+            echo "| ⚪ Worker | ⏭️ Skipped | No changes detected |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🔴 Worker | ❌ Failed | Check logs |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Web status
+          if [[ "${{ needs.scout-web.result }}" == "success" ]]; then
+            echo "| 🟢 Web | ✅ Passed | React Frontend |" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ needs.scout-web.result }}" == "skipped" ]]; then
+            echo "| ⚪ Web | ⏭️ Skipped | No changes detected |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🔴 Web | ❌ Failed | Check logs |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Notes" >> $GITHUB_STEP_SUMMARY
+          echo "- PR comments contain detailed vulnerability comparisons" >> $GITHUB_STEP_SUMMARY
+          echo "- SARIF reports uploaded to Security tab" >> $GITHUB_STEP_SUMMARY
+          echo "- Comparing against \`main\` branch baseline" >> $GITHUB_STEP_SUMMARY
