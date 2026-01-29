@@ -20,7 +20,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
-    "typeRoots": ["../../node_modules/@types", "./node_modules/@types"],
+    "typeRoots": ["../../node_modules/@types", "./node_modules/@types", "./src/types"],
     "paths": {
       "@researchflow/core": ["../../packages/core/index.ts"],
       "@researchflow/core/*": ["../../packages/core/*"],

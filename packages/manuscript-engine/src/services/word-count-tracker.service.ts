@@ -3,25 +3,15 @@
  * Task T50: Track word counts against section limits
  */
 
+import type { SectionContent, WordCountLimits } from '../types';
+
+// Re-export for consumers
+export type { SectionContent, WordCountLimits };
+
 export interface WordCountTrackerRequest {
   manuscriptId: string;
   sections: SectionContent[];
   limits: WordCountLimits;
-}
-
-export interface SectionContent {
-  sectionId: string;
-  sectionType: string;
-  content: string;
-}
-
-export interface WordCountLimits {
-  abstract?: { min?: number; max?: number };
-  introduction?: { min?: number; max?: number };
-  methods?: { min?: number; max?: number };
-  results?: { min?: number; max?: number };
-  discussion?: { min?: number; max?: number };
-  total?: { min?: number; max?: number };
 }
 
 export interface WordCountReport {

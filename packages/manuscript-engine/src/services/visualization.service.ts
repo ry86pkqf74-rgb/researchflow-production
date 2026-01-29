@@ -1,4 +1,7 @@
-export type ChartType = 'bar' | 'line' | 'scatter' | 'box' | 'histogram' | 'kaplan_meier' | 'forest';
+import type { ChartType } from '../types/manuscript.types';
+
+// Re-export ChartType for consumers who import from services
+export type { ChartType };
 
 export interface ChartConfig {
   type: ChartType;

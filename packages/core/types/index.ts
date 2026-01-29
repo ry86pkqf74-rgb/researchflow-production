@@ -116,10 +116,9 @@ export {
 export * from './manuscript-ideation';
 
 // Export transparency types for LIT integration and reporting
-// Note: Dataset and PhiScanStatus are already exported from schema.ts (database types)
+// Note: Dataset, PhiScanStatus, and GovernanceMode are already exported from other modules
 // so we exclude them here to avoid conflicts
 export {
-  type GovernanceMode,
   type DatasetFormat,
   type AccessType,
   type PhiExposureRisk,

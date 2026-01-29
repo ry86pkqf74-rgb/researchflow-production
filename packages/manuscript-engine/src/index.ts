@@ -14,14 +14,13 @@
  * @module @researchflow/manuscript-engine
  */
 
-// Export all services
-export * from './services';
-
-// Export types
+// Export types first (canonical type definitions take precedence)
 export * from './types';
 
-// Note: All types are already exported via './types' barrel export
-// The types include: ManuscriptStatus, TemplateType, BibliographyStyle, IMRaDSection, etc.
+// Export services - services that re-export conflicting types will be overwritten by types above
+// Note: ChartType (visualization.service), SectionContent & WordCountLimits (word-count-tracker.service)
+// are also defined in types/ - the types/ versions are used
+export * from './services';
 
 // Export version information
 export const VERSION = '1.0.0';
