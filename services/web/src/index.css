@@ -1,3 +1,5 @@
+@import "./styles/figma-tokens.css";
+
 /* Design System Variables - inlined */
 @tailwind base;
 @tailwind components;

@@ -9,6 +9,13 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { db as pool } from '../../db';
 import { requireAuth } from '../services/authService';
+import { 
+  logActivity, 
+  getProjectActivity, 
+  getRecentActivity,
+  ActivityActions, 
+  EntityTypes 
+} from '../services/activityService';
 
 const router = Router();
 
@@ -132,7 +139,7 @@ router.get('/stats', requireAuth, async (req: Request, res: Response) => {
       activeProjects: parseInt(row.active_projects, 10) || 0,
       completedProjects: parseInt(row.completed_projects, 10) || 0,
       archivedProjects: parseInt(row.archived_projects, 10) || 0,
-      totalWorkflows: 0, // Would need to aggregate from project_workflows
+      totalWorkflows: 0,
       activeWorkflows: 0,
       completedWorkflows: 0,
     };
@@ -141,6 +148,42 @@ router.get('/stats', requireAuth, async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching stats:', error);
     res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
+/**
+ * GET /api/projects/activity
+ * Get recent activity across user's projects
+ */
+router.get('/activity', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { limit = '50' } = req.query;
+    const limitNum = parseInt(limit as string, 10) || 50;
+
+    const activities = await getRecentActivity(userId, limitNum);
+
+    const transformedActivities = activities.map((activity) => ({
+      id: activity.id,
+      projectId: activity.projectId,
+      userId: activity.userId,
+      userEmail: activity.userEmail,
+      action: activity.action,
+      entityType: activity.entityType,
+      entityId: activity.entityId,
+      entityName: activity.entityName,
+      details: activity.details,
+      createdAt: activity.createdAt,
+    }));
+
+    res.json(transformedActivities);
+  } catch (error) {
+    console.error('Error fetching activity:', error);
+    res.status(500).json({ error: 'Failed to fetch activity' });
   }
 });
 
@@ -160,7 +203,6 @@ router.get('/:projectId', requireAuth, async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Check access
     const accessCheck = await pool.query(
       `SELECT 1 FROM projects p
        LEFT JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = $2
@@ -207,13 +249,62 @@ router.get('/:projectId', requireAuth, async (req: Request, res: Response) => {
       workflowCount: parseInt(row.workflow_count, 10) || 0,
       settings: row.settings || {},
       collaborators: row.collaborators || [],
-      workflows: [], // Would need to join from workflows table
+      workflows: [],
     };
 
     res.json({ project });
   } catch (error) {
     console.error('Error getting project:', error);
     res.status(500).json({ error: 'Failed to get project' });
+  }
+});
+
+/**
+ * GET /api/projects/:projectId/activity
+ * Get activity for specific project
+ */
+router.get('/:projectId/activity', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const accessCheck = await pool.query(
+      `SELECT 1 FROM projects p
+       LEFT JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = $2
+       WHERE p.id = $1 AND (p.owner_id = $2 OR pm.user_id IS NOT NULL)`,
+      [projectId, userId]
+    );
+
+    if (accessCheck.rowCount === 0) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    const { limit = '50', offset = '0' } = req.query;
+    const limitNum = parseInt(limit as string, 10) || 50;
+    const offsetNum = parseInt(offset as string, 10) || 0;
+
+    const activities = await getProjectActivity(projectId, limitNum, offsetNum);
+
+    const transformedActivities = activities.map((activity) => ({
+      id: activity.id,
+      projectId: activity.projectId,
+      userId: activity.userId,
+      userEmail: activity.userEmail,
+      action: activity.action,
+      entityType: activity.entityType,
+      entityId: activity.entityId,
+      entityName: activity.entityName,
+      details: activity.details,
+      createdAt: activity.createdAt,
+    }));
+
+    res.json(transformedActivities);
+  } catch (error) {
+    console.error('Error fetching project activity:', error);
+    res.status(500).json({ error: 'Failed to fetch project activity' });
   }
 });
 
@@ -243,7 +334,6 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 
     const row = result.rows[0];
 
-    // Add owner as member
     await pool.query(
       `INSERT INTO project_members (project_id, user_id, role)
        VALUES ($1, $2, 'owner')
@@ -251,7 +341,6 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
       [row.id, userId]
     );
 
-    // If template specified, apply template configuration
     if (input.templateId) {
       const template = await pool.query(
         `SELECT * FROM workflow_templates WHERE id = $1`,
@@ -263,6 +352,42 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
           [{ template: template.rows[0] }, row.id]
         );
       }
+    }
+
+    try {
+      await logActivity({
+        projectId: row.id,
+        userId,
+        action: ActivityActions.PROJECT_CREATED,
+        entityType: EntityTypes.PROJECT,
+        entityId: row.id,
+        entityName: input.name,
+        details: {
+          description: input.description,
+          orgId: input.orgId,
+          templateId: input.templateId,
+        },
+      });
+    } catch (logError) {
+      console.error('Error logging project creation activity:', logError);
+    }
+
+    try {
+      await logActivity({
+        projectId: row.id,
+        userId,
+        action: ActivityActions.PROJECT_CREATED,
+        entityType: EntityTypes.PROJECT,
+        entityId: row.id,
+        entityName: input.name,
+        details: {
+          description: input.description,
+          orgId: input.orgId,
+          templateId: input.templateId,
+        },
+      });
+    } catch (logError) {
+      console.error('Error logging project creation activity:', logError);
     }
 
     const project = {
@@ -306,7 +431,6 @@ router.patch('/:projectId', requireAuth, async (req: Request, res: Response) => 
 
     const input = UpdateProjectSchema.parse(req.body);
 
-    // Check ownership or admin
     const accessCheck = await pool.query(
       `SELECT pm.role FROM projects p
        JOIN project_members pm ON p.id = pm.project_id
@@ -318,25 +442,41 @@ router.patch('/:projectId', requireAuth, async (req: Request, res: Response) => 
       return res.status(403).json({ error: 'Not authorized to update this project' });
     }
 
+    const currentProject = await pool.query(
+      `SELECT name, description, status, settings FROM projects WHERE id = $1`,
+      [projectId]
+    );
+
     const updates: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
+    const changedFields: Record<string, any> = {};
 
     if (input.name !== undefined) {
       updates.push(`name = $${paramIndex++}`);
       values.push(input.name);
+      if (currentProject.rows[0]) {
+        changedFields.name = { from: currentProject.rows[0].name, to: input.name };
+      }
     }
     if (input.description !== undefined) {
       updates.push(`description = $${paramIndex++}`);
       values.push(input.description);
+      if (currentProject.rows[0]) {
+        changedFields.description = { from: currentProject.rows[0].description, to: input.description };
+      }
     }
     if (input.status !== undefined) {
       updates.push(`status = $${paramIndex++}`);
       values.push(input.status);
+      if (currentProject.rows[0]) {
+        changedFields.status = { from: currentProject.rows[0].status, to: input.status };
+      }
     }
     if (input.settings !== undefined) {
       updates.push(`settings = settings || $${paramIndex++}`);
       values.push(input.settings);
+      changedFields.settings = input.settings;
     }
 
     if (updates.length === 0) {
@@ -344,10 +484,22 @@ router.patch('/:projectId', requireAuth, async (req: Request, res: Response) => 
     }
 
     values.push(projectId);
-    const result = await pool.query(
-      `UPDATE projects SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
-      values
-    );
+    const updateQuery = `UPDATE projects SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+    const result = await pool.query(updateQuery, values);
+
+    try {
+      await logActivity({
+        projectId,
+        userId,
+        action: ActivityActions.PROJECT_UPDATED,
+        entityType: EntityTypes.PROJECT,
+        entityId: projectId,
+        entityName: result.rows[0]?.name,
+        details: changedFields,
+      });
+    } catch (logError) {
+      console.error('Error logging project update activity:', logError);
+    }
 
     const row = result.rows[0];
     const project = {
@@ -391,9 +543,8 @@ router.delete('/:projectId', requireAuth, async (req: Request, res: Response) =>
 
     const { permanent } = req.query;
 
-    // Check ownership
     const accessCheck = await pool.query(
-      `SELECT 1 FROM projects WHERE id = $1 AND owner_id = $2`,
+      `SELECT name FROM projects WHERE id = $1 AND owner_id = $2`,
       [projectId, userId]
     );
 
@@ -401,14 +552,46 @@ router.delete('/:projectId', requireAuth, async (req: Request, res: Response) =>
       return res.status(403).json({ error: 'Only project owner can delete' });
     }
 
+    const projectName = accessCheck.rows[0].name;
+
     if (permanent === 'true') {
       await pool.query(`DELETE FROM projects WHERE id = $1`, [projectId]);
+      
+      try {
+        await logActivity({
+          projectId,
+          userId,
+          action: ActivityActions.PROJECT_DELETED,
+          entityType: EntityTypes.PROJECT,
+          entityId: projectId,
+          entityName: projectName,
+          details: { permanent: true },
+        });
+      } catch (logError) {
+        console.error('Error logging project deletion activity:', logError);
+      }
+
       res.json({ deleted: true });
     } else {
       await pool.query(
         `UPDATE projects SET status = 'archived' WHERE id = $1`,
         [projectId]
       );
+
+      try {
+        await logActivity({
+          projectId,
+          userId,
+          action: ActivityActions.PROJECT_ARCHIVED,
+          entityType: EntityTypes.PROJECT,
+          entityId: projectId,
+          entityName: projectName,
+          details: { permanent: false },
+        });
+      } catch (logError) {
+        console.error('Error logging project archival activity:', logError);
+      }
+
       res.json({ archived: true });
     }
   } catch (error) {
@@ -434,7 +617,6 @@ router.post('/:projectId/workflows', requireAuth, async (req: Request, res: Resp
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // For now, just create the link if workflowId is provided
     if (workflowId) {
       await pool.query(
         `INSERT INTO project_workflows (project_id, workflow_id, added_by)
@@ -442,9 +624,23 @@ router.post('/:projectId/workflows', requireAuth, async (req: Request, res: Resp
          ON CONFLICT (project_id, workflow_id) DO NOTHING`,
         [projectId, workflowId, userId]
       );
+
+      try {
+        await logActivity({
+          projectId,
+          userId,
+          action: ActivityActions.WORKFLOW_ADDED,
+          entityType: EntityTypes.WORKFLOW,
+          entityId: workflowId,
+          entityName: name,
+          details: { description },
+        });
+      } catch (logError) {
+        console.error('Error logging workflow addition activity:', logError);
+      }
+
       res.status(201).json({ success: true });
     } else {
-      // Create a mock workflow response for now
       const workflow = {
         id: `wf-${Date.now()}`,
         projectId,
@@ -465,24 +661,6 @@ router.post('/:projectId/workflows', requireAuth, async (req: Request, res: Resp
   } catch (error) {
     console.error('Error adding workflow:', error);
     res.status(500).json({ error: 'Failed to add workflow' });
-  }
-});
-
-// =============================================================================
-// GET RECENT ACTIVITY
-// =============================================================================
-
-/**
- * GET /api/projects/activity
- * Get recent activity across projects
- */
-router.get('/activity', requireAuth, async (req: Request, res: Response) => {
-  try {
-    // Return empty for now - would need audit log integration
-    res.json([]);
-  } catch (error) {
-    console.error('Error fetching activity:', error);
-    res.status(500).json({ error: 'Failed to fetch activity' });
   }
 });
 
