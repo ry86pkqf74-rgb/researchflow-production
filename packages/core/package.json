@@ -13,7 +13,8 @@
     "./schema": "./types/schema.ts",
     "./policy": "./policy/index.ts",
     "./security": "./src/security/index.ts",
-    "./events": "./src/events/index.ts"
+    "./events": "./src/events/index.ts",
+    "./services": "./src/services/index.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
@@ -23,6 +24,7 @@
   "dependencies": {
     "drizzle-orm": "^0.39.3",
     "drizzle-zod": "^0.7.1",
+    "ioredis": "^5.4.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {

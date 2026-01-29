@@ -102,6 +102,10 @@ services:
       # PHI Governance
       - PHI_SCAN_ENABLED=${PHI_SCAN_ENABLED:-true}
       - PHI_FAIL_CLOSED=${PHI_FAIL_CLOSED:-true}
+      # Insights Stream (Transparency)
+      - INSIGHTS_STREAM_NAME=${INSIGHTS_STREAM_NAME:-ros:insights}
+      - INSIGHTS_CONSUMER_GROUP=${INSIGHTS_CONSUMER_GROUP:-insights-workers}
+      - INSIGHTS_MAX_LEN=${INSIGHTS_MAX_LEN:-100000}
       # Chat Agents
       - CHAT_AGENT_MODEL=${CHAT_AGENT_MODEL:-gpt-4}
       - CHAT_AGENT_PROVIDER=${CHAT_AGENT_PROVIDER:-openai}

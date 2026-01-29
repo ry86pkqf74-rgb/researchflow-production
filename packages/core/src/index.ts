@@ -18,3 +18,6 @@ export * from './components';
 
 // Events and schemas for transparency/insights
 export * from './events';
+
+// Services (Redis, insights bus, etc.)
+export * from './services';
