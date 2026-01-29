@@ -5,7 +5,7 @@
  * These mock users are used to simulate different role-based access scenarios.
  */
 
-export type Role = 'VIEWER' | 'RESEARCHER' | 'STEWARD' | 'ADMIN';
+export type Role = 'VIEWER' | 'ANALYST' | 'STEWARD' | 'ADMIN';
 
 export interface E2EUser {
   id: string;
@@ -30,7 +30,7 @@ export const E2E_USERS: Record<string, E2EUser> = {
   ANALYST: {
     id: 'e2e-analyst-001',
     username: 'e2e_analyst',
-    role: 'RESEARCHER',
+    role: 'ANALYST',
     email: 'analyst@e2e.test',
     isActive: true,
   },
@@ -64,7 +64,7 @@ export const ROLE_HIERARCHY: Record<Role, number> = {
 /**
  * All roles for iteration in tests.
  */
-export const ALL_ROLES: Role[] = ['VIEWER', 'RESEARCHER', 'STEWARD', 'ADMIN'];
+export const ALL_ROLES: Role[] = ['VIEWER', 'ANALYST', 'STEWARD', 'ADMIN'];
 
 /**
  * Check if a role has sufficient permissions for a required role.

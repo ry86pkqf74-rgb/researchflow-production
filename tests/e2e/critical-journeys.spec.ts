@@ -107,7 +107,7 @@ test.describe('Critical Journeys', () => {
     });
 
     test('should handle file selection and show validation UI', async ({ page }) => {
-      await loginAs(page, E2E_USERS.RESEARCHER);
+      await loginAs(page, E2E_USERS.ANALYST);
       await setMode(page, 'LIVE');
 
       // Mock validation endpoint
@@ -179,7 +179,7 @@ test.describe('Critical Journeys', () => {
     });
 
     test('should view run details and artifacts when runs exist', async ({ page }) => {
-      await loginAs(page, E2E_USERS.RESEARCHER);
+      await loginAs(page, E2E_USERS.ANALYST);
       await setMode(page, 'LIVE');
 
       const pipelinePage = new PipelinePage(page);
@@ -377,7 +377,7 @@ test.describe('Critical Journeys', () => {
    */
   test.describe('Offline Mode', () => {
     test('should handle offline state gracefully', async ({ page, context }) => {
-      await loginAs(page, E2E_USERS.RESEARCHER);
+      await loginAs(page, E2E_USERS.ANALYST);
       await setMode(page, 'LIVE');
 
       const pipelinePage = new PipelinePage(page);
@@ -472,7 +472,7 @@ test.describe('Critical Journeys', () => {
     });
 
     test('should navigate from home to import page', async ({ page }) => {
-      await loginAs(page, E2E_USERS.RESEARCHER);
+      await loginAs(page, E2E_USERS.ANALYST);
       await setMode(page, 'LIVE');
 
       await page.goto('/');

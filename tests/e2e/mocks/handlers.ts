@@ -232,9 +232,9 @@ export const handlers = [
     if (!currentUser) {
       return HttpResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-    if (!['RESEARCHER', 'STEWARD', 'ADMIN'].includes(currentUser.role)) {
+    if (!['ANALYST', 'STEWARD', 'ADMIN'].includes(currentUser.role)) {
       return HttpResponse.json(
-        { error: 'Insufficient permissions', required: 'RESEARCHER', userRole: currentUser.role },
+        { error: 'Insufficient permissions', required: 'ANALYST', userRole: currentUser.role },
         { status: 403 }
       );
     }
