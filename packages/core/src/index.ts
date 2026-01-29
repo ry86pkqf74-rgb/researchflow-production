@@ -15,3 +15,6 @@ export * from './api';
 
 // React components (tree-shakeable)
 export * from './components';
+
+// Events and schemas for transparency/insights
+export * from './events';

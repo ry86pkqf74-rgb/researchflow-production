@@ -15,13 +15,15 @@
     "./prompt-cache": "./src/prompt-cache.service.ts",
     "./notion": "./src/notion/index.ts",
     "./providers": "./src/providers/index.ts",
-    "./agents": "./src/agents/index.ts"
+    "./agents": "./src/agents/index.ts",
+    "./middleware": "./src/middleware/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@notionhq/client": "^5.8.0",
     "@researchflow/core": "*",
     "@researchflow/phi-engine": "*",
+    "ioredis": "^5.4.1",
     "openai": "^4.76.0"
   },
   "devDependencies": {

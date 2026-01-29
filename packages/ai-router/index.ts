@@ -62,6 +62,17 @@ export {
   type OrchestratorAgent,
 } from './src/agents';
 
+// Middleware - Trace Emitter for Insights
+export {
+  emitTraceEvent,
+  withTraceEmitter,
+  checkTraceEmitterHealth,
+  shutdownTraceEmitter,
+  type TraceEmitterOptions,
+  type TraceContext,
+  type AIRouterResponse,
+} from './src/middleware';
+
 // Package version
 export const AI_ROUTER_VERSION = '2.1.0';
 

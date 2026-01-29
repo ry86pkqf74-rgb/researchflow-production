@@ -12,7 +12,8 @@
     "./types/*": "./types/*.ts",
     "./schema": "./types/schema.ts",
     "./policy": "./policy/index.ts",
-    "./security": "./src/security/index.ts"
+    "./security": "./src/security/index.ts",
+    "./events": "./src/events/index.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
