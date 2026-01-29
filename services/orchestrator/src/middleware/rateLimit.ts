@@ -73,10 +73,9 @@ export async function createDefaultLimiter() {
 
   const store = client
     ? new RedisStore({
-        client,
         prefix: 'rl:default:',
-        sendCommand: async (client: any, args: string[]) => {
-          return client.sendCommand(args);
+        sendCommand: async (...args: string[]) => {
+          return (client as any).sendCommand(args);
         },
       } as any)
     : undefined;
@@ -115,10 +114,9 @@ export async function createAuthLimiter() {
 
   const store = client
     ? new RedisStore({
-        client,
         prefix: 'rl:auth:',
-        sendCommand: async (client: any, args: string[]) => {
-          return client.sendCommand(args);
+        sendCommand: async (...args: string[]) => {
+          return (client as any).sendCommand(args);
         },
       } as any)
     : undefined;
@@ -157,10 +155,9 @@ export async function createApiLimiter() {
 
   const store = client
     ? new RedisStore({
-        client,
         prefix: 'rl:api:',
-        sendCommand: async (client: any, args: string[]) => {
-          return client.sendCommand(args);
+        sendCommand: async (...args: string[]) => {
+          return (client as any).sendCommand(args);
         },
       } as any)
     : undefined;

@@ -114,3 +114,6 @@ export {
 
 // Export manuscript ideation types
 export * from './manuscript-ideation';
+
+// Export transparency types for LIT integration and reporting
+export * from './transparency';
