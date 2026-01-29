@@ -73,7 +73,7 @@ describe('InsightsBus', () => {
         tier: ModelTier.MINI,
         provider: 'openai',
         model: 'gpt-4o-mini',
-        purpose: InvocationPurpose.EXTRACTION,
+        purpose: InvocationPurpose.EXTRACT,
         status: InvocationStatus.SUCCESS,
       });
 
@@ -95,7 +95,7 @@ describe('InsightsBus', () => {
         tier: ModelTier.FRONTIER,
         provider: 'anthropic',
         model: 'claude-3-5-sonnet-20241022',
-        purpose: InvocationPurpose.SYNTHESIS,
+        purpose: InvocationPurpose.SUMMARIZE,
         status: InvocationStatus.SUCCESS,
       });
 
@@ -117,7 +117,7 @@ describe('InsightsBus', () => {
         tier: ModelTier.NANO,
         provider: 'together',
         model: 'llama-3-8b',
-        purpose: InvocationPurpose.CLASSIFICATION,
+        purpose: InvocationPurpose.CLASSIFY,
         status: InvocationStatus.SUCCESS,
       });
 
@@ -139,7 +139,7 @@ describe('InsightsBus', () => {
           tier: ModelTier.NANO,
           provider: 'together',
           model: 'llama-3-8b',
-          purpose: InvocationPurpose.CLASSIFICATION,
+          purpose: InvocationPurpose.CLASSIFY,
           status: InvocationStatus.SUCCESS,
         }),
         createAIInvocationEvent({
@@ -149,7 +149,7 @@ describe('InsightsBus', () => {
           tier: ModelTier.MINI,
           provider: 'openai',
           model: 'gpt-4o-mini',
-          purpose: InvocationPurpose.EXTRACTION,
+          purpose: InvocationPurpose.EXTRACT,
           status: InvocationStatus.SUCCESS,
         }),
       ];
@@ -209,7 +209,7 @@ describe('InsightsBus', () => {
             tier: ModelTier.NANO,
             provider: 'together',
             model: 'llama-3-8b',
-            purpose: InvocationPurpose.CLASSIFICATION,
+            purpose: InvocationPurpose.CLASSIFY,
             status: InvocationStatus.SUCCESS,
           })),
         ]],

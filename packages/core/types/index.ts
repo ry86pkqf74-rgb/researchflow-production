@@ -116,7 +116,39 @@ export {
 export * from './manuscript-ideation';
 
 // Export transparency types for LIT integration and reporting
-export * from './transparency';
+// Note: Dataset and PhiScanStatus are already exported from schema.ts (database types)
+// so we exclude them here to avoid conflicts
+export {
+  type GovernanceMode,
+  type DatasetFormat,
+  type AccessType,
+  type PhiExposureRisk,
+  type StageStatus,
+  type ModelTier,
+  type DatasetColumnSchema,
+  type DatasetSchema,
+  type CreateDatasetInput,
+  type DatasetAccessLog,
+  type LogDatasetAccessInput,
+  type WorkflowStageRun,
+  type CreateStageRunInput,
+  type UpdateStageRunInput,
+  type LatencyPercentiles,
+  type StageSummary,
+  type ExpensiveCall,
+  type PhiSummary,
+  type TransparencyReport,
+  type GenerateReportInput,
+  type LITExample,
+  type LITBundle,
+  type GenerateLITBundleInput,
+  DatasetSchemaZ,
+  StageRunSchemaZ,
+  TransparencyReportSchemaZ,
+  type DatasetWithAccess,
+  type RunProgress,
+  type TransparencySummary,
+} from './transparency';
 
 // Export insight event types for Phase 6 observability
 // Note: InsightEvent is already exported from schema.ts (database type)
@@ -141,6 +173,6 @@ export {
   type SystemAlertEvent,
   type GovernanceEvent,
   type InsightEventPayload,
-  type InsightSubscription,
-  type AlertRule,
+  type InsightSubscriptionFilter,
+  type InsightAlertConfig,
 } from './insights';

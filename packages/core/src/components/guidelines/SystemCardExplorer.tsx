@@ -179,9 +179,9 @@ export const SystemCardExplorer: React.FC<SystemCardExplorerProps> = ({
     try {
       const params: SearchSystemCardsParams = {};
       if (filters.query) params.query = filters.query;
-      if (filters.type && filters.type !== '') params.type = filters.type as SystemCardType;
+      if (filters.type) params.type = filters.type;
       if (filters.specialty) params.specialty = filters.specialty;
-      if (filters.intendedUse && filters.intendedUse !== '') params.intendedUse = filters.intendedUse as IntendedUse;
+      if (filters.intendedUse) params.intendedUse = filters.intendedUse;
       if (filters.verifiedOnly) params.verified = true;
 
       const result = await onSearch(params);
@@ -387,9 +387,9 @@ export const SystemCardExplorer: React.FC<SystemCardExplorerProps> = ({
               onClick={() => {
                 const params: SearchSystemCardsParams = { offset: Math.max(0, data.offset - data.limit) };
                 if (filters.query) params.query = filters.query;
-                if (filters.type && filters.type !== '') params.type = filters.type as SystemCardType;
+                if (filters.type) params.type = filters.type;
                 if (filters.specialty) params.specialty = filters.specialty;
-                if (filters.intendedUse && filters.intendedUse !== '') params.intendedUse = filters.intendedUse as IntendedUse;
+                if (filters.intendedUse) params.intendedUse = filters.intendedUse;
                 if (filters.verifiedOnly) params.verified = true;
                 onSearch?.(params);
               }}
@@ -402,9 +402,9 @@ export const SystemCardExplorer: React.FC<SystemCardExplorerProps> = ({
               onClick={() => {
                 const params: SearchSystemCardsParams = { offset: data.offset + data.limit };
                 if (filters.query) params.query = filters.query;
-                if (filters.type && filters.type !== '') params.type = filters.type as SystemCardType;
+                if (filters.type) params.type = filters.type;
                 if (filters.specialty) params.specialty = filters.specialty;
-                if (filters.intendedUse && filters.intendedUse !== '') params.intendedUse = filters.intendedUse as IntendedUse;
+                if (filters.intendedUse) params.intendedUse = filters.intendedUse;
                 if (filters.verifiedOnly) params.verified = true;
                 onSearch?.(params);
               }}
